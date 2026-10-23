@@ -1,0 +1,23 @@
+[gd_scene format=3 uid="uid://hjnvdsya66oo"]
+
+[ext_resource type="Texture2D" uid="uid://svs8adbkd70r" path="res://icon.svg" id="2_0xm2m"]
+[ext_resource type="PackedScene" uid="uid://jf3bth10fjiw" path="res://player/player.tscn" id="2_h2yge"]
+[ext_resource type="Script" uid="uid://bdliqlful7qf8" path="res://Enemy/enemy_spawner.gd" id="3_1bvp3"]
+[ext_resource type="PackedScene" uid="uid://b2disbei4bdj5" path="res://Enemy/enemy.tscn" id="4_lquwl"]
+[ext_resource type="PackedScene" uid="uid://d3ya3xc8f13cu" path="res://undead/undead.tscn" id="5_lquwl"]
+
+[node name="Node2D" type="Node2D" unique_id=2042237424]
+
+[node name="Icon" type="Sprite2D" parent="." unique_id=1448656680]
+position = Vector2(779, 349)
+texture = ExtResource("2_0xm2m")
+
+[node name="Player" parent="." unique_id=222685230 instance=ExtResource("2_h2yge")]
+position = Vector2(466, 246)
+
+[node name="EnemySpawner" type="Node2D" parent="." unique_id=1921261264]
+script = ExtResource("3_1bvp3")
+enemy_scene = ExtResource("4_lquwl")
+
+[node name="Undead" parent="." unique_id=56811825 instance=ExtResource("5_lquwl")]
+position = Vector2(527, 291)

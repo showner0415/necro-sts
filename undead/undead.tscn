@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://d3ya3xc8f13cu"]
+
+[ext_resource type="Script" uid="uid://cwl7cnnqb2r4r" path="res://undead/undead.gd" id="1_bkybs"]
+
+[node name="Undead" type="CharacterBody2D" unique_id=56811825]
+script = ExtResource("1_bkybs")
