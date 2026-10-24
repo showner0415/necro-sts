@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="PieceData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://piece/piece_data.gd" id="1_data"]
+
+[resource]
+script = ExtResource("1_data")
+id = "spirit_blade"
+piece_name = "혼령 칼날"
+family = "혼령"
+cells = Array[Vector2i]([Vector2i(0, 0), Vector2i(0, 1), Vector2i(1, 1)])
+max_hp = 75.0
+attack_damage = 14.0
+attack_cooldown = 0.28
+respawn_time = 5.0
+color = Color(0.55, 0.38, 0.95, 1)

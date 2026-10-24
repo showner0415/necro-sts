@@ -80,11 +80,20 @@ func _nearest_target() -> Node2D:
 		if not is_instance_valid(node) or not node is Node2D:
 			continue
 		var body: Node2D = node as Node2D
+		if _is_downed(body):
+			continue
 		var dist_sq: float = global_position.distance_squared_to(body.global_position)
 		if nearest == null or dist_sq < nearest_dist_sq:
 			nearest = body
 			nearest_dist_sq = dist_sq
 	return nearest
+
+
+func _is_downed(body: Node) -> bool:
+	var current: Variant = body.get("hp")
+	if current == null:
+		return false
+	return float(current) <= 0.0
 
 
 func _apply_contact(target: Node2D, delta: float) -> void:

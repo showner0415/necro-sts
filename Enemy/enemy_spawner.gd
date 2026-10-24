@@ -28,6 +28,9 @@ func _spawn() -> void:
 	get_tree().current_scene.add_child(enemy)
 	if enemy is Node2D:
 		(enemy as Node2D).global_position = _spawn_position()
+	var dropper: Node = get_tree().get_first_node_in_group("loot_dropper")
+	if dropper != null and dropper.has_method("watch_enemy"):
+		dropper.watch_enemy(enemy)
 
 
 func _spawn_position() -> Vector2:

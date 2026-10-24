@@ -5,6 +5,15 @@
 [ext_resource type="Script" uid="uid://bdliqlful7qf8" path="res://Enemy/enemy_spawner.gd" id="3_1bvp3"]
 [ext_resource type="PackedScene" uid="uid://b2disbei4bdj5" path="res://Enemy/enemy.tscn" id="4_lquwl"]
 [ext_resource type="PackedScene" uid="uid://d3ya3xc8f13cu" path="res://undead/undead.tscn" id="5_lquwl"]
+[ext_resource type="Script" uid="uid://ja2yirqdoa02" path="res://experience/experience.gd" id="6_272bh"]
+[ext_resource type="Script" uid="uid://d3o1gucrequct" path="res://hud/hud.gd" id="7_5vw27"]
+[ext_resource type="Script" uid="uid://dou3jo4o7j0xq" path="res://loot/loot_dropper.gd" id="7_kek77"]
+[ext_resource type="PackedScene" uid="uid://c8q0hq4v4hypj" path="res://pickup/xp_gem.tscn" id="8_4c57u"]
+[ext_resource type="Script" uid="uid://cmcvkme3v0hq8" path="res://piece/piece_select.gd" id="10_w48qg"]
+[ext_resource type="Script" uid="uid://ce6cieuisq7l4" path="res://piece/piece_data.gd" id="11_vivmo"]
+[ext_resource type="Resource" path="res://piece/bone_spear.tres" id="12_2cqfq"]
+[ext_resource type="Resource" path="res://piece/flesh_guard.tres" id="13_yaehf"]
+[ext_resource type="Resource" path="res://piece/spirit_blade.tres" id="14_074og"]
 
 [node name="Node2D" type="Node2D" unique_id=2042237424]
 
@@ -21,3 +30,18 @@ enemy_scene = ExtResource("4_lquwl")
 
 [node name="Undead" parent="." unique_id=56811825 instance=ExtResource("5_lquwl")]
 position = Vector2(527, 291)
+
+[node name="experience" type="Node" parent="." unique_id=9922715]
+script = ExtResource("6_272bh")
+
+[node name="LootDropper" type="Node" parent="." unique_id=100313617]
+script = ExtResource("7_kek77")
+xp_gem_scene = ExtResource("8_4c57u")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=449921293]
+script = ExtResource("7_5vw27")
+
+[node name="piece_select" type="CanvasLayer" parent="." unique_id=1461638474]
+script = ExtResource("10_w48qg")
+pieces = Array[ExtResource("11_vivmo")]([ExtResource("12_2cqfq"), ExtResource("13_yaehf"), ExtResource("14_074og")])
+undead_scene = ExtResource("5_lquwl")

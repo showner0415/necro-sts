@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://c8q0hq4v4hypj"]
+
+[ext_resource type="Script" uid="uid://cevhitnmwly2n" path="res://pickup/xp_gem.gd" id="1_71npi"]
+
+[node name="xp_gem" type="Node2D" unique_id=1971129524]
+script = ExtResource("1_71npi")

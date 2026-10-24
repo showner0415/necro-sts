@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="PieceData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://piece/piece_data.gd" id="1_data"]
+
+[resource]
+script = ExtResource("1_data")
+id = "flesh_guard"
+piece_name = "살점 수호"
+family = "살점"
+cells = Array[Vector2i]([Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1)])
+max_hp = 160.0
+attack_damage = 9.0
+attack_cooldown = 0.5
+respawn_time = 14.0
+color = Color(0.78, 0.26, 0.3, 1)
