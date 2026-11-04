@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="MonsterData" format=3 uid="uid://dgtdx1oo4mqsh"]
+
+[ext_resource type="Script" uid="uid://dcry712wjd7tf" path="res://monsters/monster_data.gd" id="1_monster"]
+[ext_resource type="Resource" path="res://data/items/bone.tres" id="2_bone"]
+[ext_resource type="Script" uid="uid://bcih3jlpk6ss2" path="res://items/drop_entry.gd" id="3_drop"]
+[ext_resource type="Resource" path="res://data/skulls/rat_skull.tres" id="4_rat_skull"]
+
+[sub_resource type="Resource" id="Resource_drop_bone"]
+script = ExtResource("3_drop")
+item = ExtResource("2_bone")
+count = 2
+
+[sub_resource type="Resource" id="Resource_drop_skull"]
+script = ExtResource("3_drop")
+item = ExtResource("4_rat_skull")
+chance = 0.5
+
+[resource]
+script = ExtResource("1_monster")
+id = &"rat"
+display_name = "쥐"
+drops = Array[ExtResource("3_drop")]([SubResource("Resource_drop_bone"), SubResource("Resource_drop_skull")])
+placeholder_color = Color(0.5882353, 0.42352942, 0.42352942, 1)

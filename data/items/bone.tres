@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://items/item_data.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+id = &"bone"
+display_name = "뼈"
+placeholder_color = Color(0.78039217, 0.8627451, 0.8156863, 1)
+placeholder_size = Vector2(6, 3)

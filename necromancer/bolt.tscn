@@ -1,0 +1,11 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://necromancer/bolt.gd" id="1_bolt"]
+
+[node name="Bolt" type="Area2D"]
+collision_layer = 0
+collision_mask = 4
+monitorable = false
+script = ExtResource("1_bolt")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]

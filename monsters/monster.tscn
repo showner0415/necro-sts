@@ -1,0 +1,13 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://monsters/monster.gd" id="1_monster"]
+[ext_resource type="PackedScene" path="res://items/pickup.tscn" id="2_pickup"]
+
+[node name="Monster" type="CharacterBody2D"]
+collision_layer = 4
+collision_mask = 7
+motion_mode = 1
+script = ExtResource("1_monster")
+pickup_scene = ExtResource("2_pickup")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]

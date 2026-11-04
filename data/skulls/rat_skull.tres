@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="SkullData" format=3]
+
+[ext_resource type="Script" path="res://items/skull_data.gd" id="1_skull"]
+
+[resource]
+script = ExtResource("1_skull")
+source_monster_id = &"rat"
+max_durability = 10.0
+id = &"rat_skull"
+display_name = "쥐의 머리뼈"
+placeholder_color = Color(1, 1, 1, 1)
+placeholder_size = Vector2(5, 4)

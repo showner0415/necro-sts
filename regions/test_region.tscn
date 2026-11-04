@@ -1,0 +1,44 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://regions/test_region.gd" id="1_region"]
+[ext_resource type="Script" path="res://regions/placeholder_ground.gd" id="2_ground"]
+[ext_resource type="PackedScene" path="res://necromancer/necromancer.tscn" id="3_necromancer"]
+[ext_resource type="PackedScene" path="res://monsters/monster.tscn" id="4_monster"]
+[ext_resource type="Resource" path="res://data/monsters/rat.tres" id="5_rat"]
+[ext_resource type="PackedScene" path="res://ui/hud.tscn" id="6_hud"]
+[ext_resource type="PackedScene" path="res://ui/inventory_screen.tscn" id="7_inventory"]
+
+[node name="TestRegion" type="Node2D"]
+script = ExtResource("1_region")
+
+[node name="Ground" type="Node2D" parent="."]
+script = ExtResource("2_ground")
+
+[node name="Actors" type="Node2D" parent="."]
+y_sort_enabled = true
+
+[node name="Necromancer" parent="Actors" instance=ExtResource("3_necromancer")]
+
+[node name="Rat1" parent="Actors" instance=ExtResource("4_monster")]
+position = Vector2(120, -60)
+data = ExtResource("5_rat")
+
+[node name="Rat2" parent="Actors" instance=ExtResource("4_monster")]
+position = Vector2(-140, -90)
+data = ExtResource("5_rat")
+
+[node name="Rat3" parent="Actors" instance=ExtResource("4_monster")]
+position = Vector2(-100, 120)
+data = ExtResource("5_rat")
+
+[node name="Rat4" parent="Actors" instance=ExtResource("4_monster")]
+position = Vector2(180, 110)
+data = ExtResource("5_rat")
+
+[node name="Rat5" parent="Actors" instance=ExtResource("4_monster")]
+position = Vector2(30, 190)
+data = ExtResource("5_rat")
+
+[node name="HUD" parent="." instance=ExtResource("6_hud")]
+
+[node name="InventoryScreen" parent="." instance=ExtResource("7_inventory")]

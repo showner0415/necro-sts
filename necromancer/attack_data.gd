@@ -1,0 +1,14 @@
+class_name AttackData
+extends Resource
+## 네크로맨서 공격 한 종류의 정의. 업그레이드되면 피해량과 마나 비용이 같이 늘어난다 (docs/game-design.md 마나).
+
+@export var id: StringName
+@export var display_name: String
+@export var damage: float = 1.0
+## 한 번 쏠 때 쓰는 마나. 0이면 마나를 쓰지 않는다.
+@export var mana_cost: float = 0.0
+## 발사 간격 (초)
+@export var cooldown: float = 0.4
+@export var projectile_speed: float = 200.0
+## 탄이 사라지기 전까지 날아가는 거리
+@export var projectile_range: float = 160.0

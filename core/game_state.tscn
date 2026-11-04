@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://core/game_state.gd" id="1_game_state"]
+[ext_resource type="Resource" path="res://data/inventory/necromancer_inventory.tres" id="2_inventory"]
+
+[node name="GameState" type="Node"]
+script = ExtResource("1_game_state")
+inventory_data = ExtResource("2_inventory")

@@ -1,0 +1,27 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://necromancer/necromancer.gd" id="1_necromancer"]
+[ext_resource type="PackedScene" path="res://necromancer/bolt.tscn" id="2_bolt"]
+[ext_resource type="Resource" path="res://data/attacks/basic_attack.tres" id="4_attack"]
+[ext_resource type="PackedScene" path="res://items/pickup.tscn" id="5_pickup"]
+
+[node name="Necromancer" type="CharacterBody2D" groups=["necromancer"]]
+collision_layer = 2
+collision_mask = 5
+motion_mode = 1
+script = ExtResource("1_necromancer")
+attack = ExtResource("4_attack")
+bolt_scene = ExtResource("2_bolt")
+pickup_scene = ExtResource("5_pickup")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+
+[node name="PickupArea" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 8
+monitorable = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PickupArea"]
+
+
+[node name="Camera2D" type="Camera2D" parent="."]
