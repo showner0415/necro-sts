@@ -6,10 +6,6 @@
       "env": {
         "GODOT_PATH": "${GODOT_PATH}"
       }
-    },
-    "blender": {
-      "command": "cmd",
-      "args": ["/c", "uvx", "blender-mcp"]
     }
   }
 }

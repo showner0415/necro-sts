@@ -24,7 +24,7 @@
 - Godot 4.7 (4.7.2 stable), GDScript만 사용한다. C#은 쓰지 않는다.
 - 타입을 명시한다: `var speed: float = 3.0`, `func take_damage(amount: float) -> void:`
 - Godot 3 문법 금지: `export var`, `onready var`, `yield`, `KinematicBody2D/3D`, `connect("signal", self, "method")` 등.
-- 2D인지 3D인지는 아직 미정이다 (`docs/art-direction.md`). 정해지기 전에 시점에 의존하는 코드를 쓰게 되면 먼저 묻는다.
+- 시점은 2D 탑다운으로 확정했다 (`docs/art-direction.md`). 노드는 2D 계열(`Node2D`, `CharacterBody2D` 등)을 쓴다.
 
 ## 코드 구조
 

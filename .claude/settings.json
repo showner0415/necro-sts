@@ -15,10 +15,7 @@
       "mcp__godot__stop_project",
       "mcp__godot__get_debug_output",
       "mcp__godot__get_uid",
-      "mcp__godot__update_project_uids",
-      "mcp__blender__get_scene_info",
-      "mcp__blender__get_object_info",
-      "mcp__blender__get_viewport_screenshot"
+      "mcp__godot__update_project_uids"
     ],
     "ask": [
       "Bash(git add *)",
@@ -27,8 +24,7 @@
       "Bash(git pull*)",
       "Bash(pip *)",
       "Bash(npm *)",
-      "Edit(./project.godot)",
-      "mcp__blender__execute_blender_code"
+      "Edit(./project.godot)"
     ],
     "deny": [
       "Bash(git push --force*)",
