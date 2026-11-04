@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(bash tools/godot.sh *)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(python tools/*)",
+      "Bash(py tools/*)",
+      "mcp__godot__get_godot_version",
+      "mcp__godot__get_project_info",
+      "mcp__godot__run_project",
+      "mcp__godot__stop_project",
+      "mcp__godot__get_debug_output",
+      "mcp__godot__get_uid",
+      "mcp__godot__update_project_uids",
+      "mcp__blender__get_scene_info",
+      "mcp__blender__get_object_info",
+      "mcp__blender__get_viewport_screenshot"
+    ],
+    "ask": [
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git pull*)",
+      "Bash(pip *)",
+      "Bash(npm *)",
+      "Edit(./project.godot)",
+      "mcp__blender__execute_blender_code"
+    ],
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean *)",
+      "Bash(rm -rf *)",
+      "Read(./.godot/**)",
+      "Edit(./.godot/**)"
+    ]
+  },
+  "enabledMcpjsonServers": ["godot"]
+}
