@@ -24,6 +24,7 @@ func _ready() -> void:
 	_inventory_screen.bind(_inventory)
 	_inventory_screen.open_changed.connect(_on_inventory_open_changed)
 	_inventory_screen.drop_requested.connect(_on_drop_requested)
+	_hud.hotbar_view.bind(GameState.hotbar)
 
 
 func _on_inventory_changed() -> void:

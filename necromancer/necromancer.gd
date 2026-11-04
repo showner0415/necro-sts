@@ -43,6 +43,8 @@ var inventory: Inventory
 ## false면 이동만 하고 공격과 줍기는 하지 않는다 (인벤토리가 열려 있을 때 등)
 var actions_enabled: bool = true
 var _attack_timer: float = 0.0
+## 게임 화면에서(UI가 아닌 곳에서) 공격 버튼을 눌러 아직 떼지 않았는지
+var _attack_held: bool = false
 ## 지금 키 안내를 띄운 더미
 var _prompted_pickup: Pickup
 
@@ -69,13 +71,19 @@ func _physics_process(delta: float) -> void:
 
 	mana.regenerate(delta)
 	_attack_timer = maxf(_attack_timer - delta, 0.0)
-	if actions_enabled and Input.is_action_pressed(&"attack") and _attack_timer == 0.0:
+	# 뗀 것은 직접 읽는다: 떼는 순간 마우스가 UI 위에 있어도 공격이 멈추게 한다.
+	if not Input.is_action_pressed(&"attack"):
+		_attack_held = false
+	if actions_enabled and _attack_held and _attack_timer == 0.0:
 		_shoot()
 
 	_update_pickup_prompt()
 
 
+## UI가 받은 입력은 여기로 오지 않는다. 그래서 핫바·인벤토리를 클릭해도 공격이 시작되지 않는다.
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed(&"attack"):
+		_attack_held = true
 	if actions_enabled and event.is_action_pressed(&"pickup"):
 		_pick_up_nearest()
 

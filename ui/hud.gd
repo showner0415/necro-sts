@@ -1,11 +1,13 @@
 class_name Hud
 extends CanvasLayer
-## 화면 왼쪽 위에 체력 바, 마나 바, 뼈 개수, 머리뼈 종류별 개수를 보여준다.
-## 값은 바깥에서 show_* 함수로 넣어 준다.
+## 화면 왼쪽 위에 체력 바, 뼈 개수, 머리뼈 종류별 개수를,
+## 왼쪽 아래에 핫바와 그 바로 아래 마나 바를 보여준다.
+## 값은 바깥에서 show_* 함수로 넣어 주고, 핫바는 hotbar_view.bind()로 연결한다.
 
 ## 개수를 보여줄 아이템
 @export var bone_item: ItemData
 
+@onready var hotbar_view: HotbarView = %HotbarView
 @onready var _health_bar: StatBar = %HealthBar
 @onready var _mana_bar: StatBar = %ManaBar
 @onready var _bone_label: Label = %BoneLabel

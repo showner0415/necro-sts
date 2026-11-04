@@ -2,28 +2,22 @@ class_name InventorySlot
 extends Panel
 ## 인벤토리 칸 하나. 비어 있거나, ItemStack 하나(뼈 N개 또는 머리뼈 하나)를 보여준다.
 ## - 뼈 같은 아이템: 임시 도형과 개수
-## - 머리뼈: 임시 도형과 아래쪽 내구도 바 (항상 보임, 현재 / 최대 비율만큼 채워짐)
+## - 머리뼈: 임시 도형과 아래쪽 내구도 바 (항상 보임)
 ## 마우스 입력은 시그널로 알리기만 하고, 실제로 옮기거나 버리는 일은 바깥(InventoryScreen)이 한다.
 ## - 마우스를 올리고 내림: hovered / unhovered
 ## - 우클릭: drop_requested
-## - 끌어서 다른 칸에 놓음: move_requested (Godot 기본 끌어서 놓기 기능을 쓴다)
+## - 끌어서 다른 인벤토리 칸에 놓음: move_requested (Godot 기본 끌어서 놓기 기능을 쓴다)
+## 끄는 데이터에는 머리뼈도 담기므로, 핫바 칸이 그것을 받아 바로가기로 놓을 수 있다.
 
 signal hovered(index: int)
 signal unhovered(index: int)
 signal drop_requested(index: int)
 signal move_requested(from_index: int, to_index: int)
 
-## 끌어서 놓기 데이터에 칸 번호를 담을 때 쓰는 키
+## 끌어서 놓기 데이터의 키: 인벤토리 칸 번호
 const DRAG_KEY: String = "inventory_slot"
-
-@export_group("내구도 바 색")
-@export var durability_color: Color = Color(0.11764706, 0.7372549, 0.4509804, 1)
-## 비율이 이 값 이하이면 low 색 (0~1)
-@export_range(0.0, 1.0) var low_durability_ratio: float = 0.5
-@export var low_durability_color: Color = Color(0.9764706, 0.7607843, 0.16862746, 1)
-## 비율이 이 값 이하이면 critical 색 (0~1)
-@export_range(0.0, 1.0) var critical_durability_ratio: float = 0.25
-@export var critical_durability_color: Color = Color(0.9098039, 0.23137255, 0.23137255, 1)
+## 끌어서 놓기 데이터의 키: 그 칸의 머리뼈 (머리뼈가 아니면 null)
+const DRAG_SKULL_KEY: String = "skull"
 
 ## 인벤토리에서 몇 번째 칸인지
 var index: int = -1
@@ -32,12 +26,10 @@ var _stack: ItemStack
 
 @onready var _icon: ColorRect = %Icon
 @onready var _count_label: Label = %CountLabel
-@onready var _durability_bar: ProgressBar = %DurabilityBar
+@onready var _durability_bar: DurabilityBar = %DurabilityBar
 
 
 func _ready() -> void:
-	# 칸마다 바 색이 달라지므로 스타일을 복사해서 이 칸만 바꾼다.
-	_durability_bar.add_theme_stylebox_override("fill", _durability_bar.get_theme_stylebox("fill").duplicate())
 	mouse_entered.connect(func() -> void: hovered.emit(index))
 	mouse_exited.connect(func() -> void: unhovered.emit(index))
 
@@ -47,18 +39,13 @@ func show_stack(stack: ItemStack) -> void:
 	_stack = stack
 	_icon.visible = stack != null
 	_count_label.text = ""
-	_durability_bar.visible = false
+	_durability_bar.show_skull(stack.skull if stack != null else null)
 	if stack == null:
 		return
 	_icon.color = stack.item.placeholder_color
 	# 아이콘 그림이 생기기 전까지 바닥에 그리는 임시 도형을 같은 크기로 보여준다.
 	_icon.custom_minimum_size = stack.item.placeholder_size
-	if stack.is_skull():
-		_durability_bar.visible = true
-		_durability_bar.max_value = stack.skull.data.max_durability
-		_durability_bar.value = stack.skull.durability
-		(_durability_bar.get_theme_stylebox("fill") as StyleBoxFlat).bg_color = _durability_bar_color(_durability_bar.ratio)
-	else:
+	if not stack.is_skull():
 		_count_label.text = str(stack.count)
 
 
@@ -76,15 +63,8 @@ func _gui_input(event: InputEvent) -> void:
 func _get_drag_data(_at_position: Vector2) -> Variant:
 	if _stack == null:
 		return null
-	# 끄는 동안 마우스를 따라다니는 그림: 칸의 임시 도형을 그대로 복사한다.
-	var preview: ColorRect = ColorRect.new()
-	preview.color = _icon.color
-	preview.size = _icon.custom_minimum_size
-	preview.position = -preview.size / 2.0
-	var holder: Control = Control.new()
-	holder.add_child(preview)
-	set_drag_preview(holder)
-	return {DRAG_KEY: index}
+	set_drag_preview(make_drag_preview(_icon))
+	return {DRAG_KEY: index, DRAG_SKULL_KEY: _stack.skull}
 
 
 func _can_drop_data(_at_position: Vector2, data: Variant) -> bool:
@@ -95,9 +75,12 @@ func _drop_data(_at_position: Vector2, data: Variant) -> void:
 	move_requested.emit((data as Dictionary)[DRAG_KEY], index)
 
 
-func _durability_bar_color(ratio: float) -> Color:
-	if ratio <= critical_durability_ratio:
-		return critical_durability_color
-	if ratio <= low_durability_ratio:
-		return low_durability_color
-	return durability_color
+## 끄는 동안 마우스를 따라다니는 그림: 칸의 임시 도형을 그대로 복사한다.
+static func make_drag_preview(icon: ColorRect) -> Control:
+	var preview: ColorRect = ColorRect.new()
+	preview.color = icon.color
+	preview.size = icon.custom_minimum_size
+	preview.position = -preview.size / 2.0
+	var holder: Control = Control.new()
+	holder.add_child(preview)
+	return holder
