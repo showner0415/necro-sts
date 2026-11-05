@@ -150,6 +150,7 @@ func _charge_hits() -> bool:
 		return false
 	var start: Vector2 = _boar.global_position
 	var mask_during: int = _boar.collision_mask
+	var length: float = _charge.get_current_charge_length()
 	var seen: Dictionary[StringName, bool] = {&"knocked": false}
 	await _wait_until(func() -> bool:
 		if _necromancer.is_knocked_back():
@@ -158,9 +159,9 @@ func _charge_hits() -> bool:
 	var knocked: bool = seen[&"knocked"]
 	var travelled: float = _boar.global_position.distance_to(start)
 	var damage: float = health_before - _necromancer.health
-	return _check("돌진에 맞음", is_equal_approx(damage, _boar.data.contact_damage) and knocked and travelled >= _charge.charge_distance - 1.0,
-			"체력 %.0f → %.0f (피해 %.0f, 기대 한 번 %.0f), 밀려남 %s, 멧돼지가 달린 거리 %.0f (기대 %.0f, 몸을 지나감), 돌진 중 충돌층 %d" % [
-				health_before, _necromancer.health, damage, _boar.data.contact_damage, knocked, travelled, _charge.charge_distance, mask_during])
+	return _check("돌진에 맞음", is_equal_approx(damage, _boar.data.contact_damage) and knocked and travelled >= length - 1.0,
+			"체력 %.0f → %.0f (피해 %.0f, 기대 한 번 %.0f), 밀려남 %s, 멧돼지가 달린 거리 %.0f (기대 %.0f = 노린 자리까지 + %.0f, 최대 %.0f, 몸을 지나감), 돌진 중 충돌층 %d" % [
+				health_before, _necromancer.health, damage, _boar.data.contact_damage, knocked, travelled, length, _charge.overshoot_distance, _charge.charge_distance, mask_during])
 
 
 func _recover() -> bool:

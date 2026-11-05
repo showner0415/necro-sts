@@ -2,7 +2,8 @@ class_name ChargeBehavior
 extends MonsterBehavior
 ## 행동 조각 "돌진하기". 돌진 거리 밖이면 대상에게 다가가기만 하고(공격하지 않음), 안이면 예고 → 돌진 → 멈칫을 반복한다.
 ## - 예고: 제자리에 멈춰 깜빡이고 바닥에 돌진 방향 선을 그린다. 선은 대상을 따라 돌다가 끝나기 lock_time초 전에 고정된다
-## - 돌진: 고정된 방향으로 charge_distance만큼 달린다. 벽(world_collision_mask)에 부딪히면 그 자리에서 끝난다
+## - 돌진: 고정된 방향으로, 돌진을 시작할 때 노린 대상이 있던 자리를 지나 overshoot_distance만큼 더 달린다 (최대 charge_distance).
+##   벽(world_collision_mask)에 부딪히면 그 자리에서 끝난다
 ##   돌진하는 동안 몸끼리는 부딪히지 않고 지나간다 (자기 충돌층을 비워서 상대도 이 몸에 밀리지 않는다). 닿은 상대마다 한 번만 피해(stats.contact_damage)를 주고 밀쳐낸다
 ## - 멈칫: recover_time초 동안 멈춘다 (때릴 기회)
 ## 노리는 대상은 다가가는 중에만 바뀐다. 예고를 시작할 때의 대상을 멈칫이 끝날 때까지 유지한다.
@@ -18,8 +19,10 @@ enum State { APPROACH, WINDUP, CHARGE, RECOVER }
 @export var lock_time: float = 0.2
 ## 돌진 속도 (픽셀/초)
 @export var charge_speed: float = 200.0
-## 한 번 돌진하는 거리 (픽셀). 방향 선의 길이도 이것이다.
+## 한 번 돌진하는 최대 거리 (픽셀)
 @export var charge_distance: float = 120.0
+## 노린 대상이 있던 자리를 지나 더 달리는 거리 (픽셀). 언데드를 노린 돌진이 그 뒤의 네크로맨서까지 오지 않게 한다.
+@export var overshoot_distance: float = 40.0
 ## 돌진이 끝난 뒤 멈춰 있는 시간 (초)
 @export var recover_time: float = 1.2
 ## 상대의 발밑이 이 거리 안에 들어오면 돌진에 맞는다 (픽셀)
@@ -41,6 +44,8 @@ var _state: State = State.APPROACH
 var _timer: float = 0.0
 var _direction: Vector2 = Vector2.RIGHT
 var _charge_start: Vector2
+## 이번 돌진에서 달릴 거리 (돌진을 시작할 때 정한다)
+var _charge_length: float = 0.0
 var _hit: Array[Node2D] = []
 var _saved_mask: int = 0
 var _saved_layer: int = 0
@@ -118,6 +123,7 @@ func _windup(body: CharacterBody2D, delta: float) -> void:
 	if _timer >= windup_time:
 		_state = State.CHARGE
 		_charge_start = body.global_position
+		_charge_length = get_charge_length(body.global_position)
 		_hit.clear()
 		_saved_mask = body.collision_mask
 		_saved_layer = body.collision_layer
@@ -127,11 +133,23 @@ func _windup(body: CharacterBody2D, delta: float) -> void:
 
 func _charge(body: CharacterBody2D, stats: CombatStats) -> void:
 	# 지난 프레임의 이동에서 무언가(벽)에 부딪혔거나 거리를 다 달렸으면 끝난다.
-	if body.get_slide_collision_count() > 0 or body.global_position.distance_to(_charge_start) >= charge_distance:
+	if body.get_slide_collision_count() > 0 or body.global_position.distance_to(_charge_start) >= _charge_length:
 		_end_charge(body)
 		return
 	body.velocity = _direction * charge_speed
 	_hit_hostiles(body, stats)
+
+
+## 이번(또는 마지막) 돌진에서 달리기로 정한 거리
+func get_current_charge_length() -> float:
+	return _charge_length
+
+
+## from에서 돌진하면 달릴 거리: 노린 대상까지 + overshoot_distance, 최대 charge_distance. 대상이 없으면 최대 거리.
+func get_charge_length(from: Vector2) -> float:
+	if not is_instance_valid(_locked_target):
+		return charge_distance
+	return minf(from.distance_to(_locked_target.global_position) + overshoot_distance, charge_distance)
 
 
 func _end_charge(body: CharacterBody2D) -> void:
@@ -170,4 +188,6 @@ func get_body_color(base: Color) -> Color:
 
 func draw_overlay(canvas: CanvasItem, indicator_color: Color) -> void:
 	if _state == State.WINDUP:
-		canvas.draw_line(Vector2.ZERO, _direction * charge_distance, indicator_color, line_width)
+		# 선 길이는 지금 돌진하면 달릴 거리다.
+		var length: float = get_charge_length((canvas as Node2D).global_position) if canvas is Node2D else charge_distance
+		canvas.draw_line(Vector2.ZERO, _direction * length, indicator_color, line_width)

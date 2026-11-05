@@ -2,6 +2,8 @@ extends ScenarioTest
 ## 밸런스 측정: 플레이어 봇(PlayerBot)이 시험 지역에서 몬스터와 싸운 결과를 잰다.
 ## 대상 × 조건(혼자 / 쥐 언데드 2마리와 함께) × 실력 단계마다 runs번 싸워서
 ## 잡는 시간과 받은 피해의 평균·가장 나쁜 경우, 죽은 비율, 시간 초과 비율, 명중률을 표로 출력한다.
+## 언데드와 함께인 줄에는 "언데드 효과"(같은 대상·실력의 혼자 줄 대비 잡는 시간·받은 피해·사망률 변화)를 붙인다.
+## 2등급은 시간보다 피해와 사망률이 언데드로 크게 줄어드는지가 기준이다 (docs/game-design.md 등급).
 ## 판정(통과/실패)을 내지 않으므로 run_all.sh에는 넣지 않는다. 몬스터를 추가하면 TARGETS에 넣고 다시 잰다.
 ##
 ## 전부 측정 (헤드리스, 빠르게):
@@ -72,18 +74,23 @@ func _parse_args() -> void:
 
 func _run_all() -> void:
 	var rows: Array[String] = []
+	## [대상, 실력] → 혼자일 때 요약 (언데드 효과의 기준)
+	var alone: Dictionary = {}
 	for target_id: StringName in _targets:
 		for undead_count: int in _undead_counts:
 			for skill_id: StringName in _skills:
 				var results: Array[Dictionary] = []
 				for run: int in _runs:
 					results.append(await _fight(target_id, undead_count, skill_id, run))
-				var row: String = _summary_row(target_id, undead_count, skill_id, results)
+				var stats: Dictionary = _summarize(results)
+				if undead_count == 0:
+					alone[[target_id, skill_id]] = stats
+				var row: String = _summary_row(target_id, undead_count, skill_id, stats, alone.get([target_id, skill_id]))
 				print(row)
 				rows.append(row)
 	print("")
-	print("| 대상 | 조건 | 실력 | 잡은 시간 평균 | 가장 늦게 | 받은 피해 평균 | 가장 많이 | 죽음 | 시간 초과 | 명중률 | 본 예고 | 구름 | 소환 | 가장 가까이 온 거리 |")
-	print("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
+	print("| 대상 | 조건 | 실력 | 잡은 시간 평균 | 가장 늦게 | 받은 피해 평균 | 가장 많이 | 죽음 | 시간 초과 | 언데드 효과: 시간 | 언데드 효과: 피해 | 언데드 효과: 사망률 | 명중률 | 본 예고 | 구름 | 소환 | 가장 가까이 온 거리 |")
+	print("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
 	for row: String in rows:
 		print(row)
 	finish(true)
@@ -179,28 +186,62 @@ func _reload_scene() -> void:
 		await physics_frame
 
 
-func _summary_row(target_id: StringName, undead_count: int, skill_id: StringName, results: Array[Dictionary]) -> String:
+## 한 조건의 결과 요약. 시간은 살아서 잡은 판만으로 낸다 (모두 죽거나 시간 초과면 time_mean은 -1).
+func _summarize(results: Array[Dictionary]) -> Dictionary:
 	var finished: Array[Dictionary] = results.filter(func(r: Dictionary) -> bool: return not r["died"] and not r["timeout"])
 	var times: Array = finished.map(func(r: Dictionary) -> float: return r["time"])
 	var damages: Array = results.map(func(r: Dictionary) -> float: return r["damage"])
-	var deaths: int = results.filter(func(r: Dictionary) -> bool: return r["died"]).size()
-	var timeouts: int = results.filter(func(r: Dictionary) -> bool: return r["timeout"]).size()
 	var shots: int = 0
 	var hits: int = 0
 	for r: Dictionary in results:
 		shots += r["shots"]
 		hits += r["hits"]
-	var time_mean: String = "%.1f초" % _mean(times) if not times.is_empty() else "-"
-	var time_worst: String = "%.1f초" % times.max() if not times.is_empty() else "-"
+	return {
+		"time_mean": _mean(times) if not times.is_empty() else -1.0,
+		"time_worst": times.max() if not times.is_empty() else -1.0,
+		"damage_mean": _mean(damages),
+		"damage_worst": damages.max(),
+		"death_rate": 100.0 * results.filter(func(r: Dictionary) -> bool: return r["died"]).size() / results.size(),
+		"timeout_rate": 100.0 * results.filter(func(r: Dictionary) -> bool: return r["timeout"]).size() / results.size(),
+		"hit_rate": 100.0 * hits / maxi(shots, 1),
+		"telegraphs": _mean(results.map(func(r: Dictionary) -> float: return r["telegraphs"])),
+		"rolls": _mean(results.map(func(r: Dictionary) -> float: return r["rolls"])),
+		"summons": _mean(results.map(func(r: Dictionary) -> float: return r["summons"])),
+		"closest": _mean(results.map(func(r: Dictionary) -> float: return r["closest"])),
+	}
+
+
+## 표 한 줄. baseline이 있으면(언데드와 함께인 줄) 혼자 대비 변화를 붙이고, 혼자 줄은 "기준"이다.
+func _summary_row(target_id: StringName, undead_count: int, skill_id: StringName, stats: Dictionary, baseline: Variant) -> String:
 	var condition: String = "혼자" if undead_count == 0 else "쥐 언데드 %d" % undead_count
-	return "| %s | %s | %s | %s | %s | %.1f | %.0f | %d%% | %d%% | %d%% | %.1f | %.1f | %.1f | %.0f |" % [
-		TARGETS[target_id]["name"], condition, PlayerBot.SKILLS[skill_id]["name"], time_mean, time_worst,
-		_mean(damages), damages.max(), 100 * deaths / results.size(), 100 * timeouts / results.size(),
-		100 * hits / maxi(shots, 1),
-		_mean(results.map(func(r: Dictionary) -> float: return r["telegraphs"])),
-		_mean(results.map(func(r: Dictionary) -> float: return r["rolls"])),
-		_mean(results.map(func(r: Dictionary) -> float: return r["summons"])),
-		_mean(results.map(func(r: Dictionary) -> float: return r["closest"]))]
+	var effect_time: String = "기준"
+	var effect_damage: String = "기준"
+	var effect_death: String = "기준"
+	if undead_count > 0:
+		effect_time = "-"
+		effect_damage = "-"
+		effect_death = "-"
+		if baseline != null:
+			var base: Dictionary = baseline
+			if stats["time_mean"] >= 0.0 and base["time_mean"] >= 0.0:
+				effect_time = _change(stats["time_mean"], base["time_mean"], "초")
+			effect_damage = _change(stats["damage_mean"], base["damage_mean"], "")
+			effect_death = "%+.0f%%p" % (stats["death_rate"] - base["death_rate"])
+	return "| %s | %s | %s | %s | %s | %.1f | %.0f | %.0f%% | %.0f%% | %s | %s | %s | %.0f%% | %.1f | %.1f | %.1f | %.0f |" % [
+		TARGETS[target_id]["name"], condition, PlayerBot.SKILLS[skill_id]["name"],
+		"%.1f초" % stats["time_mean"] if stats["time_mean"] >= 0.0 else "-",
+		"%.1f초" % stats["time_worst"] if stats["time_worst"] >= 0.0 else "-",
+		stats["damage_mean"], stats["damage_worst"], stats["death_rate"], stats["timeout_rate"],
+		effect_time, effect_damage, effect_death,
+		stats["hit_rate"], stats["telegraphs"], stats["rolls"], stats["summons"], stats["closest"]]
+
+
+## 기준 대비 변화: "-2.6초 (-15%)". 기준이 0이면 비율은 뺀다.
+func _change(value: float, base: float, unit: String) -> String:
+	var diff: float = value - base
+	if is_zero_approx(base):
+		return "%+.1f%s" % [diff, unit]
+	return "%+.1f%s (%+.0f%%)" % [diff, unit, 100.0 * diff / base]
 
 
 func _mean(values: Array) -> float:

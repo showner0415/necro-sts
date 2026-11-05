@@ -8,6 +8,8 @@ extends RefCounted
 ## - 거리 두기: 근접 몬스터와 keep_distance를 유지하며 쏜다. 다가오는 몬스터가 아주 가까우면 쏘기를 멈추고 뛴다 (쏘는 동안은 느리고 뛸 수 없다)
 ##   예고 중인 공격(돌진 등)은 뛰어서 피하지 않는다. 피하기는 구르기 판단(반응 시간, 회피 성공률) 하나로만 한다.
 ##   그래야 실력 단계의 회피 성공률이 결과에 그대로 드러난다
+## - 줄 피하기: 몬스터가 예고 중일 때, 그 몬스터와 언데드를 잇는 줄 위(언데드 뒤쪽)에 있으면 옆으로 비킨다 (물러나지는 않는다).
+##   언데드를 노린 공격이 뒤로 이어지지 않게. 사람도 예고 선이 보일 때 비키므로 예고 중에만 한다
 ## - 언데드: 핫바의 머리뼈가 소환 중이 아니고 마나가 넉넉하면 숫자키 → G로 다시 소환한다
 ## 실력은 반응 시간, 조준 오차, 회피 성공률 세 값으로 정한다 (SKILLS, 임시값).
 
@@ -25,6 +27,10 @@ const HOTBAR_KEYS: Array[Key] = [KEY_1, KEY_2]
 var keep_distance: float = 100.0
 ## 이보다 가까우면 뛴다 (픽셀)
 var run_distance: float = 55.0
+## 몬스터 → 언데드 방향과 몬스터 → 네크로맨서 방향의 각도가 이보다 작으면 줄 위에 있다고 보고 비킨다 (도)
+var line_avoid_angle: float = 25.0
+## 이 거리 안의 몬스터에 대해서만 줄 피하기를 한다 (픽셀)
+var line_avoid_range: float = 220.0
 ## 사거리의 이 비율 안에 들어오면 쏜다
 var fire_range_ratio: float = 0.95
 ## 싸우는 곳의 가운데와 반지름. 밖으로 나가면 가운데 쪽으로 돌아온다 (시험 지역 바닥 안)
@@ -190,6 +196,7 @@ func _move(monsters: Array[Monster]) -> void:
 		var distance: float = position.distance_to(monster.global_position)
 		if distance < keep_distance and distance > 0.0:
 			away += monster.global_position.direction_to(position) * (keep_distance - distance) / keep_distance
+	var sidestep: Vector2 = _line_avoidance(monsters)
 	var direction: Vector2 = Vector2.ZERO
 	var target: Monster = _nearest(monsters)
 	var to_target: Vector2 = target.global_position - position
@@ -198,9 +205,35 @@ func _move(monsters: Array[Monster]) -> void:
 		direction = (away.normalized() + away.normalized().orthogonal() * 0.5).normalized()
 	elif to_target.length() > _necromancer.attack.projectile_range * 0.85:
 		direction = to_target.normalized()
+	if sidestep != Vector2.ZERO:
+		direction = (direction + sidestep.normalized() * 2.0).normalized()
 	direction = _keep_in_arena(direction)
 	_test.press_moves(direction)
 	_set_running(_should_flee(monsters) and direction != Vector2.ZERO)
+
+
+## 몬스터와 언데드를 잇는 줄 위(언데드 뒤쪽)에 있으면 그 줄에서 옆으로 비키는 방향. 없으면 ZERO.
+func _line_avoidance(monsters: Array[Monster]) -> Vector2:
+	var position: Vector2 = _necromancer.global_position
+	var push: Vector2 = Vector2.ZERO
+	for monster: Monster in monsters:
+		var behavior: MonsterBehavior = monster.get_behavior()
+		if behavior == null or not behavior.is_telegraphing():
+			continue
+		var to_me: Vector2 = position - monster.global_position
+		if to_me.length() > line_avoid_range:
+			continue
+		for node: Node in _test.get_nodes_in_group(&"undead"):
+			var undead: Node2D = node as Node2D
+			if undead == null or undead.is_queued_for_deletion():
+				continue
+			var to_undead: Vector2 = undead.global_position - monster.global_position
+			if to_undead.length() >= to_me.length() or to_undead == Vector2.ZERO:
+				continue
+			if rad_to_deg(absf(to_undead.angle_to(to_me))) < line_avoid_angle:
+				var side: Vector2 = to_undead.normalized().orthogonal()
+				push += side if side.dot(to_me) >= 0.0 else -side
+	return push
 
 
 func _keep_in_arena(direction: Vector2) -> Vector2:

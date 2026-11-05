@@ -191,3 +191,23 @@ func test_keeps_windup_target_even_if_target_changes() -> void:
 	charge.act(body, stats, other, DT)
 	assert_almost_eq(charge.get_direction().angle(), 0.0, 0.001, "예고 중에는 처음 대상(오른쪽) 그대로")
 	other.free()
+
+
+func test_charge_ends_past_target_by_overshoot() -> void:
+	# 가까운 대상: 대상까지 + 더 달리는 거리만큼만 달린다 (최대 거리보다 짧다).
+	target.position = Vector2(60, 0)
+	_step()
+	while charge.get_state() == ChargeBehavior.State.WINDUP:
+		_step()
+	var start: Vector2 = body.position
+	var expected: float = start.distance_to(target.position) + charge.overshoot_distance
+	assert_true(expected < charge.charge_distance, "이 경우는 최대 거리보다 짧다 (%.0f < %.0f)" % [expected, charge.charge_distance])
+	while charge.get_state() == ChargeBehavior.State.CHARGE:
+		_step(false)
+	assert_almost_eq(body.position.distance_to(start), expected, charge.charge_speed * DT + 0.01, "대상을 지나 overshoot만큼 달리고 끝난다")
+
+
+func test_charge_length_is_capped() -> void:
+	target.position = Vector2(charge.charge_range - 10.0, 0)
+	_step()
+	assert_eq(charge.get_charge_length(Vector2(-1000, 0)), charge.charge_distance, "멀면 최대 거리까지만")
