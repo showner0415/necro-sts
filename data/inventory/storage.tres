@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="InventoryData" format=3]
+
+[ext_resource type="Script" path="res://items/inventory_data.gd" id="1_inventory"]
+
+[resource]
+script = ExtResource("1_inventory")
+id = &"storage"
+slot_count = 100
+hotbar_slot_count = 0

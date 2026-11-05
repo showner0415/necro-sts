@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="TransferItemAction" format=3]
+
+[ext_resource type="Script" path="res://items/actions/transfer_item_action.gd" id="1_action"]
+
+[resource]
+script = ExtResource("1_action")
+to_storage = true
+full_reason = "창고 가득 참"
+id = &"send_to_storage"
+label = "창고로 옮기기"

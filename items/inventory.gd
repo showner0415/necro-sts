@@ -55,18 +55,51 @@ func remove_slot(index: int) -> ItemStack:
 	return stack
 
 
-## from 칸의 물건을 to 칸으로 옮긴다. to에 물건이 있으면 두 칸의 자리를 바꾼다.
+## from 칸의 물건을 to 칸으로 옮긴다. to가 비었으면 옮기고, 같은 종류의 뼈면 합치고, 아니면 두 칸의 자리를 바꾼다.
 ## from이 비었거나 범위 밖이면 아무것도 하지 않고 false.
 func move_slot(from_index: int, to_index: int) -> bool:
-	if get_slot(from_index) == null or not _is_valid_index(to_index):
+	return Inventory.transfer(self, from_index, self, to_index)
+
+
+## from 인벤토리의 칸에서 to 인벤토리의 칸으로 옮긴다 (인벤토리 ↔ 창고). 규칙은 move_slot과 같다.
+## 두 쪽을 다 바꾼 뒤에 changed를 알린다. 바뀐 것이 없거나 범위 밖이면 false.
+static func transfer(from: Inventory, from_index: int, to: Inventory, to_index: int) -> bool:
+	if from.get_slot(from_index) == null or not to._is_valid_index(to_index):
 		return false
-	if from_index == to_index:
+	if from == to and from_index == to_index:
 		return true
-	var moving: ItemStack = _slots[from_index]
-	_slots[from_index] = _slots[to_index]
-	_slots[to_index] = moving
-	changed.emit()
+	var moving: ItemStack = from._slots[from_index]
+	var target: ItemStack = to._slots[to_index]
+	if target != null and target.can_merge(moving):
+		target.count += moving.count
+		from._slots[from_index] = null
+	else:
+		from._slots[from_index] = target
+		to._slots[to_index] = moving
+	from.changed.emit()
+	if to != from:
+		to.changed.emit()
 	return true
+
+
+## 그 종류(머리뼈 제외)를 최대 amount개 꺼내 없앤다. 다 쓴 칸은 빈다. 실제로 꺼낸 개수를 돌려준다.
+## 여러 칸에 나뉘어 있으면 뒤쪽 칸부터 쓴다.
+func remove_count(item_id: StringName, amount: int) -> int:
+	var removed: int = 0
+	for i: int in range(_slots.size() - 1, -1, -1):
+		if removed >= amount:
+			break
+		var stack: ItemStack = _slots[i]
+		if stack == null or stack.is_skull() or stack.item.id != item_id:
+			continue
+		var take: int = mini(stack.count, amount - removed)
+		stack.count -= take
+		removed += take
+		if stack.count == 0:
+			_slots[i] = null
+	if removed > 0:
+		changed.emit()
+	return removed
 
 
 func clear() -> void:

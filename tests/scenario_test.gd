@@ -5,7 +5,7 @@ extends SceneTree
 ##
 ## 작성 규칙:
 ## - 파일 이름은 scenario_<흐름>.gd
-## - 메인 씬이 준비되면 _on_scene_ready()가 한 번, 그 뒤 물리 프레임마다 _tick()이 불린다
+## - 메인 씬(또는 get_start_scene())이 준비되면 _on_scene_ready()가 한 번, 그 뒤 물리 프레임마다 _tick()이 불린다
 ## - 단계마다 pass_step()/fail_step()으로 근거를 남기고, 모두 끝나면 finish(true)를 부른다
 ## - 입력은 aim_mouse_at(), press_mouse(), press_key(), press_moves()로 흉내 낸다
 ##   UI(인벤토리 등)는 move_mouse_to_ui(), press_mouse_at_ui(), drag_ui()로 흉내 낸다
@@ -17,6 +17,9 @@ extends SceneTree
 ## --fixed-fps 60이 없으면 화면 프레임과 물리 프레임이 어긋나서 시간 계산이 틀어진다.
 
 const RANDOM_SEED: int = 1
+## 몬스터가 있는 시험 지역. 게임은 거점에서 시작하므로, 지역이 필요한 시나리오는 get_start_scene()에서 이것을 돌려준다.
+const TEST_REGION_SCENE: String = "res://regions/test_region.tscn"
+
 
 ## 현재 단계에서 지난 물리 프레임 수. restart_step_timer()로 0이 된다.
 var step_frames: int = 0
@@ -27,7 +30,7 @@ var _done: bool = false
 
 
 func _initialize() -> void:
-	var main_scene: String = ProjectSettings.get_setting("application/run/main_scene", "")
+	var main_scene: String = get_start_scene()
 	if main_scene.is_empty():
 		fail_step("준비", "메인 씬이 지정되어 있지 않습니다")
 		return
@@ -48,6 +51,11 @@ func _physics_process(_delta: float) -> bool:
 	step_frames += 1
 	_tick()
 	return false
+
+
+## 시작할 씬. 기본은 메인 씬(거점)이고, 다른 씬(시험 지역 등)에서 시작하는 시나리오는 이 함수를 덮어쓴다.
+func get_start_scene() -> String:
+	return ProjectSettings.get_setting("application/run/main_scene", "")
 
 
 ## 메인 씬이 준비된 직후 한 번 불린다.
@@ -135,6 +143,36 @@ func drag_ui(from: Vector2, to: Vector2, steps: int = 8) -> void:
 	await wait_frames(2)
 
 
+## UI 좌표에서 마우스 휠을 한 칸 굴린다. down이 true면 아래로.
+func scroll_wheel_at_ui(ui_position: Vector2, down: bool = true) -> void:
+	move_mouse_to_ui(ui_position)
+	await wait_frames(1)
+	var button: MouseButton = MOUSE_BUTTON_WHEEL_DOWN if down else MOUSE_BUTTON_WHEEL_UP
+	press_mouse_at_ui(ui_position, button, true)
+	press_mouse_at_ui(ui_position, button, false)
+	await wait_frames(2)
+
+
+## UI 좌표에서 버튼을 한 번 누르고 뗀다 (흉내 낸 마우스).
+func click_ui(ui_position: Vector2, button: MouseButton = MOUSE_BUTTON_LEFT) -> void:
+	move_mouse_to_ui(ui_position)
+	await wait_frames(1)
+	press_mouse_at_ui(ui_position, button, true)
+	await wait_frames(1)
+	press_mouse_at_ui(ui_position, button, false)
+	await wait_frames(2)
+
+
+## 인벤토리 칸을 우클릭해 메뉴를 열고 action_id 항목을 누른다. 메뉴나 항목이 없으면 false.
+func choose_inventory_menu(screen: InventoryScreen, slot_index: int, action_id: StringName) -> bool:
+	await click_ui(screen.get_slot_control(slot_index).get_global_rect().get_center(), MOUSE_BUTTON_RIGHT)
+	var button: Button = screen.get_menu().get_button(action_id) if screen.get_menu().is_open() else null
+	if button == null:
+		return false
+	await click_ui(button.get_global_rect().get_center())
+	return true
+
+
 ## 물리 프레임 n번을 기다린다. 시나리오를 위에서 아래로 읽히게 쓸 때 await와 함께 쓴다.
 func wait_frames(n: int) -> void:
 	for i: int in n:
@@ -150,7 +188,10 @@ func press_mouse(pressed: bool, button: MouseButton = MOUSE_BUTTON_LEFT) -> void
 
 func press_key(key: Key, pressed: bool) -> void:
 	var event: InputEventKey = InputEventKey.new()
+	# 실제 키보드처럼 둘 다 넣는다. 프로젝트 입력은 physical_keycode로,
+	# Godot 기본 입력(ui_cancel 등)은 keycode로 정해져 있다.
 	event.physical_keycode = key
+	event.keycode = key
 	event.pressed = pressed
 	Input.parse_input_event(event)
 

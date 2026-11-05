@@ -182,3 +182,12 @@ func test_changed_signal_on_each_change() -> void:
 	inventory.move_slot(0, 1)
 	inventory.remove_slot(0)
 	assert_eq(events[0], 5, "넣기 3번, 옮기기 1번, 버리기 1번")
+
+
+func test_remove_count_takes_bones_and_empties_used_slot() -> void:
+	inventory.try_add(ItemStack.of_item(bone, 5))
+	assert_eq(inventory.remove_count(bone.id, 3), 3)
+	assert_eq(inventory.get_count(bone.id), 2)
+	assert_eq(inventory.remove_count(bone.id, 10), 2, "있는 만큼만 꺼낸다")
+	assert_eq(inventory.get_slot(0), null, "다 쓴 칸은 빈다")
+	assert_eq(inventory.remove_count(bone.id, 1), 0)
