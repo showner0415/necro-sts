@@ -8,7 +8,11 @@ extends RefCounted
 ## 칸 내용이 바뀌면 changed로 알린다.
 
 signal changed
+## 선택된 칸이 바뀌면 알린다 (숫자키)
+signal selection_changed(index: int)
 
+## 선택된 칸 번호. 소환(G)·회복(R)은 이 칸의 머리뼈에 한다.
+var selected_index: int = 0
 var _inventory: Inventory
 var _skulls: Array[Skull] = []
 
@@ -28,6 +32,32 @@ func get_skull(index: int) -> Skull:
 	if not _is_valid_index(index):
 		return null
 	return _skulls[index]
+
+
+## 그 칸을 선택한다. 범위 밖이면 false.
+func select(index: int) -> bool:
+	if not _is_valid_index(index):
+		return false
+	if selected_index != index:
+		selected_index = index
+		selection_changed.emit(index)
+	return true
+
+
+func get_selected_skull() -> Skull:
+	return get_skull(selected_index)
+
+
+## 가장 앞의 빈 칸 번호. 없으면 -1.
+func find_empty_slot() -> int:
+	return _skulls.find(null)
+
+
+## skull이 들어 있는 칸 번호. 없으면 -1.
+func find_slot(skull: Skull) -> int:
+	if skull == null:
+		return -1
+	return _skulls.find(skull)
 
 
 ## 그 칸이 skull을 가리키게 한다. 이미 차 있으면 새 머리뼈로 바뀐다.

@@ -48,6 +48,7 @@ var _attack_held: bool = false
 ## 지금 키 안내를 띄운 더미
 var _prompted_pickup: Pickup
 
+@onready var summoner: Summoner = $Summoner
 @onready var _collision: CollisionShape2D = $CollisionShape2D
 @onready var _pickup_area: Area2D = $PickupArea
 @onready var _pickup_collision: CollisionShape2D = $PickupArea/CollisionShape2D
@@ -86,6 +87,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		_attack_held = true
 	if actions_enabled and event.is_action_pressed(&"pickup"):
 		_pick_up_nearest()
+
+
+## 테스트·디버그용: 게임 화면에서 누른 공격 버튼을 아직 떼지 않았는지.
+## 인벤토리가 열려 있어 탄이 나가지 않을 때도, UI 클릭이 게임 조작으로 새어 나갔는지 이것으로 알 수 있다.
+func is_attack_held() -> bool:
+	return _attack_held
 
 
 func take_damage(amount: float) -> void:

@@ -1,0 +1,11 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://undead/undead.gd" id="1_undead"]
+
+[node name="Undead" type="CharacterBody2D" groups=["undead"]]
+collision_layer = 16
+collision_mask = 21
+motion_mode = 1
+script = ExtResource("1_undead")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]

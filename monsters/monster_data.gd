@@ -28,6 +28,22 @@ extends Resource
 ## 죽을 때 줄마다 확률을 굴려 떨어뜨린다 (DropRoller)
 @export var drops: Array[DropEntry] = []
 
+@export_group("언데드")
+## 이 몬스터의 머리뼈로 처음 소환할 때 쓰는 뼈 개수. 체력 회복에 드는 뼈도 이 값에서 계산한다.
+@export var summon_bone_cost: int = 4
+## 소환할 때마다 쓰는 마나
+@export var summon_mana_cost: float = 3.0
+## 언데드가 죽은 판정이 되면 머리뼈 내구도가 이만큼 준다
+@export var undead_death_durability_loss: float = 3.0
+@export var undead_max_health: float = 4.0
+@export var undead_move_speed: float = 60.0
+## 언데드가 이 거리 안의 몬스터를 노린다
+@export var undead_detect_range: float = 90.0
+@export var undead_attack_range: float = 14.0
+@export var undead_contact_damage: float = 1.0
+@export var undead_attack_cooldown: float = 0.8
+@export var undead_placeholder_color: Color = Color.WHITE
+
 @export_group("임시 도형")
 @export var placeholder_color: Color = Color.WHITE
 ## 그림과 충돌 판정에 같이 쓰는 원의 반지름

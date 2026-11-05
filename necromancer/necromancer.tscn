@@ -4,6 +4,9 @@
 [ext_resource type="PackedScene" path="res://necromancer/bolt.tscn" id="2_bolt"]
 [ext_resource type="Resource" path="res://data/attacks/basic_attack.tres" id="4_attack"]
 [ext_resource type="PackedScene" path="res://items/pickup.tscn" id="5_pickup"]
+[ext_resource type="Script" path="res://undead/summoner.gd" id="6_summoner"]
+[ext_resource type="PackedScene" path="res://undead/undead.tscn" id="7_undead"]
+[ext_resource type="Resource" path="res://data/items/bone.tres" id="8_bone"]
 
 [node name="Necromancer" type="CharacterBody2D" groups=["necromancer"]]
 collision_layer = 2
@@ -25,3 +28,8 @@ monitorable = false
 
 
 [node name="Camera2D" type="Camera2D" parent="."]
+
+[node name="Summoner" type="Node" parent="."]
+script = ExtResource("6_summoner")
+undead_scene = ExtResource("7_undead")
+bone_item = ExtResource("8_bone")

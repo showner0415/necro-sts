@@ -65,3 +65,11 @@ func test_no_signal_when_nothing_changes() -> void:
 	pool.try_spend(0.0)
 	pool.try_spend(MAX_MANA + 1.0)
 	assert_eq(count[0], 0, "가득 찬 상태의 회복, 비용 0, 실패한 소모는 알리지 않는다")
+
+
+func test_drain_stops_at_zero() -> void:
+	pool.drain(3.0)
+	assert_eq(pool.current, MAX_MANA - 3.0)
+	pool.drain(100.0)
+	assert_eq(pool.current, 0.0, "0 밑으로 내려가지 않는다")
+	assert_true(pool.is_empty())

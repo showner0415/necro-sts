@@ -149,3 +149,23 @@ func test_changed_signal() -> void:
 	inventory.move_slot(0, 3)
 	inventory.remove_slot(3)
 	assert_eq(events[0], 5, "놓기·바꾸기·빼기·놓기·버려서 비움 (인벤토리 칸 옮기기는 핫바를 바꾸지 않는다)")
+
+
+func test_select_slot() -> void:
+	var skull: Skull = _add_skull()
+	hotbar.assign(1, skull)
+	assert_eq(hotbar.selected_index, 0, "처음에는 0번 칸")
+	assert_true(hotbar.select(1))
+	assert_true(hotbar.get_selected_skull() == skull)
+	assert_false(hotbar.select(HOTBAR_SLOTS), "범위 밖은 선택하지 않는다")
+	assert_eq(hotbar.selected_index, 1)
+	assert_eq(hotbar.find_slot(skull), 1)
+	assert_eq(hotbar.find_slot(null), -1)
+
+
+func test_find_empty_slot() -> void:
+	assert_eq(hotbar.find_empty_slot(), 0)
+	hotbar.assign(0, _add_skull())
+	assert_eq(hotbar.find_empty_slot(), 1)
+	hotbar.assign(1, _add_skull())
+	assert_eq(hotbar.find_empty_slot(), -1, "가득 차면 -1")

@@ -39,6 +39,17 @@ func try_spend(amount: float) -> bool:
 	return true
 
 
+## 언데드 유지처럼 계속 빠져나가는 마나. 있는 만큼만 빠지고 0 밑으로 내려가지 않는다.
+func drain(amount: float) -> void:
+	if amount <= 0.0 or current <= 0.0:
+		return
+	_set_current(maxf(current - amount, 0.0))
+
+
+func is_empty() -> bool:
+	return current <= 0.0
+
+
 func _set_current(value: float) -> void:
 	current = value
 	changed.emit(current, maximum)

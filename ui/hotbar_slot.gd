@@ -13,10 +13,20 @@ signal clear_requested(index: int)
 ## 끌어서 놓기 데이터의 키: 핫바 칸 번호
 const DRAG_KEY: String = "hotbar_slot"
 
+@export_group("테두리")
+## 선택된 칸: 칸 바깥쪽에 그리는 얇은 테두리
+@export var selected_border_color: Color = Color(1, 1, 1, 1)
+@export var selected_border_width: float = 1.0
+## 소환 중인 머리뼈가 든 칸: 칸 안쪽 가장자리를 덮는 테두리
+@export var summoned_border_color: Color = Color(0.9764706, 0.7607843, 0.16862746, 1)
+@export var summoned_border_width: float = 2.0
+
 ## 핫바에서 몇 번째 칸인지
 var index: int = -1
 
 var _skull: Skull
+var _selected: bool = false
+var _summoned: bool = false
 
 @onready var _icon: ColorRect = %Icon
 @onready var _durability_bar: DurabilityBar = %DurabilityBar
@@ -35,6 +45,33 @@ func show_skull(skull: Skull) -> void:
 
 func get_skull() -> Skull:
 	return _skull
+
+
+## 선택 테두리(흰색, 바깥쪽)와 소환 중 테두리(노란색, 안쪽)를 켜고 끈다. 둘이 같이 보일 수 있다.
+func show_state(selected: bool, summoned: bool) -> void:
+	if _selected == selected and _summoned == summoned:
+		return
+	_selected = selected
+	_summoned = summoned
+	queue_redraw()
+
+
+func is_selected() -> bool:
+	return _selected
+
+
+func is_summoned() -> bool:
+	return _summoned
+
+
+func _draw() -> void:
+	# 테두리 선은 사각형 둘레를 가운데로 해서 그려지므로, 선 두께의 절반만큼 키우거나 줄여서 안팎을 정한다.
+	if _summoned:
+		var inset: float = summoned_border_width / 2.0
+		draw_rect(Rect2(Vector2(inset, inset), size - Vector2(inset, inset) * 2.0), summoned_border_color, false, summoned_border_width)
+	if _selected:
+		var outset: float = selected_border_width / 2.0
+		draw_rect(Rect2(-Vector2(outset, outset), size + Vector2(outset, outset) * 2.0), selected_border_color, false, selected_border_width)
 
 
 func _gui_input(event: InputEvent) -> void:

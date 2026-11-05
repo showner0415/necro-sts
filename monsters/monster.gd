@@ -1,7 +1,7 @@
 class_name Monster
 extends CharacterBody2D
 ## MonsterData 하나로 움직이는 몬스터.
-## 배회하다가 네크로맨서가 감지 범위에 들어오면 쫓아가서 몸으로 부딪혀 공격한다.
+## 배회하다가 네크로맨서나 언데드가 감지 범위에 들어오면, 그중 가장 가까운 대상을 쫓아가 몸으로 부딪혀 공격한다.
 ## 죽으면 드랍 목록(data.drops)의 확률을 굴려 나온 것을 바닥에 떨어뜨린다.
 
 @export var data: MonsterData
@@ -13,7 +13,8 @@ extends CharacterBody2D
 @export var drop_scatter_radius: float = 8.0
 
 var health: float
-var _target: Necromancer
+## 지금 쫓는 대상 (네크로맨서 또는 언데드). take_damage(amount)가 있어야 한다.
+var _target: Node2D
 var _wander_direction: Vector2 = Vector2.ZERO
 var _wander_timer: float = 0.0
 var _attack_timer: float = 0.0
@@ -27,12 +28,12 @@ func _ready() -> void:
 	shape.radius = data.placeholder_radius
 	_collision.shape = shape
 	_collision.position = Vector2(0, -data.placeholder_radius)
-	_target = get_tree().get_first_node_in_group(&"necromancer") as Necromancer
 
 
 func _physics_process(delta: float) -> void:
 	_attack_timer = maxf(_attack_timer - delta, 0.0)
-	if _target != null and global_position.distance_to(_target.global_position) <= data.detect_range:
+	_target = _find_nearest_target()
+	if _target != null:
 		_chase()
 	else:
 		_wander(delta)
@@ -47,7 +48,8 @@ func _chase() -> void:
 	velocity = Vector2.ZERO
 	if _attack_timer == 0.0:
 		_attack_timer = data.attack_cooldown
-		_target.take_damage(data.contact_damage)
+		# 네크로맨서와 언데드는 서로 다른 클래스라서 이름으로 부른다.
+		_target.call(&"take_damage", data.contact_damage)
 
 
 func _wander(delta: float) -> void:
@@ -103,3 +105,21 @@ func _make_pickup(stack: ItemStack) -> Pickup:
 func _draw() -> void:
 	# 그림이 생기기 전까지 쓰는 임시 도형. 기준점(발밑) 위에 원을 그린다.
 	draw_circle(Vector2(0, -data.placeholder_radius), data.placeholder_radius, data.placeholder_color)
+
+
+## 감지 범위 안의 네크로맨서·언데드 중 가장 가까운 것. 없으면 null.
+## 몬스터는 둘을 똑같이 적으로 본다.
+func _find_nearest_target() -> Node2D:
+	var nearest: Node2D = null
+	var nearest_distance: float = data.detect_range * data.detect_range
+	var candidates: Array[Node] = get_tree().get_nodes_in_group(&"necromancer")
+	candidates.append_array(get_tree().get_nodes_in_group(&"undead"))
+	for node: Node in candidates:
+		var candidate: Node2D = node as Node2D
+		if candidate == null or candidate.is_queued_for_deletion():
+			continue
+		var distance: float = global_position.distance_squared_to(candidate.global_position)
+		if distance <= nearest_distance:
+			nearest = candidate
+			nearest_distance = distance
+	return nearest
