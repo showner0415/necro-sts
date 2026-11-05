@@ -4,6 +4,7 @@ extends TestCase
 
 const SKULL_DIR: String = "res://data/skulls"
 const MONSTER_DIR: String = "res://data/monsters"
+const ITEM_DIR: String = "res://data/items"
 
 
 func _load_all(dir: String) -> Array[Resource]:
@@ -56,3 +57,22 @@ func test_rat_drops_match_design() -> void:
 		found[entry.item.id] = [entry.count, entry.chance]
 	assert_eq(found.get(&"bone"), [2, 1.0], "뼈 2개, 100%")
 	assert_eq(found.get(&"rat_skull"), [1, 0.5], "쥐의 머리뼈 1개, 50%")
+
+
+## 설계 확정: 머리뼈의 채집 배율은 항상 다른 아이템보다 크다.
+func test_skull_harvest_multiplier_is_largest() -> void:
+	var largest_other: float = 0.0
+	for resource: Resource in _load_all(ITEM_DIR):
+		var item: ItemData = resource as ItemData
+		if item != null and not item is SkullData:
+			largest_other = maxf(largest_other, item.harvest_time_multiplier)
+	assert_true(largest_other > 0.0, "%s에 머리뼈가 아닌 아이템 데이터가 있다" % ITEM_DIR)
+	for resource: Resource in _load_all(SKULL_DIR):
+		var skull: SkullData = resource as SkullData
+		if skull != null:
+			assert_true(skull.harvest_time_multiplier > largest_other, "%s의 채집 배율 %.2f > 다른 아이템 중 가장 큰 %.2f" % [skull.id, skull.harvest_time_multiplier, largest_other])
+
+
+func test_monsters_have_positive_harvest_time() -> void:
+	for monster: MonsterData in _monster_ids().values():
+		assert_true(monster.harvest_base_time > 0.0, "%s의 채집 기본 시간은 0보다 크다" % monster.id)

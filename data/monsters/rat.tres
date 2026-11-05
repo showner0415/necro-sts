@@ -20,6 +20,7 @@ script = ExtResource("1_monster")
 id = &"rat"
 display_name = "쥐"
 drops = Array[ExtResource("3_drop")]([SubResource("Resource_drop_bone"), SubResource("Resource_drop_skull")])
+harvest_base_time = 1.0
 summon_bone_cost = 4
 summon_mana_cost = 4.0
 undead_upkeep_mana_per_second = 2.0

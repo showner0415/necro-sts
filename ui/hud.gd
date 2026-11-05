@@ -1,7 +1,7 @@
 class_name Hud
 extends CanvasLayer
 ## 화면 왼쪽 위에 체력 바, 뼈 개수, 머리뼈 종류별 개수를,
-## 왼쪽 아래에 핫바와 그 바로 아래 마나 바(오른쪽에 초당 변화량)를, 아래 가운데에 탈출 게이지(탈출 지점 안에 있을 때만)를 보여준다.
+## 왼쪽 아래에 핫바와 그 바로 아래 마나 바(오른쪽에 초당 변화량)를, 아래 가운데에 탈출 게이지(탈출 지점 안에 있을 때만)와 채집 게이지(채집 중일 때만)를 보여준다.
 ## 값은 바깥에서 show_* 함수로 넣어 주고, 핫바는 hotbar_view.bind()로 연결한다.
 
 ## 개수를 보여줄 아이템
@@ -16,6 +16,8 @@ extends CanvasLayer
 @onready var _message_label: Label = %MessageLabel
 @onready var _escape_gauge: Control = %EscapeGauge
 @onready var _escape_bar: ProgressBar = %EscapeBar
+@onready var _harvest_gauge: Control = %HarvestGauge
+@onready var _harvest_bar: ProgressBar = %HarvestBar
 
 ## 안내 문구("뼈가 부족함" 등)가 떠 있는 시간 (초)
 @export var message_duration: float = 2.0
@@ -35,6 +37,22 @@ func show_message(text: String) -> void:
 func show_escape_progress(progress: float) -> void:
 	_escape_gauge.visible = progress > 0.0
 	_escape_bar.value = progress
+
+
+## 탈출 게이지 자리의 채집 게이지. 규칙은 탈출 게이지와 같다 (0이면 숨김).
+## 둘이 같이 보이면 채집 게이지가 탈출 게이지 위에 나란히 선다. 장식용이라 클릭을 막지 않는다.
+func show_harvest_progress(progress: float) -> void:
+	_harvest_gauge.visible = progress > 0.0
+	_harvest_bar.value = progress
+
+
+## 테스트·디버그용: 채집 게이지가 보이는지와 비율
+func is_harvest_gauge_visible() -> bool:
+	return _harvest_gauge.visible
+
+
+func get_harvest_progress() -> float:
+	return _harvest_bar.value
 
 
 ## 테스트·디버그용: 탈출 게이지가 보이는지와 비율

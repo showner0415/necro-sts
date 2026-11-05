@@ -37,6 +37,7 @@ func _ready() -> void:
 	_necromancer.health_changed.connect(_hud.show_health)
 	_necromancer.mana.changed.connect(_hud.show_mana)
 	_necromancer.died.connect(_on_necromancer_died)
+	_necromancer.harvest_progress_changed.connect(_hud.show_harvest_progress)
 	_hud.show_health(_necromancer.health, _necromancer.max_health)
 	_hud.show_mana(_necromancer.mana.current, _necromancer.mana.maximum)
 

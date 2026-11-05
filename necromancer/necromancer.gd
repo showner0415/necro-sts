@@ -2,11 +2,14 @@ class_name Necromancer
 extends CharacterBody2D
 ## 플레이어 캐릭터.
 ## move_* 입력으로 움직이고(run을 누르고 있으면 뛰기, roll로 구르기. 둘 다 스태미나를 쓴다), attack을 누르고 있으면 마우스 방향으로 약한 탄을 쏘고 (마나 비용은 attack 데이터),
-## pickup을 누르면 줍기 범위 안에서 가장 가까운 아이템 더미를 인벤토리에 넣는다.
+## pickup을 누르면 줍기 범위 안에서 가장 가까운 대상을 다룬다: 바닥 더미면 바로 줍고, 시체면 채집을 시작한다.
+## 채집은 시간이 걸리고(Harvest), 움직이거나(구르기 포함) 피해를 받으면 취소된다. 인벤토리를 열어도 계속된다.
 ## 인벤토리는 이 노드가 아니라 전역 상태(GameState)에 있고, 지역 씬이 inventory에 넣어 준다.
 
 signal health_changed(current: float, maximum: float)
 signal died
+## 채집 게이지 비율(0~1). 채집이 끝나거나 취소되면 0.
+signal harvest_progress_changed(progress: float)
 
 @export var move_speed: float = 80.0
 @export var max_health: float = 10.0
@@ -69,8 +72,11 @@ var actions_enabled: bool = true
 var _attack_timer: float = 0.0
 ## 게임 화면에서(UI가 아닌 곳에서) 공격 버튼을 눌러 아직 떼지 않았는지
 var _attack_held: bool = false
-## 지금 키 안내를 띄운 더미
-var _prompted_pickup: Pickup
+## 지금 키 안내를 띄운 대상 (바닥 더미 또는 시체)
+var _prompted_target: GroundTarget
+## 진행 중인 채집과 그 시체. 채집 중이 아니면 null.
+var _harvest: Harvest
+var _harvest_corpse: Corpse
 
 @onready var summoner: Summoner = $Summoner
 @onready var _collision: CollisionShape2D = $CollisionShape2D
@@ -121,6 +127,12 @@ func _physics_process(delta: float) -> void:
 	if actions_enabled and _attack_held and _attack_timer == 0.0:
 		_shoot()
 
+	if _harvest != null:
+		# 움직이면(구르기 포함) 취소된다.
+		if input_direction != Vector2.ZERO or is_rolling():
+			cancel_harvest()
+		else:
+			_update_harvest(delta)
 	_update_pickup_prompt()
 
 
@@ -129,7 +141,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"attack"):
 		_attack_held = true
 	if actions_enabled and event.is_action_pressed(&"pickup"):
-		_pick_up_nearest()
+		_interact_nearest()
 	# 구르기도 이동이라 인벤토리가 열려 있어도 된다. UI가 Space를 받으면(버튼 누르기) 여기로 오지 않는다.
 	if event.is_action_pressed(&"roll"):
 		try_roll()
@@ -169,6 +181,8 @@ func take_damage(amount: float) -> void:
 		return
 	health = maxf(health - amount, 0.0)
 	health_changed.emit(health, max_health)
+	# 피해를 받으면 채집이 취소된다.
+	cancel_harvest()
 	if health == 0.0:
 		died.emit()
 		return
@@ -213,38 +227,82 @@ func _has_pickup_near(point: Vector2) -> bool:
 	return false
 
 
-func _pick_up_nearest() -> void:
-	var nearest: Pickup = _find_nearest_pickup()
-	if nearest == null:
+## 줍기 범위 안에서 가장 가까운 대상을 다룬다. 바닥 더미는 바로 줍고, 시체는 채집을 시작한다.
+## 채집 중에는 아무것도 하지 않는다.
+func _interact_nearest() -> void:
+	if is_harvesting():
 		return
-	# 칸이 가득 차서 넣지 못하면 바닥에 그대로 둔다.
-	if inventory.try_add(nearest.stack):
-		nearest.queue_free()
+	var nearest: GroundTarget = _find_nearest_target()
+	if nearest is Pickup:
+		var pickup: Pickup = nearest as Pickup
+		# 칸이 가득 차서 넣지 못하면 바닥에 그대로 둔다.
+		if inventory.try_add(pickup.stack):
+			pickup.queue_free()
+	elif nearest is Corpse:
+		_start_harvest(nearest as Corpse)
 
 
-## 줍기 키를 누르면 주워질 더미(줍기 범위 안에서 가장 가까운 것) 위에만 안내를 띄운다.
+## 시체에 남은 것 중 인벤토리에 넣을 수 있는 묶음 하나를 무작위로 골라 채집을 시작한다. 넣을 수 있는 것이 없으면 시작하지 않는다.
+func _start_harvest(corpse: Corpse) -> void:
+	var stack: ItemStack = corpse.loot.pick_harvestable(inventory)
+	if stack == null:
+		return
+	_harvest = Harvest.new(stack, corpse.loot.get_harvest_time(stack))
+	_harvest_corpse = corpse
+	harvest_progress_changed.emit(_harvest.get_progress())
+
+
+func _update_harvest(delta: float) -> void:
+	if _harvest.update(delta):
+		# 끝나는 사이에 자리가 없어졌으면 시체에 그대로 남는다.
+		_harvest_corpse.take(_harvest.stack, inventory)
+		_end_harvest()
+		return
+	harvest_progress_changed.emit(_harvest.get_progress())
+
+
+## 진행 중인 채집을 취소한다. 채집 중이 아니면 아무것도 하지 않는다.
+func cancel_harvest() -> void:
+	if _harvest == null:
+		return
+	_harvest.cancel()
+	_end_harvest()
+
+
+func _end_harvest() -> void:
+	_harvest = null
+	_harvest_corpse = null
+	harvest_progress_changed.emit(0.0)
+
+
+func is_harvesting() -> bool:
+	return _harvest != null
+
+
+## 줍기 키를 누르면 다뤄질 대상(줍기 범위 안에서 가장 가까운 것) 위에만 안내를 띄운다.
 ## 인벤토리에 자리가 없으면 키 안내 대신 "인벤토리 가득 참"이 뜬다.
 ## 공격·줍기가 막혀 있으면 아무 데도 띄우지 않는다.
 func _update_pickup_prompt() -> void:
-	var target: Pickup = _find_nearest_pickup() if actions_enabled else null
-	if target != _prompted_pickup and is_instance_valid(_prompted_pickup):
-		_prompted_pickup.set_prompt(false)
-	_prompted_pickup = target
+	var target: GroundTarget = _find_nearest_target() if actions_enabled else null
+	if target != _prompted_target and is_instance_valid(_prompted_target):
+		_prompted_target.set_prompt(false)
+	_prompted_target = target
 	if target != null:
 		# 줍지 않아도 칸이 비거나 찰 수 있으므로(버리기 등) 매 프레임 다시 정한다.
-		target.set_prompt(true, inventory.can_add(target.stack))
+		target.set_prompt(true, target.can_receive(inventory))
 
 
-func _find_nearest_pickup() -> Pickup:
-	var nearest: Pickup = null
+## 줍기 범위 안에서 가장 가까운 대상 (바닥 더미 또는 아직 남은 것이 있는 시체). 없으면 null.
+func _find_nearest_target() -> GroundTarget:
+	var nearest: GroundTarget = null
 	var nearest_distance: float = INF
 	for area: Area2D in _pickup_area.get_overlapping_areas():
-		var pickup: Pickup = area as Pickup
-		if pickup == null or pickup.is_queued_for_deletion():
+		var target: GroundTarget = area as GroundTarget
+		if target == null or target.is_queued_for_deletion() or not target.is_available():
 			continue
-		var distance: float = global_position.distance_squared_to(pickup.global_position)
+		var distance: float = global_position.distance_squared_to(target.global_position)
 		if distance < nearest_distance:
-			nearest = pickup
+			nearest = target
 			nearest_distance = distance
 	return nearest
 

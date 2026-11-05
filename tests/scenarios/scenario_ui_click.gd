@@ -141,11 +141,22 @@ func _run() -> void:
 		return
 
 	# 탈출 게이지도 장식용(IGNORE)이다.
+	# 게이지는 컨테이너 안에 있어서, 보이게 한 뒤 배치가 끝나야 위치를 읽을 수 있다.
 	hud.show_escape_progress(0.5)
+	await wait_frames(WAIT_FRAMES)
 	var gauge_point: Vector2 = hud.get_node("%EscapeBar").get_global_rect().get_center()
 	fired = await _hold_left(gauge_point, gauge_point)
 	hud.show_escape_progress(0.0)
 	if not _check("탈출 게이지 위 클릭은 공격", fired > 0, "탈출 게이지 %s를 %d프레임 누름: 탄 %d발 (기대 1발 이상)" % [gauge_point, HOLD_FRAMES, fired]):
+		return
+
+	# 채집 게이지도 장식용(IGNORE)이다.
+	hud.show_harvest_progress(0.5)
+	await wait_frames(WAIT_FRAMES)
+	var harvest_point: Vector2 = hud.get_node("%HarvestBar").get_global_rect().get_center()
+	fired = await _hold_left(harvest_point, harvest_point)
+	hud.show_harvest_progress(0.0)
+	if not _check("채집 게이지 위 클릭은 공격", fired > 0, "채집 게이지 %s를 %d프레임 누름: 탄 %d발 (기대 1발 이상)" % [harvest_point, HOLD_FRAMES, fired]):
 		return
 
 	fired = await _hold_left(WORLD_UI_POSITION, WORLD_UI_POSITION)

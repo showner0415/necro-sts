@@ -9,5 +9,6 @@ script = ExtResource("1_item")
 id = &"bone"
 display_name = "뼈"
 actions = Array[ExtResource("3_action")]([ExtResource("2_drop")])
+harvest_time_multiplier = 0.8
 placeholder_color = Color(0.78039217, 0.8627451, 0.8156863, 1)
 placeholder_size = Vector2(6, 3)

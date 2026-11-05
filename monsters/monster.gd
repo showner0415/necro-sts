@@ -2,15 +2,13 @@ class_name Monster
 extends CharacterBody2D
 ## MonsterData 하나로 움직이는 몬스터.
 ## 배회하다가 네크로맨서나 언데드가 감지 범위에 들어오면, 그중 가장 가까운 대상을 쫓아가 몸으로 부딪혀 공격한다.
-## 죽으면 드랍 목록(data.drops)의 확률을 굴려 나온 것을 바닥에 떨어뜨린다.
+## 죽으면 드랍 목록(data.drops)의 확률을 굴려 나온 것을 담은 시체(Corpse)를 남긴다. 네크로맨서가 시체에서 채집한다.
 
 @export var data: MonsterData
-## 죽을 때 드랍을 바닥에 놓을 씬
-@export var pickup_scene: PackedScene
+## 죽을 때 남길 시체 씬
+@export var corpse_scene: PackedScene
 ## 맞았을 때 하얗게 번쩍이는 시간 (초)
 @export var hit_flash_duration: float = 0.1
-## 드랍이 여러 개일 때 죽은 자리에서 이만큼 떨어진 원 위에 흩뜨린다 (픽셀)
-@export var drop_scatter_radius: float = 8.0
 
 var health: float
 ## 지금 쫓는 대상 (네크로맨서 또는 언데드). take_damage(amount)가 있어야 한다.
@@ -75,31 +73,13 @@ func take_damage(amount: float) -> void:
 
 
 func _die() -> void:
-	var pickups: Array[Pickup] = []
-	for entry: DropEntry in DropRoller.roll(data.drops):
-		if entry.item is SkullData:
-			# 머리뼈는 하나하나 따로 존재하므로 개수만큼 더미를 따로 만든다.
-			for i: int in entry.count:
-				pickups.append(_make_pickup(ItemStack.of_skull(Skull.create(entry.item))))
-		else:
-			pickups.append(_make_pickup(ItemStack.of_item(entry.item, entry.count)))
-
-	# 여러 개가 한자리에 겹치지 않게, 죽은 자리를 중심으로 원 위에 고르게 흩뜨린다.
-	var start_angle: float = randf() * TAU
-	for i: int in pickups.size():
-		var offset: Vector2 = Vector2.ZERO
-		if pickups.size() > 1:
-			offset = Vector2.from_angle(start_angle + TAU * i / pickups.size()) * drop_scatter_radius
-		pickups[i].position = position + offset
-		# 물리 처리 중(탄에 맞은 순간)에는 Area2D를 바로 추가할 수 없어서 미룬다.
-		get_parent().add_child.call_deferred(pickups[i])
+	# 머리뼈가 나올지는 죽는 이 순간에 정해진다. 시체는 정해진 것만 담는다.
+	var corpse: Corpse = corpse_scene.instantiate()
+	corpse.setup(data, CorpseLoot.from_drops(DropRoller.roll(data.drops), data.harvest_base_time))
+	corpse.position = position
+	# 물리 처리 중(탄에 맞은 순간)에는 Area2D를 바로 추가할 수 없어서 미룬다.
+	get_parent().add_child.call_deferred(corpse)
 	queue_free()
-
-
-func _make_pickup(stack: ItemStack) -> Pickup:
-	var pickup: Pickup = pickup_scene.instantiate()
-	pickup.stack = stack
-	return pickup
 
 
 func _draw() -> void:

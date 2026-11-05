@@ -25,8 +25,10 @@ extends Resource
 @export_range(0.0, 1.0) var wander_rest_chance: float = 0.5
 
 @export_group("드랍")
-## 죽을 때 줄마다 확률을 굴려 떨어뜨린다 (DropRoller)
+## 죽을 때 줄마다 확률을 굴려, 나온 것을 시체에 담는다 (DropRoller)
 @export var drops: Array[DropEntry] = []
+## 시체에서 한 묶음을 채집하는 기본 시간 (초). 실제 시간은 여기에 아이템의 harvest_time_multiplier를 곱한다.
+@export var harvest_base_time: float = 1.0
 
 @export_group("언데드")
 ## 이 몬스터의 머리뼈로 처음 소환할 때 쓰는 뼈 개수. 체력 회복에 드는 뼈도 이 값에서 계산한다.

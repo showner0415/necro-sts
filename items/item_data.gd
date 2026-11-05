@@ -6,6 +6,8 @@ extends Resource
 @export var display_name: String
 ## 인벤토리 칸 우클릭 메뉴에 나오는 항목 (위에서부터 순서대로)
 @export var actions: Array[ItemAction] = []
+## 시체에서 채집할 때 몬스터의 기본 채집 시간에 곱하는 배율. 머리뼈는 항상 다른 아이템보다 크게 둔다.
+@export var harvest_time_multiplier: float = 1.0
 
 @export_group("임시 도형")
 ## 그림이 생기기 전까지 바닥에 그릴 사각형의 색과 크기
