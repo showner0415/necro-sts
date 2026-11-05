@@ -73,3 +73,35 @@ func test_drain_stops_at_zero() -> void:
 	pool.drain(100.0)
 	assert_eq(pool.current, 0.0, "0 밑으로 내려가지 않는다")
 	assert_true(pool.is_empty())
+
+
+# --- 초당 변화량 (자연 회복 - 유지비) ---
+
+func test_change_is_regen_minus_upkeep() -> void:
+	pool.try_spend(5.0)
+	assert_almost_eq(pool.get_change_per_second(0.0), REGEN, 0.0001, "언데드 없으면 +회복량")
+	assert_almost_eq(pool.get_change_per_second(0.5), REGEN - 0.5, 0.0001, "회복이 크면 +")
+	assert_almost_eq(pool.get_change_per_second(3.0), REGEN - 3.0, 0.0001, "유지비가 크면 -")
+	assert_true(pool.has_change(0.0))
+	assert_true(pool.has_change(3.0))
+
+
+func test_no_change_when_full_without_upkeep() -> void:
+	assert_false(pool.has_change(0.0), "가득 차 있고 언데드도 없으면 숨김")
+
+
+func test_full_with_upkeep_shows_calculated_change() -> void:
+	assert_true(pool.has_change(0.5), "가득 차 있어도 유지비가 있으면 보인다")
+	assert_almost_eq(pool.get_change_per_second(0.5), REGEN - 0.5, 0.0001, "실제로는 안 변해도 회복 - 유지비 계산값")
+	assert_true(pool.has_change(3.0))
+
+
+func test_no_change_when_regen_equals_upkeep() -> void:
+	pool.try_spend(5.0)
+	assert_false(pool.has_change(REGEN), "회복과 유지비가 같으면 숨김")
+
+
+func test_one_time_spend_is_not_in_change() -> void:
+	var before: float = pool.get_change_per_second(0.5)
+	pool.try_spend(3.0)
+	assert_eq(pool.get_change_per_second(0.5), before, "소환처럼 한 번에 쓰는 마나는 초당 변화량에 넣지 않는다")

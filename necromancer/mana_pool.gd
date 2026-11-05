@@ -46,6 +46,21 @@ func drain(amount: float) -> void:
 	_set_current(maxf(current - amount, 0.0))
 
 
+## 계속 일어나는 변화(자연 회복 - 유지비)의 초당 양. 소환처럼 한 번에 쓰는 마나는 넣지 않는다.
+## 가득 차 있어도 회복 - 유지비 계산값을 그대로 돌려준다 (언데드를 더 띄워도 되는지 보이게).
+func get_change_per_second(drain_per_second: float) -> float:
+	return regen_per_second - drain_per_second
+
+
+## 초당 변화량을 보여줄지. 변화가 없을 때는 숨긴다:
+## - 가득 차 있고 유지비도 없을 때 (회복할 것이 없음)
+## - 회복과 유지비가 딱 맞아 계산값이 0일 때
+func has_change(drain_per_second: float) -> bool:
+	if current >= maximum and drain_per_second <= 0.0:
+		return false
+	return not is_zero_approx(get_change_per_second(drain_per_second))
+
+
 func is_empty() -> bool:
 	return current <= 0.0
 

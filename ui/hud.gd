@@ -1,7 +1,7 @@
 class_name Hud
 extends CanvasLayer
 ## 화면 왼쪽 위에 체력 바, 뼈 개수, 머리뼈 종류별 개수를,
-## 왼쪽 아래에 핫바와 그 바로 아래 마나 바를, 아래 가운데에 탈출 게이지(탈출 지점 안에 있을 때만)를 보여준다.
+## 왼쪽 아래에 핫바와 그 바로 아래 마나 바(오른쪽에 초당 변화량)를, 아래 가운데에 탈출 게이지(탈출 지점 안에 있을 때만)를 보여준다.
 ## 값은 바깥에서 show_* 함수로 넣어 주고, 핫바는 hotbar_view.bind()로 연결한다.
 
 ## 개수를 보여줄 아이템
@@ -10,6 +10,7 @@ extends CanvasLayer
 @onready var hotbar_view: HotbarView = %HotbarView
 @onready var _health_bar: StatBar = %HealthBar
 @onready var _mana_bar: StatBar = %ManaBar
+@onready var _mana_change_label: Label = %ManaChangeLabel
 @onready var _bone_label: Label = %BoneLabel
 @onready var _skull_list: VBoxContainer = %SkullList
 @onready var _message_label: Label = %MessageLabel
@@ -18,6 +19,8 @@ extends CanvasLayer
 
 ## 안내 문구("뼈가 부족함" 등)가 떠 있는 시간 (초)
 @export var message_duration: float = 2.0
+## 마나 초당 변화량 숫자 형식 (부호는 따로 붙인다)
+@export var mana_change_format: String = "%.1f"
 var _message_time_left: float = 0.0
 
 
@@ -62,6 +65,17 @@ func show_health(current: float, maximum: float) -> void:
 
 func show_mana(current: float, maximum: float) -> void:
 	_mana_bar.set_values(current, maximum)
+
+
+## 마나 바 오른쪽에 초당 변화량을 보여준다 (차면 +, 줄면 -). shown이 false면 숨긴다 (변화 없음).
+func show_mana_change(change_per_second: float, shown: bool) -> void:
+	_mana_change_label.visible = shown
+	if shown:
+		_mana_change_label.text = ("+" if change_per_second > 0.0 else "-") + mana_change_format % absf(change_per_second)
+
+
+func get_mana_change_text() -> String:
+	return _mana_change_label.text if _mana_change_label.visible else ""
 
 
 func show_item_count(item_id: StringName, count: int) -> void:

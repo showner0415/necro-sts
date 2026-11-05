@@ -36,7 +36,7 @@ func before_each() -> void:
 	monster.summon_bone_cost = 0
 	monster.summon_mana_cost = 0.0
 	monster.undead_max_health = 4.0
-	roster = UndeadRoster.new(inventory, hotbar, mana, bone.id, _find_monster, 1.0, 0.0)
+	roster = UndeadRoster.new(inventory, hotbar, mana, bone.id, _find_monster, 1.0)
 	transfer = ItemTransfer.new(inventory, roster)
 
 

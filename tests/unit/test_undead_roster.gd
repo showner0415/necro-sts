@@ -18,6 +18,8 @@ var bone: ItemData
 var monster: MonsterData
 var skull_data: SkullData
 var events: Array[String] = []
+## 두 번째 몬스터 종류가 필요한 테스트에서 쓴다
+var _find_override: MonsterData
 
 
 func before_each() -> void:
@@ -30,13 +32,14 @@ func before_each() -> void:
 	monster.id = &"test_rat"
 	monster.summon_bone_cost = BONE_COST
 	monster.summon_mana_cost = SUMMON_MANA
+	monster.undead_upkeep_mana_per_second = UPKEEP
 	monster.undead_death_durability_loss = DEATH_LOSS
 	monster.undead_max_health = MAX_HEALTH
 	skull_data = SkullData.new()
 	skull_data.id = &"test_rat_skull"
 	skull_data.source_monster_id = monster.id
 	skull_data.max_durability = MAX_DURABILITY
-	roster = UndeadRoster.new(inventory, hotbar, mana, bone.id, _find_monster, HIT_LOSS, UPKEEP)
+	roster = UndeadRoster.new(inventory, hotbar, mana, bone.id, _find_monster, HIT_LOSS)
 	roster.summoned.connect(func(s: Skull) -> void: events.append("소환 %d" % hotbar.find_slot(s)))
 	roster.unsummoned.connect(func(_s: Skull, died: bool) -> void: events.append("죽음" if died else "해제"))
 
@@ -49,6 +52,8 @@ func after_each() -> void:
 
 
 func _find_monster(id: StringName) -> MonsterData:
+	if _find_override != null and id == _find_override.id:
+		return _find_override
 	return monster if id == monster.id else null
 
 
@@ -140,6 +145,33 @@ func test_multiple_summons_at_once() -> void:
 	assert_eq(roster.get_count(), 2, "두 마리가 동시에 소환된다")
 	assert_eq(roster.summon(first), UndeadRoster.Result.SUMMONED, "머리뼈 하나로는 한 마리")
 	assert_eq(roster.get_count(), 2)
+
+
+func test_upkeep_per_second_for_0_1_2_undead() -> void:
+	_add_bones(BONE_COST * 2)
+	assert_eq(roster.get_upkeep_per_second(), 0.0, "0마리면 유지비 0")
+	roster.summon(_add_skull(0))
+	assert_almost_eq(roster.get_upkeep_per_second(), UPKEEP, 0.0001, "1마리면 몬스터 데이터의 값")
+	roster.summon(_add_skull(1))
+	assert_almost_eq(roster.get_upkeep_per_second(), UPKEEP * 2, 0.0001, "2마리면 두 배")
+	roster.unsummon(roster.get_summoned()[0])
+	assert_almost_eq(roster.get_upkeep_per_second(), UPKEEP, 0.0001, "해제하면 줄어든다")
+
+
+func test_upkeep_adds_each_monster_value() -> void:
+	var other: MonsterData = monster.duplicate()
+	other.id = &"test_other"
+	other.undead_upkeep_mana_per_second = 1.5
+	var other_skull_data: SkullData = skull_data.duplicate()
+	other_skull_data.source_monster_id = other.id
+	_find_override = other
+	_add_bones(BONE_COST * 2)
+	roster.summon(_add_skull(0))
+	var other_skull: Skull = Skull.create(other_skull_data)
+	inventory.try_add(ItemStack.of_skull(other_skull))
+	hotbar.assign(1, other_skull)
+	roster.summon(other_skull)
+	assert_almost_eq(roster.get_upkeep_per_second(), UPKEEP + 1.5, 0.0001, "몬스터마다 자기 유지비")
 
 
 func test_upkeep_drains_per_undead() -> void:

@@ -17,12 +17,19 @@ const PHYSICS_FPS: float = 60.0
 ## 남쪽으로 떨어뜨려 몬스터가 쫓아오지 않게 한다
 const SAFE_POSITION: Vector2 = Vector2(0, 600)
 const AIM_OFFSET: Vector2 = Vector2(100, 0)
+const WAIT_FRAMES: int = 3
+## 쥐 언데드 2마리를 띄우고 마나가 줄어드는지 지켜보는 시간 (3초)
+const UPKEEP_FRAMES: int = 180
+const RAT_PATH: String = "res://data/monsters/rat.tres"
+const RAT_SKULL_PATH: String = "res://data/skulls/rat_skull.tres"
+const BONE_PATH: String = "res://data/items/bone.tres"
 
-enum Step { FREE_ATTACK, PAID_ATTACK, NOT_ENOUGH, REGEN }
+enum Step { FREE_ATTACK, PAID_ATTACK, NOT_ENOUGH, REGEN, UPKEEP }
 
 var _step: Step = Step.FREE_ATTACK
 var _necromancer: Necromancer
 var _mana_bar: ProgressBar
+var _hud: Hud
 var _shots: int = 0
 var _shots_before: int = 0
 var _mana_before: float = 0.0
@@ -35,7 +42,8 @@ func get_start_scene() -> String:
 
 func _on_scene_ready() -> void:
 	_necromancer = find_necromancer()
-	_mana_bar = find_hud().get_node("%ManaBar")
+	_hud = find_hud()
+	_mana_bar = _hud.get_node("%ManaBar")
 	_necromancer.position = SAFE_POSITION
 	# 탄이 생길 때마다 센다.
 	_necromancer.get_parent().child_entered_tree.connect(_on_actor_added)
@@ -155,10 +163,71 @@ func _regenerate() -> void:
 	var expected: float = minf(_mana_before + _regen * REGEN_FRAMES / PHYSICS_FPS, mana.maximum)
 	# 실제 값이 아니라 기대값으로 글씨를 정해야, 표시 계산이 틀려도 잡아낸다.
 	var expected_text: String = "%d / %d" % [roundi(expected), roundi(mana.maximum)]
-	var evidence: String = "%d프레임(1초) 뒤 마나 %.2f → %.2f (기대 %.2f), HUD 바 %.2f, 바 글씨 '%s'" % [REGEN_FRAMES, _mana_before, mana.current, expected, _mana_bar.value, _bar_text()]
+	var expected_change: String = "+%.1f" % _regen
+	var evidence: String = "%d프레임(1초) 뒤 마나 %.2f → %.2f (기대 %.2f), HUD 바 %.2f, 바 글씨 '%s', 초당 변화량 '%s' (기대 '%s')" % [
+		REGEN_FRAMES, _mana_before, mana.current, expected, _mana_bar.value, _bar_text(), _hud.get_mana_change_text(), expected_change]
 	# 프레임 한 번만큼의 회복량은 오차로 허용한다.
-	if absf(mana.current - expected) <= _regen / PHYSICS_FPS + 0.0001 and is_equal_approx(_mana_bar.value, mana.current) and _bar_text() == expected_text:
-		pass_step("자연 회복", evidence)
+	if absf(mana.current - expected) <= _regen / PHYSICS_FPS + 0.0001 and is_equal_approx(_mana_bar.value, mana.current) and _bar_text() == expected_text \
+			and _hud.get_mana_change_text() == expected_change:
+		pass_step("자연 회복과 + 표시", evidence)
+		_go(Step.UPKEEP)
+		_check_upkeep()
+	else:
+		fail_step("자연 회복과 + 표시", evidence)
+
+
+## 언데드 유지비: 가득 차면 숫자 숨김 → 쥐 1마리(회복이 더 큼, +) → 2마리(유지비가 더 큼, 마나가 줄고 -)
+func _check_upkeep() -> void:
+	var mana: ManaPool = _necromancer.mana
+	var rat: MonsterData = load(RAT_PATH)
+	mana.regenerate(mana.maximum)  # 가득 채운다
+	await wait_frames(WAIT_FRAMES)
+	var evidence: String = "마나 %.1f / %.1f, 언데드 0마리, 표시 '%s'" % [mana.current, mana.maximum, _hud.get_mana_change_text()]
+	if mana.current != mana.maximum or _hud.get_mana_change_text() != "":
+		fail_step("가득 차고 언데드 없으면 숫자 숨김", evidence)
+		return
+	pass_step("가득 차고 언데드 없으면 숫자 숨김", evidence)
+
+	var bone: ItemData = load(BONE_PATH)
+	var skull_data: SkullData = load(RAT_SKULL_PATH)
+	var game_state: Node = root.get_node("GameState")
+	_necromancer.inventory.try_add(ItemStack.of_item(bone, rat.summon_bone_cost * 2))
+	for i: int in 2:
+		var skull: Skull = Skull.create(skull_data)
+		_necromancer.inventory.try_add(ItemStack.of_skull(skull))
+		game_state.hotbar.assign(i, skull)
+	var roster: UndeadRoster = _necromancer.summoner.roster
+
+	await _tap(KEY_1)
+	await _tap(KEY_G)
+	await wait_frames(WAIT_FRAMES)
+	var one_expected: String = "%s%.1f" % ["+" if _regen > rat.undead_upkeep_mana_per_second else "-", absf(_regen - rat.undead_upkeep_mana_per_second)]
+	evidence = "쥐 언데드 %d마리, 유지비 %.1f/초 (쥐 데이터 %.1f), 회복 %.1f/초, 표시 '%s' (기대 '%s')" % [
+		roster.get_count(), roster.get_upkeep_per_second(), rat.undead_upkeep_mana_per_second, _regen, _hud.get_mana_change_text(), one_expected]
+	if roster.get_count() != 1 or _hud.get_mana_change_text() != one_expected:
+		fail_step("1마리", evidence)
+		return
+	pass_step("1마리", evidence)
+
+	await _tap(KEY_2)
+	await _tap(KEY_G)
+	await wait_frames(WAIT_FRAMES)
+	var before: float = mana.current
+	var change: float = _regen - rat.undead_upkeep_mana_per_second * 2
+	await wait_frames(UPKEEP_FRAMES)
+	var expected_change: String = "-%.1f" % absf(change)
+	var expected_mana: float = before + change * UPKEEP_FRAMES / PHYSICS_FPS
+	evidence = "쥐 언데드 %d마리, 유지비 %.1f/초, %d프레임(%.0f초) 동안 마나 %.2f → %.2f (기대 %.2f), 표시 '%s' (기대 '%s')" % [
+		roster.get_count(), roster.get_upkeep_per_second(), UPKEEP_FRAMES, UPKEEP_FRAMES / PHYSICS_FPS, before, mana.current, expected_mana, _hud.get_mana_change_text(), expected_change]
+	if roster.get_count() == 2 and change < 0.0 and mana.current < before and absf(mana.current - expected_mana) < 0.05 and _hud.get_mana_change_text() == expected_change:
+		pass_step("2마리면 마나가 줄고 - 표시", evidence)
 		finish(true)
 	else:
-		fail_step("자연 회복", evidence)
+		fail_step("2마리면 마나가 줄고 - 표시", evidence)
+
+
+func _tap(key: Key) -> void:
+	press_key(key, true)
+	await wait_frames(1)
+	press_key(key, false)
+	await wait_frames(1)

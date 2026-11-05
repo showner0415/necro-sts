@@ -14,8 +14,6 @@ signal message(text: String)
 @export var bone_item: ItemData
 ## 언데드가 피해를 한 번 받을 때 줄어드는 머리뼈 내구도 (설계 확정: 1)
 @export var durability_loss_per_hit: float = 1.0
-## 살아 있는 언데드 한 마리당 초당 빠지는 마나 (임시값)
-@export var upkeep_mana_per_second: float = 0.5
 ## 네크로맨서에게서 이만큼 떨어진 곳에 소환한다 (픽셀, 임시값)
 @export var spawn_distance: float = 14.0
 
@@ -28,7 +26,7 @@ var _undead_nodes: Dictionary[Skull, Undead] = {}
 
 func bind(inventory: Inventory, hotbar: Hotbar) -> void:
 	_hotbar = hotbar
-	roster = UndeadRoster.new(inventory, hotbar, _necromancer.mana, bone_item.id, MonsterDatabase.find, durability_loss_per_hit, upkeep_mana_per_second)
+	roster = UndeadRoster.new(inventory, hotbar, _necromancer.mana, bone_item.id, MonsterDatabase.find, durability_loss_per_hit)
 	roster.summoned.connect(_spawn)
 	roster.unsummoned.connect(_despawn)
 

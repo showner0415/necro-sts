@@ -84,6 +84,9 @@ func open_storage() -> void:
 
 
 func _physics_process(_delta: float) -> void:
+	# 마나 초당 변화량: 유지비는 소환·해제로, 회복 여부는 마나가 가득 찼는지로 바뀌므로 매 프레임 다시 계산한다.
+	var upkeep: float = _necromancer.summoner.roster.get_upkeep_per_second()
+	_hud.show_mana_change(_necromancer.mana.get_change_per_second(upkeep), _necromancer.mana.has_change(upkeep))
 	# 상자에서 멀어지면 창고를 닫는다.
 	if _storage_screen != null and _storage_screen.is_open() and not _chests.any(func(chest: StorageChest) -> bool: return chest.is_necromancer_inside()):
 		_storage_screen.set_open(false)

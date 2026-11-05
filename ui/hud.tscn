@@ -66,6 +66,25 @@ unique_name_in_owner = true
 layout_mode = 2
 fill_color = Color(0.3019608, 0.60784316, 0.9019608, 1)
 
+[node name="ManaChangeLabel" type="Label" parent="BottomLeft/ManaBar"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 4.0
+offset_right = 44.0
+grow_horizontal = 0
+grow_vertical = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0.18039216, 0.13333334, 0.18431373, 1)
+theme_override_constants/outline_size = 2
+theme_override_font_sizes/font_size = 12
+vertical_alignment = 1
+
 [node name="MessageLabel" type="Label" parent="."]
 unique_name_in_owner = true
 anchors_preset = 2

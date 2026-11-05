@@ -30,7 +30,7 @@ func before_each() -> void:
 	monster.summon_mana_cost = 1.0
 	monster.undead_max_health = MAX_HEALTH
 	monster.undead_death_durability_loss = 3.0
-	roster = UndeadRoster.new(inventory, hotbar, mana, bone.id, _find_monster, 1.0, 0.0)
+	roster = UndeadRoster.new(inventory, hotbar, mana, bone.id, _find_monster, 1.0)
 
 
 func _find_monster(id: StringName) -> MonsterData:

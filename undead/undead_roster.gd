@@ -46,8 +46,6 @@ signal changed
 
 ## 언데드가 피해를 한 번 받을 때 줄어드는 머리뼈 내구도
 var durability_loss_per_hit: float
-## 살아 있는 언데드 한 마리당 초당 빠지는 마나
-var upkeep_mana_per_second: float
 
 var _inventory: Inventory
 var _hotbar: Hotbar
@@ -58,14 +56,13 @@ var _find_monster: Callable
 var _summoned: Array[Skull] = []
 
 
-func _init(inventory: Inventory, hotbar: Hotbar, mana: ManaPool, bone_id: StringName, find_monster: Callable, hit_durability_loss: float, upkeep_per_second: float) -> void:
+func _init(inventory: Inventory, hotbar: Hotbar, mana: ManaPool, bone_id: StringName, find_monster: Callable, hit_durability_loss: float) -> void:
 	_inventory = inventory
 	_hotbar = hotbar
 	_mana = mana
 	_bone_id = bone_id
 	_find_monster = find_monster
 	durability_loss_per_hit = hit_durability_loss
-	upkeep_mana_per_second = upkeep_per_second
 	_inventory.changed.connect(_on_inventory_changed)
 	_hotbar.changed.connect(_on_hotbar_changed)
 	_mana.changed.connect(_on_mana_changed)
@@ -212,11 +209,21 @@ func heal(skull: Skull) -> Result:
 	return Result.OK
 
 
-## 물리 프레임마다 부른다: 살아 있는 수만큼 유지 마나를 뺀다.
+## 소환 중인 언데드 전체의 유지비 (초당 마나). 몬스터 데이터의 값을 마리마다 더한다.
+func get_upkeep_per_second() -> float:
+	var total: float = 0.0
+	for skull: Skull in _summoned:
+		var monster: MonsterData = get_monster(skull)
+		if monster != null:
+			total += monster.undead_upkeep_mana_per_second
+	return total
+
+
+## 물리 프레임마다 부른다: 소환 중인 언데드의 유지비만큼 마나를 뺀다.
 func process(delta: float) -> void:
 	if _summoned.is_empty():
 		return
-	_mana.drain(upkeep_mana_per_second * _summoned.size() * delta)
+	_mana.drain(get_upkeep_per_second() * delta)
 
 
 func _on_mana_changed(_current: float, _maximum: float) -> void:

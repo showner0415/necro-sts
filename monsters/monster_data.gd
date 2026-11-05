@@ -33,6 +33,8 @@ extends Resource
 @export var summon_bone_cost: int = 4
 ## 소환할 때마다 쓰는 마나
 @export var summon_mana_cost: float = 3.0
+## 소환 중인 이 언데드 한 마리가 초당 쓰는 마나 (유지비)
+@export var undead_upkeep_mana_per_second: float = 0.5
 ## 언데드가 죽은 판정이 되면 머리뼈 내구도가 이만큼 준다
 @export var undead_death_durability_loss: float = 3.0
 @export var undead_max_health: float = 4.0
