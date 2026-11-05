@@ -35,6 +35,10 @@ var _bones_before: int
 var _skulls_before: int
 
 
+func get_start_scene() -> String:
+	return TEST_REGION_SCENE
+
+
 func _on_scene_ready() -> void:
 	_necromancer = find_necromancer()
 	if _necromancer == null:

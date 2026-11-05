@@ -6,6 +6,9 @@ extends SceneTree
 ##
 ## --seconds: 씬을 띄운 뒤 찍기까지 기다릴 시간 (기본 DEFAULT_SECONDS)
 ## --out:     저장 경로. 절대 경로나 user:// 경로. 없으면 user://screenshots/ 아래에 시각으로 이름을 짓는다.
+## --scene:   메인 씬 대신 띄울 씬 (res:// 경로, 예: res://regions/base.tscn)
+## --setup:   찍기 전에 화면 상태를 만들 스크립트 (res:// 경로). static func run(scene: Node) -> void 를 가진다.
+##            씬이 준비된 직후 한 번 불린다. 예: tools/screenshot_setups/
 ## 저장되는 이미지는 내부 해상도(project.godot의 viewport 크기) 그대로다.
 
 const DEFAULT_SECONDS: float = 2.0
@@ -15,6 +18,9 @@ var _seconds: float = DEFAULT_SECONDS
 var _out_path: String = ""
 var _elapsed: float = 0.0
 var _taken: bool = false
+var _setup_path: String = ""
+var _scene_path: String = ""
+var _setup_done: bool = false
 
 
 func _initialize() -> void:
@@ -23,11 +29,15 @@ func _initialize() -> void:
 			_seconds = arg.trim_prefix("--seconds=").to_float()
 		elif arg.begins_with("--out="):
 			_out_path = arg.trim_prefix("--out=")
+		elif arg.begins_with("--scene="):
+			_scene_path = arg.trim_prefix("--scene=")
+		elif arg.begins_with("--setup="):
+			_setup_path = arg.trim_prefix("--setup=")
 	if _out_path.is_empty():
 		DirAccess.make_dir_recursive_absolute(DEFAULT_DIR)
 		_out_path = DEFAULT_DIR.path_join("screenshot_%s.png" % Time.get_datetime_string_from_system().replace(":", "-"))
 
-	var main_scene: String = ProjectSettings.get_setting("application/run/main_scene", "")
+	var main_scene: String = _scene_path if not _scene_path.is_empty() else ProjectSettings.get_setting("application/run/main_scene", "")
 	if main_scene.is_empty():
 		printerr("메인 씬이 지정되어 있지 않습니다 (application/run/main_scene).")
 		quit(2)
@@ -37,6 +47,11 @@ func _initialize() -> void:
 
 
 func _process(delta: float) -> bool:
+	if not _setup_done and current_scene != null:
+		_setup_done = true
+		if not _setup_path.is_empty():
+			print("준비 스크립트: %s" % _setup_path)
+			load(_setup_path).run(current_scene)
 	if _taken:
 		return false
 	_elapsed += delta

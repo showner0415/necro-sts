@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="RegionData" format=3]
+
+[ext_resource type="Script" path="res://regions/region_data.gd" id="1_region"]
+
+[resource]
+script = ExtResource("1_region")
+id = &"test_region"
+display_name = "시험 지역"
+scene_path = "res://regions/test_region.tscn"

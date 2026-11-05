@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="RegionData" format=3]
+
+[ext_resource type="Script" path="res://regions/region_data.gd" id="1_region"]
+
+[resource]
+script = ExtResource("1_region")
+id = &"base"
+display_name = "거점"
+scene_path = "res://regions/base.tscn"
+is_base = true

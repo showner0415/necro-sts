@@ -29,6 +29,10 @@ var _mana_before: float = 0.0
 var _regen: float = 0.0
 
 
+func get_start_scene() -> String:
+	return TEST_REGION_SCENE
+
+
 func _on_scene_ready() -> void:
 	_necromancer = find_necromancer()
 	_mana_bar = find_hud().get_node("%ManaBar")

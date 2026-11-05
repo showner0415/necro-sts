@@ -1,6 +1,9 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://regions/test_region.gd" id="1_region"]
+[ext_resource type="Script" path="res://regions/region.gd" id="1_region"]
+[ext_resource type="Resource" path="res://data/regions/test_region.tres" id="8_data"]
+[ext_resource type="Resource" path="res://data/regions/base.tres" id="9_base"]
+[ext_resource type="PackedScene" path="res://regions/escape_point.tscn" id="10_escape"]
 [ext_resource type="Script" path="res://regions/placeholder_ground.gd" id="2_ground"]
 [ext_resource type="PackedScene" path="res://necromancer/necromancer.tscn" id="3_necromancer"]
 [ext_resource type="PackedScene" path="res://monsters/monster.tscn" id="4_monster"]
@@ -10,9 +13,15 @@
 
 [node name="TestRegion" type="Node2D"]
 script = ExtResource("1_region")
+data = ExtResource("8_data")
+death_destination = ExtResource("9_base")
 
 [node name="Ground" type="Node2D" parent="."]
 script = ExtResource("2_ground")
+
+[node name="EscapePoint" parent="." instance=ExtResource("10_escape")]
+position = Vector2(0, -260)
+destination = ExtResource("9_base")
 
 [node name="Actors" type="Node2D" parent="."]
 y_sort_enabled = true

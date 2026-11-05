@@ -6,6 +6,17 @@
 [ext_resource type="Script" path="res://ui/hotbar_view.gd" id="4_hotbar_view"]
 [ext_resource type="PackedScene" path="res://ui/hotbar_slot.tscn" id="5_hotbar_slot"]
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_escape_bg"]
+bg_color = Color(0.18039216, 0.13333334, 0.18431373, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.38431373, 0.33333334, 0.39607844, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_escape_fill"]
+bg_color = Color(0.1882353, 0.88235295, 0.7254902, 1)
+
 [node name="HUD" type="CanvasLayer"]
 script = ExtResource("1_hud")
 bone_item = ExtResource("2_bone")
@@ -54,3 +65,50 @@ slot_scene = ExtResource("5_hotbar_slot")
 unique_name_in_owner = true
 layout_mode = 2
 fill_color = Color(0.3019608, 0.60784316, 0.9019608, 1)
+
+[node name="MessageLabel" type="Label" parent="."]
+unique_name_in_owner = true
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = -94.0
+offset_right = 248.0
+offset_bottom = -78.0
+grow_vertical = 0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 12
+
+[node name="EscapeGauge" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -60.0
+offset_top = -40.0
+offset_right = 60.0
+offset_bottom = -12.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_override_constants/separation = 0
+
+[node name="Label" type="Label" parent="EscapeGauge"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_font_sizes/font_size = 12
+text = "탈출 중"
+horizontal_alignment = 1
+
+[node name="EscapeBar" type="ProgressBar" parent="EscapeGauge"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 6)
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_escape_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_escape_fill")
+max_value = 1.0
+show_percentage = false
