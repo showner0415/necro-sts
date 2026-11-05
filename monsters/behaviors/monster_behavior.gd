@@ -23,7 +23,7 @@ func is_busy() -> bool:
 
 
 ## target과 싸운다. body.velocity를 정한다 (move_and_slide는 쓰는 쪽이 부른다).
-## target은 take_damage(amount)가 있어야 한다. is_busy()인 동안에는 target이 null일 수 있다.
+## target은 take_damage(amount, source)가 있어야 한다 (source는 때린 쪽, 곧 body). is_busy()인 동안에는 target이 null일 수 있다.
 func act(_body: CharacterBody2D, _stats: CombatStats, _target: Node2D, _delta: float) -> void:
 	pass
 

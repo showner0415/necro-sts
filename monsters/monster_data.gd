@@ -26,6 +26,12 @@ enum PlaceholderShape { CIRCLE, ELLIPSE }
 ## 공격 사이의 간격 (초)
 @export var attack_cooldown: float = 1.0
 
+@export_group("추격")
+## 감지 범위 밖에서 맞아 공격자를 쫓을 때, 공격자와 이 거리보다 멀어지면 포기한다 (픽셀)
+@export var chase_attacker_limit: float = 250.0
+## 감지 범위 밖에서 맞아 공격자를 쫓을 때, 맞기 시작한 자리에서 이 거리보다 멀어지면 포기하고 그 자리로 돌아간다 (픽셀)
+@export var chase_home_limit: float = 150.0
+
 @export_group("배회")
 @export var wander_speed: float = 15.0
 ## 배회 방향을 다시 고르는 간격 (초)

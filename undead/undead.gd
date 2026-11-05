@@ -112,7 +112,8 @@ func _find_target() -> Monster:
 	return nearest
 
 
-func take_damage(amount: float) -> void:
+## source는 공격한 쪽 (언데드는 쓰지 않는다. 몬스터 타게팅 규칙은 언데드에 적용하지 않는다).
+func take_damage(amount: float, _source: Node2D = null) -> void:
 	if is_queued_for_deletion():
 		return
 	damage_received.emit(skull, amount)

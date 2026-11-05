@@ -2,6 +2,7 @@ class_name Monster
 extends CharacterBody2D
 ## MonsterData 하나로 움직이는 몬스터.
 ## 배회하다가 네크로맨서나 언데드가 감지 범위에 들어오면 그중 가장 가까운 대상을 노린다.
+## 감지 범위에 아무도 없을 때 맞으면 공격한 대상을 쫓고, 너무 멀어지면 포기하고 맞기 시작한 자리로 돌아간다 (Aggro).
 ## 대상과 어떻게 싸울지는 데이터의 행동 조각(data.behavior)이 정하고, 수치는 적일 때의 값(data.get_enemy_stats())을 쓴다.
 ## 죽으면 드랍 목록(data.drops)의 확률을 굴려 나온 것을 담은 시체(Corpse)를 남긴다. 네크로맨서가 시체에서 채집한다.
 
@@ -10,17 +11,21 @@ extends CharacterBody2D
 @export var corpse_scene: PackedScene
 ## 맞았을 때 하얗게 번쩍이는 시간 (초)
 @export var hit_flash_duration: float = 0.1
+## 포기하고 돌아갈 때, 맞기 시작한 자리에서 이 거리 안이면 다 돌아온 것으로 본다 (픽셀)
+@export var return_arrive_distance: float = 4.0
 ## 행동 조각이 바닥에 그리는 예고 표시(돌진 방향 선 등)의 색. 적은 위험 표시 색(e83b3b)이다.
 @export var indicator_color: Color = Color(0.9098039, 0.23137255, 0.23137255, 1)
 
 var health: float
-## 지금 쫓는 대상 (네크로맨서 또는 언데드). take_damage(amount)가 있어야 한다.
+## 지금 노리는 대상 (네크로맨서 또는 언데드). take_damage(amount, source)가 있어야 한다.
 var _target: Node2D
 var _wander_direction: Vector2 = Vector2.ZERO
 var _wander_timer: float = 0.0
 ## 대상과 싸우는 방식 (data.behavior의 이 몬스터용 복사본)
 var _behavior: MonsterBehavior
 var _knockback: Knockback = Knockback.new()
+## 감지 범위 밖에서 맞았을 때 공격자를 쫓는 규칙
+var _aggro: Aggro
 
 @onready var _collision: CollisionShape2D = $CollisionShape2D
 
@@ -28,6 +33,7 @@ var _knockback: Knockback = Knockback.new()
 func _ready() -> void:
 	health = data.max_health
 	_behavior = data.make_enemy_behavior()
+	_aggro = Aggro.new(data.chase_attacker_limit, data.chase_home_limit, return_arrive_distance)
 	_collision.shape = PlaceholderBody.make_shape(data)
 	_collision.rotation = PlaceholderBody.shape_rotation(data)
 	_collision.position = PlaceholderBody.center(data)
@@ -35,10 +41,22 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	_behavior.update(delta)
-	_target = _find_nearest_target()
+	var nearest: Node2D = _find_nearest_target()
+	var attacker: Node2D = _aggro.attacker as Node2D
+	var attacker_alive: bool = is_instance_valid(attacker) and not attacker.is_queued_for_deletion()
+	_aggro.update(global_position, nearest != null, attacker_alive, attacker.global_position if attacker_alive else Vector2.ZERO)
+	match _aggro.state:
+		Aggro.State.CHASING:
+			_target = _aggro.attacker as Node2D
+		Aggro.State.RETURNING:
+			_target = null
+		_:
+			_target = nearest
 	# 하던 동작(돌진 예고 등)은 대상이 사라져도 이어 간다.
 	if _target != null or _behavior.is_busy():
 		_behavior.act(self, data.get_enemy_stats(), _target, delta)
+	elif _aggro.state == Aggro.State.RETURNING:
+		velocity = global_position.direction_to(_aggro.origin) * data.move_speed
 	else:
 		_wander(delta)
 	if _knockback.is_active():
@@ -47,6 +65,16 @@ func _physics_process(delta: float) -> void:
 	_knockback.update(delta)
 	# 예고 표시(깜빡임, 방향 선)가 프레임마다 바뀐다.
 	queue_redraw()
+
+
+## 테스트·디버그용: 지금 노리는 대상 (없으면 null)
+func get_target() -> Node2D:
+	return _target
+
+
+## 테스트·디버그용: 공격자 추격 상태 (Aggro.State)와 맞기 시작한 자리
+func get_aggro() -> Aggro:
+	return _aggro
 
 
 ## 테스트·디버그용: 이 한 마리가 쓰는 행동 조각
@@ -81,9 +109,11 @@ func _wander(delta: float) -> void:
 	velocity = _wander_direction * data.wander_speed
 
 
-func take_damage(amount: float) -> void:
+## source는 공격한 쪽. 감지 범위에 아무도 없을 때 맞으면 그 대상을 쫓는다.
+func take_damage(amount: float, source: Node2D = null) -> void:
 	if health <= 0.0:
 		return
+	_aggro.on_hit(source, global_position, _find_nearest_target() != null)
 	health -= amount
 	if health <= 0.0:
 		_die()

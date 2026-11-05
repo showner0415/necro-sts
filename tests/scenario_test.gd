@@ -98,6 +98,7 @@ func aim_mouse_at(world_position: Vector2) -> void:
 	# 월드 좌표 → 뷰포트 좌표 → 창 좌표
 	event.position = root.get_final_transform() * (root.get_canvas_transform() * world_position)
 	event.global_position = event.position
+	_last_mouse_window_position = event.position
 	# root.push_input()은 헤드리스에서 마우스 위치가 반영되지 않아 실제 입력과 같은 경로로 보낸다.
 	Input.parse_input_event(event)
 
@@ -179,10 +180,14 @@ func wait_frames(n: int) -> void:
 		await physics_frame
 
 
+## 마지막으로 마우스를 옮긴 자리(aim_mouse_at, move_mouse_to_ui)에서 버튼을 누르거나 뗀다.
+## 위치를 비워 두면 Godot이 마우스를 (0, 0)으로 옮겨서 조준이 틀어진다.
 func press_mouse(pressed: bool, button: MouseButton = MOUSE_BUTTON_LEFT) -> void:
 	var event: InputEventMouseButton = InputEventMouseButton.new()
 	event.button_index = button
 	event.pressed = pressed
+	event.position = _last_mouse_window_position
+	event.global_position = _last_mouse_window_position
 	Input.parse_input_event(event)
 
 

@@ -27,7 +27,7 @@ class FakeHostile:
 	var damage: Array[float] = []
 	var pushes: Array[Vector2] = []
 
-	func take_damage(amount: float) -> void:
+	func take_damage(amount: float, _source: Node2D = null) -> void:
 		damage.append(amount)
 
 	func knock_back(offset: Vector2, _duration: float) -> void:
@@ -178,3 +178,16 @@ func test_continues_without_target_while_busy() -> void:
 		_step(false)
 		frames += 1
 	assert_true(frames > 0 and frames < 600, "대상이 사라져도 예고 → 돌진 → 멈칫을 끝까지 한다 (%d프레임)" % frames)
+
+
+func test_keeps_windup_target_even_if_target_changes() -> void:
+	var other: FakeHostile = FakeHostile.new()
+	target.position = Vector2(charge.charge_range - 10.0, 0)
+	other.position = Vector2(0, 50)
+	_step()
+	assert_eq(charge.get_state(), ChargeBehavior.State.WINDUP)
+	# 쓰는 쪽이 노리는 대상을 다른 상대로 바꿔 넘겨도, 예고를 시작할 때의 대상을 겨눈다.
+	charge.update(DT)
+	charge.act(body, stats, other, DT)
+	assert_almost_eq(charge.get_direction().angle(), 0.0, 0.001, "예고 중에는 처음 대상(오른쪽) 그대로")
+	other.free()

@@ -2,7 +2,8 @@ extends ScenarioTest
 ## 시나리오: 숫자키로 핫바 선택 → G로 소환 → 언데드가 쥐와 싸움 → G로 해제 → R로 체력 회복.
 ## 1. 2 → 1을 눌러 선택 칸이 바뀌고 선택 테두리가 따라간다
 ## 2. G: 언데드가 나오고, 처음 소환 뼈·소환 마나를 쓰고, 칸에 소환 중 테두리가 생긴다
-## 3. 쥐를 가까이 데려오면 언데드가 쫓아가 잡는다. 받은 피해 횟수만큼 내구도가 1씩 준다
+## 3. 쥐를 가까이 데려오면 언데드가 쫓아가 싸우고, 네크로맨서도 같이 쏴서 잡는다. 받은 피해 횟수만큼 내구도가 1씩 준다
+##    (언데드 쥐 혼자서는 쥐를 이기지 못하는 수치라서 같이 쏜다. 언데드 쥐 수치는 사용자가 그대로 두기로 했다)
 ## 4. G: 해제되어 언데드가 사라지고, 다친 체력이 머리뼈에 남는다
 ## 5. R: 모자란 체력 비율만큼 뼈를 써서 체력이 가득 찬다
 
@@ -92,13 +93,17 @@ func _run() -> void:
 	var necro_health: float = _necromancer.health
 	var durability_before: float = skull.durability
 	restart_step_timer()
+	press_mouse(true)
 	while is_instance_valid(rat) and not rat.is_queued_for_deletion():
 		if step_frames > FIGHT_TIMEOUT_FRAMES or not _roster.is_summoned(skull):
+			press_mouse(false)
 			fail_step("쥐와 싸움", "%d프레임 안에 끝나지 않았거나 언데드가 사라짐 (소환 중 %s, 쥐 체력 %.1f)" % [step_frames, _roster.is_summoned(skull), rat.health])
 			return
+		aim_mouse_at(rat.global_position + Vector2(0, -rat.data.placeholder_radius))
 		await wait_frames(1)
+	press_mouse(false)
 	var hits: int = roundi(monster.undead_max_health - skull.health)
-	evidence = "%d프레임 만에 쥐 처치. 언데드 체력 %.1f / %.1f (피해 %d번), 내구도 %.0f → %.0f, 네크로맨서 체력 %.1f → %.1f" % [
+	evidence = "네크로맨서와 같이 쏴서 %d프레임 만에 쥐 처치. 언데드 체력 %.1f / %.1f (피해 %d번), 내구도 %.0f → %.0f, 네크로맨서 체력 %.1f → %.1f" % [
 		step_frames, skull.health, monster.undead_max_health, hits, durability_before, skull.durability, necro_health, _necromancer.health]
 	if not _check("쥐와 싸움", hits > 0 and skull.durability == durability_before - hits and _roster.is_summoned(skull), evidence):
 		return

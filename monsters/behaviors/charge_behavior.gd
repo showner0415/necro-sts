@@ -5,6 +5,7 @@ extends MonsterBehavior
 ## - 돌진: 고정된 방향으로 charge_distance만큼 달린다. 벽(world_collision_mask)에 부딪히면 그 자리에서 끝난다
 ##   돌진하는 동안 몸끼리는 부딪히지 않고 지나간다 (자기 충돌층을 비워서 상대도 이 몸에 밀리지 않는다). 닿은 상대마다 한 번만 피해(stats.contact_damage)를 주고 밀쳐낸다
 ## - 멈칫: recover_time초 동안 멈춘다 (때릴 기회)
+## 노리는 대상은 다가가는 중에만 바뀐다. 예고를 시작할 때의 대상을 멈칫이 끝날 때까지 유지한다.
 ## 칠 수 있는 상대는 쓰는 쪽의 get_hostiles()가 정한다 (적 멧돼지: 네크로맨서·언데드, 언데드 멧돼지: 몬스터).
 
 enum State { APPROACH, WINDUP, CHARGE, RECOVER }
@@ -43,6 +44,8 @@ var _charge_start: Vector2
 var _hit: Array[Node2D] = []
 var _saved_mask: int = 0
 var _saved_layer: int = 0
+## 예고를 시작할 때 고른 대상. 멈칫이 끝날 때까지 이 대상을 겨눈다.
+var _locked_target: Node2D
 
 
 func is_busy() -> bool:
@@ -68,7 +71,7 @@ func act(body: CharacterBody2D, stats: CombatStats, target: Node2D, delta: float
 		State.APPROACH:
 			_approach(body, stats, target)
 		State.WINDUP:
-			_windup(body, target, delta)
+			_windup(body, delta)
 		State.CHARGE:
 			_charge(body, stats)
 		State.RECOVER:
@@ -76,6 +79,7 @@ func act(body: CharacterBody2D, stats: CombatStats, target: Node2D, delta: float
 			_timer += delta
 			if _timer >= recover_time:
 				_state = State.APPROACH
+				_locked_target = null
 
 
 func _approach(body: CharacterBody2D, stats: CombatStats, target: Node2D) -> void:
@@ -89,14 +93,15 @@ func _approach(body: CharacterBody2D, stats: CombatStats, target: Node2D) -> voi
 	body.velocity = Vector2.ZERO
 	_state = State.WINDUP
 	_timer = 0.0
+	_locked_target = target
 	_aim_at(body, target)
 
 
-func _windup(body: CharacterBody2D, target: Node2D, delta: float) -> void:
+func _windup(body: CharacterBody2D, delta: float) -> void:
 	body.velocity = Vector2.ZERO
-	# 고정되기 전까지는 대상을 따라 돈다. 대상이 사라졌으면 마지막 방향 그대로.
-	if not is_direction_locked() and target != null:
-		_aim_at(body, target)
+	# 고정되기 전까지는 예고를 시작할 때의 대상을 따라 돈다 (그사이 노리는 대상이 바뀌어도). 사라졌으면 마지막 방향 그대로.
+	if not is_direction_locked() and is_instance_valid(_locked_target):
+		_aim_at(body, _locked_target)
 	_timer += delta
 	if _timer >= windup_time:
 		_state = State.CHARGE
@@ -131,7 +136,7 @@ func _hit_hostiles(body: CharacterBody2D, stats: CombatStats) -> void:
 			continue
 		# 구르기 무적이라 피해가 없어도 맞은 것으로 친다 (같은 돌진에서 다시 맞지 않는다).
 		_hit.append(hostile)
-		hostile.call(&"take_damage", stats.contact_damage)
+		hostile.call(&"take_damage", stats.contact_damage, body)
 		var push: Vector2 = body.global_position.direction_to(hostile.global_position)
 		if push == Vector2.ZERO:
 			push = _direction

@@ -12,6 +12,8 @@ var direction: Vector2 = Vector2.RIGHT
 var speed: float = 0.0
 var damage: float = 0.0
 var max_distance: float = 0.0
+## 쏜 쪽 (네크로맨서). 맞은 몬스터가 누구에게 맞았는지 안다.
+var source: Node2D
 var _traveled: float = 0.0
 
 @onready var _collision: CollisionShape2D = $CollisionShape2D
@@ -37,7 +39,7 @@ func _on_body_entered(body: Node2D) -> void:
 	if is_queued_for_deletion():
 		return
 	if body is Monster:
-		(body as Monster).take_damage(damage)
+		(body as Monster).take_damage(damage, source)
 		queue_free()
 
 

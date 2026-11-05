@@ -181,7 +181,8 @@ func is_attack_held() -> bool:
 	return _attack_held
 
 
-func take_damage(amount: float) -> void:
+## source는 공격한 쪽 (지금은 쓰지 않는다).
+func take_damage(amount: float, _source: Node2D = null) -> void:
 	if health <= 0.0 or is_invincible():
 		return
 	health = maxf(health - amount, 0.0)
@@ -219,6 +220,7 @@ func _shoot() -> void:
 	bolt.speed = attack.projectile_speed
 	bolt.damage = attack.damage
 	bolt.max_distance = attack.projectile_range
+	bolt.source = self
 	get_parent().add_child(bolt)
 	bolt.global_position = origin
 

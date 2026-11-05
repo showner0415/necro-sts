@@ -18,4 +18,4 @@ func act(body: CharacterBody2D, stats: CombatStats, target: Node2D, _delta: floa
 	if _attack_timer == 0.0:
 		_attack_timer = stats.attack_cooldown
 		# 네크로맨서·언데드·몬스터는 서로 다른 클래스라서 이름으로 부른다.
-		target.call(&"take_damage", stats.contact_damage)
+		target.call(&"take_damage", stats.contact_damage, body)

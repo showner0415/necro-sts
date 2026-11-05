@@ -13,7 +13,7 @@ class FakeTarget:
 	extends Node2D
 	var received: Array[float] = []
 
-	func take_damage(amount: float) -> void:
+	func take_damage(amount: float, _source: Node2D = null) -> void:
 		received.append(amount)
 
 

@@ -21,6 +21,7 @@ script = ExtResource("1_monster")
 id = &"rat"
 display_name = "쥐"
 behavior = ExtResource("5_approach")
+max_health = 7.0
 drops = Array[ExtResource("3_drop")]([SubResource("Resource_drop_bone"), SubResource("Resource_drop_skull")])
 summon_mana_cost = 4.0
 undead_upkeep_mana_per_second = 2.0
