@@ -42,6 +42,7 @@ func open(slot_rect: Rect2, actions: Array[ItemAction], states: Array[ItemAction
 	for action: ItemAction in actions:
 		var button: Button = Button.new()
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		# 마우스로만 쓴다. 포커스를 받으면 Space(구르기)·Enter에 눌려 버린다.
 		button.focus_mode = Control.FOCUS_NONE
 		button.add_theme_font_size_override("font_size", font_size)
 		button.add_theme_color_override("font_disabled_color", disabled_color)

@@ -172,4 +172,51 @@ func _undead_catch_up() -> void:
 	evidence = "가까워진 뒤 언데드 속도 %.0f/초, 거리 %.0f" % [undead.velocity.length(), undead.global_position.distance_to(_necromancer.global_position)]
 	if not _check("가까워지면 원래대로", undead.velocity.length() <= walk_speed + 0.01, evidence):
 		return
+	await _wait_until_full()
+	await _space_with_menu_open(skull)
+
+
+## 메뉴가 열린 채 Space: 구르기만 되고 메뉴는 그대로. 마우스로 쓰는 UI는 키보드 포커스를 받지 않아야 한다.
+func _space_with_menu_open(skull: Skull) -> void:
+	var screen: InventoryScreen = current_scene.get_node("InventoryScreen")
+	screen.set_open(true)
+	await wait_frames(WAIT_FRAMES)
+	var slot_index: int = -1
+	for i: int in _necromancer.inventory.get_slot_count():
+		var slot: ItemStack = _necromancer.inventory.get_slot(i)
+		if slot != null and slot.skull == skull:
+			slot_index = i
+	await click_ui(screen.get_slot_control(slot_index).get_global_rect().get_center(), MOUSE_BUTTON_RIGHT)
+	var menu: ItemMenu = screen.get_menu()
+	var button: Button = menu.get_button(&"heal_skull")
+	# 실제 마우스 클릭은 포커스를 줄 수 있으므로 직접 포커스를 달라고 해 본다 (FOCUS_NONE이면 받지 않는다).
+	if button != null:
+		button.grab_focus()
+	# 메뉴 버튼은 메뉴를 열 때 만들어지므로, 연 뒤에 씬 전체를 확인한다.
+	var focusable: Array[String] = []
+	for node: Node in current_scene.find_children("*", "Control", true, false):
+		if (node as Control).focus_mode != Control.FOCUS_NONE:
+			focusable.append(str(current_scene.get_path_to(node)))
+	var focus_owner: Control = root.gui_get_focus_owner()
+	var inventory_before: String = _inventory_text()
+	var stamina_before: float = _necromancer.stamina.current
+	press_key(KEY_SPACE, true)
+	await wait_frames(1)
+	press_key(KEY_SPACE, false)
+	var rolled: bool = _necromancer.is_rolling()
+	await wait_frames(WAIT_FRAMES)
+	var evidence: String = "포커스를 받을 수 있는 UI %s, 메뉴 열림 %s → %s, 포커스 %s, Space 뒤 구르기 %s (스태미나 %.0f → %.0f), 인벤토리 '%s' → '%s'" % [
+		focusable, button != null, menu.is_open(), focus_owner, rolled, stamina_before, _necromancer.stamina.current, inventory_before, _inventory_text()]
+	if not _check("메뉴가 열린 채 Space면 구르기만", focusable.is_empty() and button != null and focus_owner == null and rolled and menu.is_open()
+			and screen.is_open() and _inventory_text() == inventory_before, evidence):
+		return
 	finish(true)
+
+
+func _inventory_text() -> String:
+	var parts: Array[String] = []
+	for i: int in _necromancer.inventory.get_slot_count():
+		var stack: ItemStack = _necromancer.inventory.get_slot(i)
+		if stack != null:
+			parts.append("%d:%s×%d" % [i, stack.item.id, stack.count])
+	return ", ".join(parts)
