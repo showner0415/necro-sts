@@ -9,7 +9,7 @@ extends ItemAction
 func get_state(context: ItemActionContext) -> ItemActionState:
 	var skull: Skull = context.get_skull()
 	if skull != null and context.roster != null and context.roster.is_summoned(skull):
-		return ItemActionState.available(summoned_warning)
+		return ItemActionState.available(summoned_warning, ItemActionState.WarningKind.LOSS)
 	return ItemActionState.available()
 
 

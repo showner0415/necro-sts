@@ -164,6 +164,7 @@ func test_unassign_summoned_warns_and_unsummons() -> void:
 	var state: ItemActionState = action.get_state(_context(index))
 	assert_true(state.enabled)
 	assert_eq(state.warning, "소환이 해제됩니다")
+	assert_eq(state.warning_kind, ItemActionState.WarningKind.CAUTION, "되돌릴 수 있으니 노란 경고")
 	var durability: float = skull.durability
 	assert_true(action.execute(_context(index)))
 	assert_false(roster.is_summoned(skull), "핫바에서 빠지면 일반 해제")
@@ -180,6 +181,7 @@ func test_drop_warns_only_when_summoned() -> void:
 	var state: ItemActionState = action.get_state(_context(index))
 	assert_true(state.enabled, "소환 중이어도 버릴 수는 있다")
 	assert_eq(state.warning, "죽은 판정이 됩니다")
+	assert_eq(state.warning_kind, ItemActionState.WarningKind.LOSS, "되돌릴 수 없는 손해라 빨간 경고")
 
 
 # --- 실행 ---

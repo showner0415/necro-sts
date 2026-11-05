@@ -14,8 +14,10 @@ signal closed
 @export var font_size: int = 12
 ## 쓸 수 없는 항목의 글자 색
 @export var disabled_color: Color = Color(0.60784316, 0.67058825, 0.69803923, 1)
-## 경고가 붙은 항목의 글자 색
-@export var warning_color: Color = Color(0.9098039, 0.23137255, 0.23137255, 1)
+## 되돌릴 수 없는 손해 경고(예: "죽은 판정이 됩니다")가 붙은 항목의 글자 색. 빨간색은 이 경우에만 쓴다.
+@export var loss_warning_color: Color = Color(0.9098039, 0.23137255, 0.23137255, 1)
+## 되돌릴 수 있는 결과 경고(예: "소환이 해제됩니다")가 붙은 항목의 글자 색. 핫바의 소환 중 테두리와 같은 노란색.
+@export var caution_warning_color: Color = Color(0.9764706, 0.7607843, 0.16862746, 1)
 
 var _buttons: Dictionary[StringName, Button] = {}
 
@@ -64,8 +66,9 @@ func show_states(actions: Array[ItemAction], states: Array[ItemActionState]) -> 
 			button.text += " (%s)" % state.reason
 		if not state.warning.is_empty():
 			button.text += " - %s" % state.warning
-			button.add_theme_color_override("font_color", warning_color)
-			button.add_theme_color_override("font_hover_color", warning_color)
+			var color: Color = loss_warning_color if state.warning_kind == ItemActionState.WarningKind.LOSS else caution_warning_color
+			button.add_theme_color_override("font_color", color)
+			button.add_theme_color_override("font_hover_color", color)
 		else:
 			button.remove_theme_color_override("font_color")
 			button.remove_theme_color_override("font_hover_color")
