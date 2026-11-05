@@ -17,6 +17,8 @@ signal damage_received(skull: Skull, amount: float)
 @export var catch_up_distance: float = 48.0
 ## 맞았을 때 하얗게 번쩍이는 시간 (초)
 @export var hit_flash_duration: float = 0.1
+## 행동 조각이 바닥에 그리는 예고 표시(돌진 방향 선 등)의 색. 적의 표시(빨강)와 구별되는 아군 색(30e1b9)이다.
+@export var indicator_color: Color = Color(0.1882353, 0.88235295, 0.7254902, 1)
 
 var skull: Skull
 var data: MonsterData
@@ -25,6 +27,7 @@ var _master: Node2D
 var catch_up_speed: float = 0.0
 ## 몬스터와 싸우는 방식 (원본 몬스터의 언데드용 행동 조각 복사본)
 var _behavior: MonsterBehavior
+var _knockback: Knockback = Knockback.new()
 
 @onready var _collision: CollisionShape2D = $CollisionShape2D
 
@@ -38,20 +41,45 @@ func setup(summoned_skull: Skull, monster_data: MonsterData, master: Node2D) -> 
 
 func _ready() -> void:
 	_behavior = data.make_undead_behavior()
-	var shape: CircleShape2D = CircleShape2D.new()
-	shape.radius = data.placeholder_radius
-	_collision.shape = shape
-	_collision.position = Vector2(0, -data.placeholder_radius)
+	_collision.shape = PlaceholderBody.make_shape(data)
+	_collision.rotation = PlaceholderBody.shape_rotation(data)
+	_collision.position = PlaceholderBody.center(data)
 
 
 func _physics_process(delta: float) -> void:
 	_behavior.update(delta)
 	var target: Monster = _find_target()
-	if target != null:
-		_behavior.act(self, data.get_undead_stats(), target)
+	# 하던 동작(돌진 예고 등)은 대상이 사라져도 이어 간다.
+	if target != null or _behavior.is_busy():
+		_behavior.act(self, data.get_undead_stats(), target, delta)
 	else:
 		_follow()
+	if _knockback.is_active():
+		velocity = _knockback.get_velocity()
 	move_and_slide()
+	_knockback.update(delta)
+	# 예고 표시(깜빡임, 방향 선)가 프레임마다 바뀐다.
+	queue_redraw()
+
+
+## 테스트·디버그용: 이 한 마리가 쓰는 행동 조각
+func get_behavior() -> MonsterBehavior:
+	return _behavior
+
+
+## 돌진처럼 여러 상대를 치는 행동 조각이 칠 수 있는 상대: 살아 있는 몬스터만.
+func get_hostiles() -> Array[Node2D]:
+	var result: Array[Node2D] = []
+	for node: Node in get_tree().get_nodes_in_group(&"monsters"):
+		var monster: Monster = node as Monster
+		if monster != null and not monster.is_queued_for_deletion() and monster.health > 0.0:
+			result.append(monster)
+	return result
+
+
+## offset만큼 duration초 동안 밀려난다 (적 멧돼지의 돌진 등).
+func knock_back(offset: Vector2, duration: float) -> void:
+	_knockback.start(offset, duration)
 
 
 func _follow() -> void:
@@ -96,5 +124,6 @@ func take_damage(amount: float) -> void:
 
 
 func _draw() -> void:
-	# 그림이 생기기 전까지 쓰는 임시 도형. 원본 몬스터와 같은 크기의 원을 언데드 색으로 그린다.
-	draw_circle(Vector2(0, -data.placeholder_radius), data.placeholder_radius, data.undead_placeholder_color)
+	# 그림이 생기기 전까지 쓰는 임시 도형. 원본 몬스터와 같은 모양·크기를 언데드 색으로 그린다.
+	_behavior.draw_overlay(self, indicator_color)
+	PlaceholderBody.draw(self, data, _behavior.get_body_color(data.undead_placeholder_color), PlaceholderBody.center(data))

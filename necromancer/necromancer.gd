@@ -77,6 +77,8 @@ var _prompted_target: GroundTarget
 ## 진행 중인 채집과 그 시체. 채집 중이 아니면 null.
 var _harvest: Harvest
 var _harvest_corpse: Corpse
+## 돌진 등에 맞아 밀려나는 중이면 입력·구르기 대신 이것으로 움직인다
+var _knockback: Knockback = Knockback.new()
 
 @onready var summoner: Summoner = $Summoner
 @onready var _collision: CollisionShape2D = $CollisionShape2D
@@ -112,7 +114,10 @@ func _physics_process(delta: float) -> void:
 	else:
 		is_running = run_held and input_direction != Vector2.ZERO and stamina.can_run()
 		velocity = input_direction * (run_speed if is_running else move_speed)
+	if _knockback.is_active():
+		velocity = _knockback.get_velocity()
 	move_and_slide()
+	_knockback.update(delta)
 	stamina.process(delta, is_running, rolling)
 	if rolling:
 		_roll_elapsed += delta
@@ -188,6 +193,15 @@ func take_damage(amount: float) -> void:
 		return
 	modulate = Color(3, 3, 3)
 	create_tween().tween_property(self, "modulate", Color.WHITE, hit_flash_duration)
+
+
+## offset만큼 duration초 동안 밀려난다. 구르기 무적이어도 밀려난다 (피해만 막는다).
+func knock_back(offset: Vector2, duration: float) -> void:
+	_knockback.start(offset, duration)
+
+
+func is_knocked_back() -> bool:
+	return _knockback.is_active()
 
 
 func _shoot() -> void:

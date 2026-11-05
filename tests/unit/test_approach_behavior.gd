@@ -37,26 +37,26 @@ func after_each() -> void:
 
 func test_far_target_is_approached_at_move_speed() -> void:
 	target.position = Vector2(100, 0)
-	behavior.act(body, stats, target)
+	behavior.act(body, stats, target, 0.0)
 	assert_eq(body.velocity, Vector2(SPEED, 0), "대상 쪽으로 이동 속도만큼")
 	assert_true(target.received.is_empty(), "멀면 때리지 않는다")
 
 
 func test_target_in_range_stops_and_hits() -> void:
 	target.position = Vector2(ATTACK_RANGE - 1.0, 0)
-	behavior.act(body, stats, target)
+	behavior.act(body, stats, target, 0.0)
 	assert_eq(body.velocity, Vector2.ZERO, "공격 거리 안이면 멈춘다")
 	assert_eq(target.received, [DAMAGE] as Array[float], "몸으로 부딪혀 피해")
 
 
 func test_cooldown_between_hits() -> void:
 	target.position = Vector2(ATTACK_RANGE - 1.0, 0)
-	behavior.act(body, stats, target)
+	behavior.act(body, stats, target, 0.0)
 	behavior.update(COOLDOWN * 0.5)
-	behavior.act(body, stats, target)
+	behavior.act(body, stats, target, 0.0)
 	assert_eq(target.received.size(), 1, "간격이 지나기 전에는 다시 때리지 않는다")
 	behavior.update(COOLDOWN * 0.5)
-	behavior.act(body, stats, target)
+	behavior.act(body, stats, target, 0.0)
 	assert_eq(target.received.size(), 2, "간격이 지나면 다시 때린다")
 
 
@@ -67,8 +67,8 @@ func test_each_instance_has_its_own_cooldown() -> void:
 	var second: MonsterBehavior = data.make_enemy_behavior()
 	assert_ne(first, second, "한 마리에 하나씩 복사한다")
 	target.position = Vector2(ATTACK_RANGE - 1.0, 0)
-	first.act(body, stats, target)
-	second.act(body, stats, target)
+	first.act(body, stats, target, 0.0)
+	second.act(body, stats, target, 0.0)
 	assert_eq(target.received.size(), 2, "한 마리가 때린 간격이 다른 마리에 옮지 않는다")
 
 

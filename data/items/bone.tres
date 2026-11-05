@@ -1,8 +1,8 @@
-[gd_resource type="Resource" script_class="ItemData" format=3]
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://brhml51uwa1vq"]
 
-[ext_resource type="Script" path="res://items/item_data.gd" id="1_item"]
+[ext_resource type="Script" uid="uid://bankkpmkhoqqr" path="res://items/item_data.gd" id="1_item"]
 [ext_resource type="Resource" path="res://data/item_actions/drop.tres" id="2_drop"]
-[ext_resource type="Script" path="res://items/actions/item_action.gd" id="3_action"]
+[ext_resource type="Script" uid="uid://grktl5x4bplb" path="res://items/actions/item_action.gd" id="3_action"]
 
 [resource]
 script = ExtResource("1_item")
@@ -11,4 +11,3 @@ display_name = "뼈"
 actions = Array[ExtResource("3_action")]([ExtResource("2_drop")])
 harvest_time_multiplier = 0.8
 placeholder_color = Color(0.78039217, 0.8627451, 0.8156863, 1)
-placeholder_size = Vector2(6, 3)

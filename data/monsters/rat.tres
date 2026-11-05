@@ -1,9 +1,9 @@
 [gd_resource type="Resource" script_class="MonsterData" format=3 uid="uid://dgtdx1oo4mqsh"]
 
 [ext_resource type="Script" uid="uid://dcry712wjd7tf" path="res://monsters/monster_data.gd" id="1_monster"]
-[ext_resource type="Resource" path="res://data/items/bone.tres" id="2_bone"]
+[ext_resource type="Resource" uid="uid://brhml51uwa1vq" path="res://data/items/bone.tres" id="2_bone"]
 [ext_resource type="Script" uid="uid://bcih3jlpk6ss2" path="res://items/drop_entry.gd" id="3_drop"]
-[ext_resource type="Resource" path="res://data/skulls/rat_skull.tres" id="4_rat_skull"]
+[ext_resource type="Resource" uid="uid://bra1oda508qor" path="res://data/skulls/rat_skull.tres" id="4_rat_skull"]
 [ext_resource type="Resource" path="res://data/behaviors/approach.tres" id="5_approach"]
 
 [sub_resource type="Resource" id="Resource_drop_bone"]
@@ -22,16 +22,7 @@ id = &"rat"
 display_name = "쥐"
 behavior = ExtResource("5_approach")
 drops = Array[ExtResource("3_drop")]([SubResource("Resource_drop_bone"), SubResource("Resource_drop_skull")])
-harvest_base_time = 1.0
-summon_bone_cost = 4
 summon_mana_cost = 4.0
 undead_upkeep_mana_per_second = 2.0
-undead_death_durability_loss = 3.0
-undead_max_health = 4.0
-undead_move_speed = 60.0
-undead_detect_range = 90.0
-undead_attack_range = 14.0
-undead_contact_damage = 1.0
-undead_attack_cooldown = 0.8
 undead_placeholder_color = Color(0.78039217, 0.8627451, 0.8156863, 1)
 placeholder_color = Color(0.5882353, 0.42352942, 0.42352942, 1)

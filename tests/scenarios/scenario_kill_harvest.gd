@@ -192,7 +192,7 @@ func _check_corpse_prompt() -> bool:
 	var prompt: Label = _corpse.get_node("%Prompt")
 	var expected: String = "%s의 시체\n%s" % [_corpse.data.display_name, PICKUP_KEY_TEXT]
 	var prompt_bottom: float = prompt.global_position.y + prompt.size.y
-	var corpse_top: float = _corpse.global_position.y - _corpse.data.placeholder_radius * _corpse.flatten_ratio
+	var corpse_top: float = _corpse.global_position.y - _corpse.data.get_placeholder_half_size().y * _corpse.flatten_ratio
 	return _check("시체 안내", prompt.is_visible_in_tree() and prompt.text == expected and prompt_bottom <= corpse_top,
 			"안내 보임 %s, 글자 '%s' (기대 '%s'), 안내 아래 끝 y %.0f (시체 위 끝 y %.0f), 내용은 안내에 없음" % [
 				prompt.is_visible_in_tree(), prompt.text.replace("\n", " / "), expected.replace("\n", " / "), prompt_bottom, corpse_top])

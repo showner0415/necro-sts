@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ChargeBehavior" format=3]
+
+[ext_resource type="Script" path="res://monsters/behaviors/charge_behavior.gd" id="1_charge"]
+
+[resource]
+script = ExtResource("1_charge")
+charge_range = 90.0
+windup_time = 0.7
+lock_time = 0.2
+charge_speed = 200.0
+charge_distance = 120.0
+recover_time = 1.2
+hit_radius = 12.0
+knockback_distance = 24.0
+knockback_duration = 0.15

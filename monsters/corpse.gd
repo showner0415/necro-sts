@@ -22,9 +22,8 @@ func setup(monster_data: MonsterData, corpse_loot: CorpseLoot) -> void:
 
 func _ready() -> void:
 	super()
-	var shape: CircleShape2D = CircleShape2D.new()
-	shape.radius = data.placeholder_radius
-	_collision.shape = shape
+	_collision.shape = PlaceholderBody.make_shape(data)
+	_collision.rotation = PlaceholderBody.shape_rotation(data)
 
 
 func get_display_name() -> String:
@@ -50,8 +49,6 @@ func take(stack: ItemStack, inventory: Inventory) -> bool:
 
 
 func _draw() -> void:
-	# 그림이 생기기 전까지 쓰는 임시 도형: 원본 몬스터의 원을 납작하게 눕힌 모양.
+	# 그림이 생기기 전까지 쓰는 임시 도형: 원본 몬스터의 도형을 납작하게 눕힌 모양.
 	var color: Color = empty_color if loot.is_empty() else data.placeholder_color
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, flatten_ratio))
-	draw_circle(Vector2.ZERO, data.placeholder_radius, color)
-	draw_set_transform(Vector2.ZERO)
+	PlaceholderBody.draw(self, data, color, Vector2.ZERO, flatten_ratio)

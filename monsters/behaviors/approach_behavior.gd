@@ -9,7 +9,7 @@ func update(delta: float) -> void:
 	_attack_timer = maxf(_attack_timer - delta, 0.0)
 
 
-func act(body: CharacterBody2D, stats: CombatStats, target: Node2D) -> void:
+func act(body: CharacterBody2D, stats: CombatStats, target: Node2D, _delta: float) -> void:
 	var to_target: Vector2 = target.global_position - body.global_position
 	if to_target.length() > stats.attack_range:
 		body.velocity = to_target.normalized() * stats.move_speed

@@ -2,6 +2,9 @@ class_name MonsterData
 extends Resource
 ## 몬스터 한 종류의 정의. 새 몬스터는 이 리소스의 .tres를 추가하고 monster.tscn에 넣어서 만든다.
 
+## 임시 도형의 모양
+enum PlaceholderShape { CIRCLE, ELLIPSE }
+
 @export var id: StringName
 @export var display_name: String
 
@@ -56,8 +59,12 @@ extends Resource
 
 @export_group("임시 도형")
 @export var placeholder_color: Color = Color.WHITE
-## 그림과 충돌 판정에 같이 쓰는 원의 반지름
+## 원 또는 가로로 긴 타원 (네발짐승 등)
+@export var placeholder_shape: PlaceholderShape = PlaceholderShape.CIRCLE
+## 원일 때: 그림과 충돌 판정에 같이 쓰는 원의 반지름
 @export var placeholder_radius: float = 5.0
+## 타원일 때: 가로 반지름, 세로 반지름
+@export var placeholder_ellipse_size: Vector2 = Vector2(10, 6)
 
 
 ## 적일 때 쓰는 행동 조각의 복사본 (한 마리에 하나)
@@ -76,3 +83,10 @@ func get_enemy_stats() -> CombatStats:
 
 func get_undead_stats() -> CombatStats:
 	return CombatStats.create(undead_move_speed, undead_attack_range, undead_contact_damage, undead_attack_cooldown)
+
+
+## 임시 도형의 가로·세로 반지름 (원이면 둘 다 placeholder_radius)
+func get_placeholder_half_size() -> Vector2:
+	if placeholder_shape == PlaceholderShape.ELLIPSE:
+		return placeholder_ellipse_size
+	return Vector2(placeholder_radius, placeholder_radius)
