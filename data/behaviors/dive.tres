@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="DiveBehavior" format=3]
+
+[ext_resource type="Script" path="res://monsters/behaviors/dive_behavior.gd" id="1_dive"]
+
+[resource]
+script = ExtResource("1_dive")
+dive_range = 110.0
+windup_time = 0.3
+dive_speed = 300.0
+dive_distance = 140.0
+bite_range = 13.0
+retreat_speed = 150.0
+orbit_radius = 60.0
+keep_distance = 40.0
+orbit_speed = 80.0
+orbit_time = 2.0

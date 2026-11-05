@@ -1,6 +1,9 @@
 class_name Bolt
 extends Area2D
-## 네크로맨서의 기본 공격 탄. 곧게 날아가다 몬스터에 맞거나 사거리를 넘으면 사라진다.
+## 네크로맨서의 기본 공격 탄. 곧게 날아가다 몬스터(날아다니는 몬스터 포함)에 맞거나 사거리를 넘으면 사라진다.
+## 맞히면 hit_target으로 알린다 (밸런스 측정에서 명중률을 셀 때 쓴다).
+
+signal hit_target(body: Node2D)
 ## 속도·피해·사거리는 쏘는 쪽(Necromancer)이 정해서 넣는다.
 
 @export_group("임시 도형")
@@ -40,6 +43,7 @@ func _on_body_entered(body: Node2D) -> void:
 		return
 	if body is Monster:
 		(body as Monster).take_damage(damage, source)
+		hit_target.emit(body)
 		queue_free()
 
 

@@ -28,6 +28,21 @@ func act(_body: CharacterBody2D, _stats: CombatStats, _target: Node2D, _delta: f
 	pass
 
 
+## 공격 예고 중인지 (돌진 전 깜빡임 등). 밸런스 측정 봇이 피할 때를 고르는 데 쓴다.
+func is_telegraphing() -> bool:
+	return false
+
+
+## 예고 중인 공격이 향하는 방향. 아직 정해지지 않았으면 Vector2.ZERO.
+func get_attack_direction() -> Vector2:
+	return Vector2.ZERO
+
+
+## 예고 중인 공격 방향이 고정되었는지 (고정 전에 피하면 다시 겨눈다).
+func is_attack_locked() -> bool:
+	return false
+
+
 ## 몸 색. 깜빡임 같은 표시가 있으면 바꿔서 돌려준다.
 func get_body_color(base: Color) -> Color:
 	return base

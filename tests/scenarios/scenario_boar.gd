@@ -9,12 +9,13 @@ extends ScenarioTest
 
 const WAIT_FRAMES: int = 3
 const TIMEOUT_FRAMES: int = 600
-## 멧돼지에게서 이만큼 떨어져 선다: 감지 거리(100) 안, 돌진 거리(90) 밖
-const APPROACH_OFFSET: Vector2 = Vector2(-95, 0)
+## 돌진 시작 거리보다 이만큼 더 떨어져 선다 (감지 거리 안이어야 한다)
+const APPROACH_MARGIN: float = 5.0
 ## 예고 중 고정 전에 대상을 따라 도는지 보려고 옆으로 걷는 프레임
 const SIDESTEP_FRAMES: int = 8
-## 구르기 무적 확인: 돌진하는 멧돼지가 이 거리 안에 오면 멧돼지 쪽으로 구른다
-const ROLL_TRIGGER_DISTANCE: float = 40.0
+## 구르기 무적 확인: 돌진하는 멧돼지가 (맞는 판정 거리 + 이 거리) 안에 오면 멧돼지 쪽으로 구른다.
+## 구르기 입력은 다음 프레임에 반영되므로, 맞기 전에 무적이 시작되도록 판정 거리보다 넉넉히 앞에서 구른다.
+const ROLL_TRIGGER_MARGIN: float = 40.0
 ## 멈칫 시간 판정의 허용 오차 (프레임)
 const RECOVER_TOLERANCE_FRAMES: int = 3
 const PARKED_POSITION: Vector2 = Vector2(-420, 420)
@@ -96,7 +97,7 @@ func _run() -> void:
 
 
 func _approach() -> bool:
-	_necromancer.global_position = _boar.global_position + APPROACH_OFFSET
+	_necromancer.global_position = _boar.global_position + Vector2(-(_charge.charge_range + APPROACH_MARGIN), 0)
 	await wait_frames(WAIT_FRAMES)
 	var to_necromancer: Vector2 = _boar.global_position.direction_to(_necromancer.global_position)
 	var velocity: Vector2 = _boar.velocity
@@ -176,13 +177,19 @@ func _recover() -> bool:
 
 ## 돌진이 가까이 오면 멧돼지 쪽으로 구른다. 구르기 앞부분 무적이라 피해는 없고 밀려나기만 한다.
 func _roll_through() -> bool:
+	# 다음 예고가 시작되면, 방향이 고정되기 전에 네크로맨서를 돌진 시작 거리 근처로 옮긴다.
+	# 앞 단계가 끝난 자리에 따라 바로 옆에서 돌진이 시작되면 구를 틈이 없어서, 매번 같은 조건을 만든다.
+	if await _wait_until(func() -> bool: return _charge.get_state() == ChargeBehavior.State.WINDUP and not _charge.is_direction_locked()) < 0:
+		fail_step("구르기 무적", "다음 예고가 시작되지 않음")
+		return false
+	_necromancer.global_position = _boar.global_position + Vector2(-(_charge.charge_range - APPROACH_MARGIN), 0)
 	var health_before: float = _necromancer.health
 	if await _wait_until(func() -> bool: return _charge.get_state() == ChargeBehavior.State.CHARGE) < 0:
 		fail_step("구르기 무적", "다음 돌진이 시작되지 않음")
 		return false
 	var seen: Dictionary[StringName, bool] = {&"rolled": false, &"knocked": false, &"invincible": false}
 	await _wait_until(func() -> bool:
-		if not seen[&"rolled"] and _boar.global_position.distance_to(_necromancer.global_position) < ROLL_TRIGGER_DISTANCE:
+		if not seen[&"rolled"] and _boar.global_position.distance_to(_necromancer.global_position) < _charge.hit_radius + ROLL_TRIGGER_MARGIN:
 			press_moves(_necromancer.global_position.direction_to(_boar.global_position))
 			press_key(KEY_SPACE, true)
 			press_key(KEY_SPACE, false)

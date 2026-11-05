@@ -17,6 +17,9 @@ signal damage_received(skull: Skull, amount: float)
 @export var catch_up_distance: float = 48.0
 ## 맞았을 때 하얗게 번쩍이는 시간 (초)
 @export var hit_flash_duration: float = 0.1
+## 날아다니는 몬스터(data.flying)가 쓰는 충돌층과, 부딪히는 대상(벽)
+@export_flags_2d_physics var flying_layer: int = 32
+@export_flags_2d_physics var flying_mask: int = 1
 ## 행동 조각이 바닥에 그리는 예고 표시(돌진 방향 선 등)의 색. 적의 표시(빨강)와 구별되는 아군 색(30e1b9)이다.
 @export var indicator_color: Color = Color(0.1882353, 0.88235295, 0.7254902, 1)
 
@@ -44,6 +47,10 @@ func _ready() -> void:
 	_collision.shape = PlaceholderBody.make_shape(data)
 	_collision.rotation = PlaceholderBody.shape_rotation(data)
 	_collision.position = PlaceholderBody.center(data)
+	# 날아다니는 몸은 벽하고만 부딪히고, 다른 몸도 이 몸에 부딪히지 않는다 (탄은 이 층도 검사한다).
+	if data.flying:
+		collision_layer = flying_layer
+		collision_mask = flying_mask
 
 
 func _physics_process(delta: float) -> void:

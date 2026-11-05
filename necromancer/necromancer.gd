@@ -24,6 +24,8 @@ signal harvest_progress_changed(progress: float)
 @export_group("뛰기·구르기")
 ## 뛰기 키를 누르고 움직일 때의 속도 (임시값)
 @export var run_speed: float = 130.0
+## 공격 버튼을 누르고 있는 동안의 이동 속도. 이때는 뛸 수 없다 (임시값)
+@export var attack_move_speed: float = 50.0
 ## 스태미나 최대치 (임시값)
 @export var max_stamina: float = 100.0
 ## 뛰지도 구르지도 않을 때 초당 회복량 (임시값)
@@ -112,8 +114,11 @@ func _physics_process(delta: float) -> void:
 		velocity = _roll_direction * (roll_distance / roll_duration)
 		is_running = false
 	else:
-		is_running = run_held and input_direction != Vector2.ZERO and stamina.can_run()
-		velocity = input_direction * (run_speed if is_running else move_speed)
+		# 쏘는 동안(공격 버튼을 누르고 있는 동안)은 느려지고 뛸 수 없다.
+		var attacking: bool = actions_enabled and _attack_held
+		is_running = run_held and input_direction != Vector2.ZERO and stamina.can_run() and not attacking
+		var speed: float = attack_move_speed if attacking else (run_speed if is_running else move_speed)
+		velocity = input_direction * speed
 	if _knockback.is_active():
 		velocity = _knockback.get_velocity()
 	move_and_slide()

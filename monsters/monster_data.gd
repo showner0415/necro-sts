@@ -3,7 +3,7 @@ extends Resource
 ## 몬스터 한 종류의 정의. 새 몬스터는 이 리소스의 .tres를 추가하고 monster.tscn에 넣어서 만든다.
 
 ## 임시 도형의 모양
-enum PlaceholderShape { CIRCLE, ELLIPSE }
+enum PlaceholderShape { CIRCLE, ELLIPSE, DIAMOND }
 
 @export var id: StringName
 @export var display_name: String
@@ -13,6 +13,9 @@ enum PlaceholderShape { CIRCLE, ELLIPSE }
 @export var behavior: MonsterBehavior
 ## 언데드일 때 싸우는 방식. 비워 두면 적일 때와 같은 조각을 쓴다.
 @export var undead_behavior: MonsterBehavior
+
+## 날아다니는지. 날면 몸끼리 겹쳐 지나가고 벽에만 막힌다 (flying 충돌층).
+@export var flying: bool = false
 
 @export_group("능력치")
 @export var max_health: float = 3.0
@@ -65,11 +68,11 @@ enum PlaceholderShape { CIRCLE, ELLIPSE }
 
 @export_group("임시 도형")
 @export var placeholder_color: Color = Color.WHITE
-## 원 또는 가로로 긴 타원 (네발짐승 등)
+## 원, 가로로 긴 타원 (네발짐승 등), 가로로 넓은 마름모 (날개 편 박쥐 등)
 @export var placeholder_shape: PlaceholderShape = PlaceholderShape.CIRCLE
 ## 원일 때: 그림과 충돌 판정에 같이 쓰는 원의 반지름
 @export var placeholder_radius: float = 5.0
-## 타원일 때: 가로 반지름, 세로 반지름
+## 타원·마름모일 때: 가로 반지름, 세로 반지름
 @export var placeholder_ellipse_size: Vector2 = Vector2(10, 6)
 
 
@@ -93,6 +96,6 @@ func get_undead_stats() -> CombatStats:
 
 ## 임시 도형의 가로·세로 반지름 (원이면 둘 다 placeholder_radius)
 func get_placeholder_half_size() -> Vector2:
-	if placeholder_shape == PlaceholderShape.ELLIPSE:
+	if placeholder_shape != PlaceholderShape.CIRCLE:
 		return placeholder_ellipse_size
 	return Vector2(placeholder_radius, placeholder_radius)

@@ -4,12 +4,12 @@
 
 [resource]
 script = ExtResource("1_charge")
-charge_range = 90.0
+charge_range = 140.0
 windup_time = 0.7
 lock_time = 0.2
-charge_speed = 200.0
-charge_distance = 120.0
+charge_speed = 280.0
+charge_distance = 170.0
 recover_time = 1.2
-hit_radius = 12.0
+hit_radius = 20.0
 knockback_distance = 24.0
 knockback_duration = 0.15

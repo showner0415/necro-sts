@@ -201,7 +201,9 @@ func _check_upkeep() -> void:
 	await _tap(KEY_1)
 	await _tap(KEY_G)
 	await wait_frames(WAIT_FRAMES)
-	var one_expected: String = "%s%.1f" % ["+" if _regen > rat.undead_upkeep_mana_per_second else "-", absf(_regen - rat.undead_upkeep_mana_per_second)]
+	# 회복과 유지비가 딱 맞으면(계산값 0) 숫자를 숨긴다 (ManaPool.has_change).
+	var one_change: float = _regen - rat.undead_upkeep_mana_per_second
+	var one_expected: String = "" if is_zero_approx(one_change) else "%s%.1f" % ["+" if one_change > 0.0 else "-", absf(one_change)]
 	evidence = "쥐 언데드 %d마리, 유지비 %.1f/초 (쥐 데이터 %.1f), 회복 %.1f/초, 표시 '%s' (기대 '%s')" % [
 		roster.get_count(), roster.get_upkeep_per_second(), rat.undead_upkeep_mana_per_second, _regen, _hud.get_mana_change_text(), one_expected]
 	if roster.get_count() != 1 or _hud.get_mana_change_text() != one_expected:

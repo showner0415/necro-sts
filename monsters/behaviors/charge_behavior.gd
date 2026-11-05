@@ -66,6 +66,18 @@ func is_direction_locked() -> bool:
 	return _state == State.WINDUP and _timer >= windup_time - lock_time
 
 
+func is_telegraphing() -> bool:
+	return _state == State.WINDUP or _state == State.CHARGE
+
+
+func get_attack_direction() -> Vector2:
+	return _direction if is_telegraphing() else Vector2.ZERO
+
+
+func is_attack_locked() -> bool:
+	return is_direction_locked() or _state == State.CHARGE
+
+
 func act(body: CharacterBody2D, stats: CombatStats, target: Node2D, delta: float) -> void:
 	match _state:
 		State.APPROACH:
