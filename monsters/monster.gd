@@ -3,6 +3,7 @@ extends CharacterBody2D
 ## MonsterData 하나로 움직이는 몬스터.
 ## 배회하다가 네크로맨서나 언데드가 감지 범위에 들어오면 그중 가장 가까운 대상을 노린다.
 ## 감지 범위에 아무도 없을 때 맞으면 공격한 대상을 쫓고, 너무 멀어지면 포기하고 맞기 시작한 자리로 돌아간다 (Aggro).
+## 무리(부모가 MonsterPack)에 속하면 어그로를 공유한다: 무리가 싸우는 중이면 감지 범위 밖이어도 가장 가까운 대상을 노린다.
 ## 대상과 어떻게 싸울지는 데이터의 행동 조각(data.behavior)이 정하고, 수치는 적일 때의 값(data.get_enemy_stats())을 쓴다.
 ## 죽으면 드랍 목록(data.drops)의 확률을 굴려 나온 것을 담은 시체(Corpse)를 남긴다. 네크로맨서가 시체에서 채집한다.
 
@@ -29,6 +30,10 @@ var _behavior: MonsterBehavior
 var _knockback: Knockback = Knockback.new()
 ## 감지 범위 밖에서 맞았을 때 공격자를 쫓는 규칙
 var _aggro: Aggro
+## 속한 무리 (없으면 null)
+var _pack: MonsterPack
+## 이 몬스터가 직접 싸우는 중인지 (감지 범위에 대상이 있거나 공격자를 쫓는 중). 무리가 읽는다.
+var _engaged_by_itself: bool = false
 
 @onready var _collision: CollisionShape2D = $CollisionShape2D
 
@@ -37,6 +42,7 @@ func _ready() -> void:
 	health = data.max_health
 	_behavior = data.make_enemy_behavior()
 	_aggro = Aggro.new(data.chase_attacker_limit, data.chase_home_limit, return_arrive_distance)
+	_pack = get_parent() as MonsterPack
 	_collision.shape = PlaceholderBody.make_shape(data)
 	_collision.rotation = PlaceholderBody.shape_rotation(data)
 	_collision.position = PlaceholderBody.center(data)
@@ -59,6 +65,10 @@ func _physics_process(delta: float) -> void:
 			_target = null
 		_:
 			_target = nearest
+			# 무리가 싸우는 중이면 감지 범위 밖이어도 가장 가까운 대상을 노린다.
+			if _target == null and _pack != null and _pack.is_engaged():
+				_target = _find_nearest_target(INF)
+	_engaged_by_itself = nearest != null or _aggro.state == Aggro.State.CHASING
 	# 하던 동작(돌진 예고 등)은 대상이 사라져도 이어 간다.
 	if _target != null or _behavior.is_busy():
 		_behavior.act(self, data.get_enemy_stats(), _target, delta)
@@ -72,6 +82,11 @@ func _physics_process(delta: float) -> void:
 	_knockback.update(delta)
 	# 예고 표시(깜빡임, 방향 선)가 프레임마다 바뀐다.
 	queue_redraw()
+
+
+## 이 몬스터가 직접 싸우는 중인지 (무리의 어그로 공유가 읽는다)
+func is_engaged_by_itself() -> bool:
+	return _engaged_by_itself
 
 
 ## 테스트·디버그용: 지금 노리는 대상 (없으면 null)
@@ -145,11 +160,12 @@ func _draw() -> void:
 	PlaceholderBody.draw(self, data, _behavior.get_body_color(data.placeholder_color), PlaceholderBody.center(data))
 
 
-## 감지 범위 안의 네크로맨서·언데드 중 가장 가까운 것. 없으면 null.
+## max_range 안(기본: 감지 범위)의 네크로맨서·언데드 중 가장 가까운 것. 없으면 null.
 ## 몬스터는 둘을 똑같이 적으로 본다.
-func _find_nearest_target() -> Node2D:
+func _find_nearest_target(max_range: float = -1.0) -> Node2D:
 	var nearest: Node2D = null
-	var nearest_distance: float = data.detect_range * data.detect_range
+	var limit: float = data.detect_range if max_range < 0.0 else max_range
+	var nearest_distance: float = limit * limit
 	var candidates: Array[Node] = get_tree().get_nodes_in_group(&"necromancer")
 	candidates.append_array(get_tree().get_nodes_in_group(&"undead"))
 	for node: Node in candidates:

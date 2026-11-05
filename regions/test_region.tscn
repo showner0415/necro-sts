@@ -10,6 +10,7 @@
 [ext_resource type="Resource" path="res://data/monsters/rat.tres" id="5_rat"]
 [ext_resource type="Resource" path="res://data/monsters/boar.tres" id="11_boar"]
 [ext_resource type="Resource" path="res://data/monsters/bat.tres" id="12_bat"]
+[ext_resource type="Script" path="res://monsters/monster_pack.gd" id="13_pack"]
 [ext_resource type="PackedScene" path="res://ui/hud.tscn" id="6_hud"]
 [ext_resource type="PackedScene" path="res://ui/inventory_screen.tscn" id="7_inventory"]
 
@@ -58,16 +59,21 @@ data = ExtResource("11_boar")
 position = Vector2(380, 90)
 data = ExtResource("11_boar")
 
-[node name="Bat1" parent="Actors" instance=ExtResource("4_monster")]
-position = Vector2(-360, -20)
+[node name="BatPack" type="Node2D" parent="Actors"]
+y_sort_enabled = true
+position = Vector2(-362, 0)
+script = ExtResource("13_pack")
+
+[node name="Bat1" parent="Actors/BatPack" instance=ExtResource("4_monster")]
+position = Vector2(2, -20)
 data = ExtResource("12_bat")
 
-[node name="Bat2" parent="Actors" instance=ExtResource("4_monster")]
-position = Vector2(-374, 0)
+[node name="Bat2" parent="Actors/BatPack" instance=ExtResource("4_monster")]
+position = Vector2(-12, 0)
 data = ExtResource("12_bat")
 
-[node name="Bat3" parent="Actors" instance=ExtResource("4_monster")]
-position = Vector2(-352, 14)
+[node name="Bat3" parent="Actors/BatPack" instance=ExtResource("4_monster")]
+position = Vector2(10, 14)
 data = ExtResource("12_bat")
 
 [node name="HUD" parent="." instance=ExtResource("6_hud")]

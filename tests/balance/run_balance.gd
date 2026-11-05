@@ -24,7 +24,7 @@ const UNDEAD_BONES: int = 40
 const TARGETS: Dictionary = {
 	&"rat": {"name": "쥐 1마리", "data": "res://data/monsters/rat.tres", "offsets": [Vector2.ZERO]},
 	&"boar": {"name": "멧돼지 1마리", "data": "res://data/monsters/boar.tres", "offsets": [Vector2.ZERO]},
-	&"bat_pack": {"name": "박쥐 무리(3)", "data": "res://data/monsters/bat.tres", "offsets": [Vector2(0, -12), Vector2(12, 0), Vector2(0, 12)]},
+	&"bat_pack": {"name": "박쥐 무리(3)", "data": "res://data/monsters/bat.tres", "offsets": [Vector2(0, -12), Vector2(12, 0), Vector2(0, 12)], "pack": true},
 }
 const SPAWN_OFFSET: Vector2 = Vector2(150, 0)
 const DEFAULT_RUNS: int = 20
@@ -110,11 +110,21 @@ func _fight(target_id: StringName, undead_count: int, skill_id: StringName, run:
 
 	var target: Dictionary = TARGETS[target_id]
 	var data: MonsterData = load(target["data"])
+	# 무리는 MonsterPack 아래에 둔다 (어그로 공유).
+	var parent: Node2D = necromancer.get_parent()
+	var origin: Vector2 = SPAWN_OFFSET
+	if target.get("pack", false):
+		var pack: MonsterPack = MonsterPack.new()
+		pack.y_sort_enabled = true
+		pack.position = SPAWN_OFFSET
+		parent.add_child(pack)
+		parent = pack
+		origin = Vector2.ZERO
 	for offset: Vector2 in target["offsets"]:
 		var monster: Monster = (load(MONSTER_SCENE) as PackedScene).instantiate()
 		monster.data = data
-		monster.position = SPAWN_OFFSET + offset
-		necromancer.get_parent().add_child(monster)
+		monster.position = origin + offset
+		parent.add_child(monster)
 
 	var bot: PlayerBot = PlayerBot.new(self, necromancer, skill_id)
 	if _keep >= 0.0:
