@@ -20,6 +20,10 @@ var _inventory: Inventory
 var _screen: InventoryScreen
 
 
+func get_start_scene() -> String:
+	return TEST_REGION_SCENE
+
+
 func _on_scene_ready() -> void:
 	_run()
 
@@ -101,25 +105,25 @@ func _run() -> void:
 	# 마우스 올림: 3번 칸 (내구도 7)
 	move_mouse_to_ui(_slot_center(3))
 	await wait_frames(WAIT_FRAMES)
-	var expected_info: String = "%s\n내구도 7 / 10" % rat_skull.display_name
+	# 아직 소환한 적 없는 머리뼈: 체력은 가득, 회복 대신 처음 소환 뼈를 보여준다.
+	var rat: MonsterData = MonsterDatabase.find(rat_skull.source_monster_id)
+	var expected_info: String = "%s\n내구도 7 / 10 · 체력 %d / %d\n처음 소환 뼈 %d개" % [rat_skull.display_name, ceili(rat.undead_max_health), ceili(rat.undead_max_health), rat.summon_bone_cost]
 	if not _check("마우스 올림 정보", _screen.get_info_text() == expected_info,
 			"마우스 아래 %s, 정보 줄 '%s' (기대 '%s')" % [root.gui_get_hovered_control(), _screen.get_info_text().replace("\n", " / "), expected_info.replace("\n", " / ")]):
 		return
 
-	# 우클릭 버리기: 2번 칸
+	# 우클릭 메뉴로 버리기: 2번 칸
 	var dropped: ItemStack = _inventory.get_slot(2)
 	var pickups_before: int = _pickups().size()
-	move_mouse_to_ui(_slot_center(2))
-	await wait_frames(1)
-	press_mouse_at_ui(_slot_center(2), MOUSE_BUTTON_RIGHT, true)
-	press_mouse_at_ui(_slot_center(2), MOUSE_BUTTON_RIGHT, false)
-	await wait_frames(WAIT_FRAMES)
+	if not await choose_inventory_menu(_screen, 2, &"drop"):
+		fail_step("메뉴로 버리기", "2번 칸 메뉴에서 버리기 항목을 누르지 못함")
+		return
 	var dropped_pickup: Pickup = null
 	for pickup: Pickup in _pickups():
 		if pickup.stack == dropped:
 			dropped_pickup = pickup
 	var drop_distance: float = dropped_pickup.global_position.distance_to(_necromancer.global_position) if dropped_pickup else INF
-	if not _check("우클릭 버리기", _inventory.get_slot(2) == null and dropped_pickup != null and drop_distance <= _necromancer.drop_scatter_radius + 0.01,
+	if not _check("메뉴로 버리기", _inventory.get_slot(2) == null and dropped_pickup != null and drop_distance <= _necromancer.drop_scatter_radius + 0.01,
 			"2번 칸 비었음 %s, 바닥 더미 %d → %d개, 버린 머리뼈가 바닥에 있음 %s (발밑에서 %.1f), 칸: %s" % [
 				_inventory.get_slot(2) == null, pickups_before, _pickups().size(), dropped_pickup != null, drop_distance, _describe_slots()]):
 		return

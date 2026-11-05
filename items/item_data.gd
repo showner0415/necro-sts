@@ -4,6 +4,8 @@ extends Resource
 
 @export var id: StringName
 @export var display_name: String
+## 인벤토리 칸 우클릭 메뉴에 나오는 항목 (위에서부터 순서대로)
+@export var actions: Array[ItemAction] = []
 
 @export_group("임시 도형")
 ## 그림이 생기기 전까지 바닥에 그릴 사각형의 색과 크기

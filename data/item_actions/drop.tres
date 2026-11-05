@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="DropItemAction" format=3]
+
+[ext_resource type="Script" path="res://items/actions/drop_item_action.gd" id="1_action"]
+
+[resource]
+script = ExtResource("1_action")
+id = &"drop"
+label = "버리기"

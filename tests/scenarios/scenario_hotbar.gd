@@ -19,6 +19,10 @@ var _screen: InventoryScreen
 var _hotbar_view: HotbarView
 
 
+func get_start_scene() -> String:
+	return TEST_REGION_SCENE
+
+
 func _on_scene_ready() -> void:
 	_run()
 
@@ -133,12 +137,10 @@ func _run() -> void:
 			"인벤토리 1 → 7 끌기 후: %s" % _describe()):
 		return
 
-	move_mouse_to_ui(_inventory_center(7))
-	await wait_frames(1)
-	press_mouse_at_ui(_inventory_center(7), MOUSE_BUTTON_RIGHT, true)
-	press_mouse_at_ui(_inventory_center(7), MOUSE_BUTTON_RIGHT, false)
-	await wait_frames(WAIT_FRAMES)
+	if not await choose_inventory_menu(_screen, 7, &"drop"):
+		fail_step("버리면 핫바가 빔", "7번 칸 메뉴에서 버리기 항목을 누르지 못함")
+		return
 	if not _check("버리면 핫바가 빔", _hotbar.get_skull(0) == null and _hotbar.get_skull(1) == b and not _hotbar_view.get_slot_control(0).get_node("%Icon").visible,
-			"인벤토리 7번 우클릭으로 버린 뒤: %s, 핫바 0 그림 보임 %s" % [_describe(), _hotbar_view.get_slot_control(0).get_node("%Icon").visible]):
+			"인벤토리 7번 우클릭 메뉴로 버린 뒤: %s, 핫바 0 그림 보임 %s" % [_describe(), _hotbar_view.get_slot_control(0).get_node("%Icon").visible]):
 		return
 	finish(true)

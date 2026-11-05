@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="HealSkullAction" format=3]
+
+[ext_resource type="Script" path="res://items/actions/heal_skull_action.gd" id="1_action"]
+
+[resource]
+script = ExtResource("1_action")
+id = &"heal_skull"
+label = "회복하기"

@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="AssignHotbarAction" format=3]
+
+[ext_resource type="Script" path="res://items/actions/assign_hotbar_action.gd" id="1_action"]
+
+[resource]
+script = ExtResource("1_action")
+id = &"assign_hotbar"
+label = "핫바에 등록"
