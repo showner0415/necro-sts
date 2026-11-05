@@ -66,6 +66,15 @@ func _ids(item: ItemData) -> Array[StringName]:
 	return ids
 
 
+## 그 칸의 메뉴에 실제로 보이는 항목 id (is_visible_in으로 거른 것).
+func _visible_ids(slot_index: int) -> Array[StringName]:
+	var ids: Array[StringName] = []
+	for action: ItemAction in inventory.get_slot(slot_index).item.actions:
+		if action.is_visible_in(_context(slot_index)):
+			ids.append(action.id)
+	return ids
+
+
 ## 머리뼈를 넣고 칸 번호를 돌려준다.
 func _add_skull() -> int:
 	inventory.try_add(ItemStack.of_skull(Skull.create(skull_data)))
@@ -79,7 +88,7 @@ func _skull_at(index: int) -> Skull:
 # --- 아이템별 항목 ---
 
 func test_skull_menu_items() -> void:
-	assert_eq(_ids(skull_data), [&"heal_skull", &"assign_hotbar", &"drop"] as Array[StringName], "머리뼈: 회복하기, 핫바에 등록, 버리기")
+	assert_eq(_ids(skull_data), [&"heal_skull", &"assign_hotbar", &"unassign_hotbar", &"drop"] as Array[StringName], "머리뼈: 회복하기, 핫바에 등록(또는 핫바에서 빼기), 버리기")
 
 
 func test_bone_menu_items() -> void:
@@ -89,6 +98,7 @@ func test_bone_menu_items() -> void:
 func test_labels() -> void:
 	assert_eq(_action(skull_data, &"heal_skull").label, "회복하기")
 	assert_eq(_action(skull_data, &"assign_hotbar").label, "핫바에 등록")
+	assert_eq(_action(skull_data, &"unassign_hotbar").label, "핫바에서 빼기")
 	assert_eq(_action(bone, &"drop").label, "버리기")
 
 
@@ -125,14 +135,39 @@ func test_heal_gray_without_bones() -> void:
 	assert_eq(state.reason, "뼈 부족")
 
 
-func test_assign_gray_when_already_in_hotbar() -> void:
+func test_hotbar_item_switches_to_unassign_when_in_hotbar() -> void:
 	var index: int = _add_skull()
-	var action: ItemAction = _action(skull_data, &"assign_hotbar")
-	assert_true(action.get_state(_context(index)).enabled)
+	assert_eq(_visible_ids(index), [&"heal_skull", &"assign_hotbar", &"drop"] as Array[StringName], "핫바에 없으면 '핫바에 등록'")
 	hotbar.assign(1, _skull_at(index))
+	assert_eq(_visible_ids(index), [&"heal_skull", &"unassign_hotbar", &"drop"] as Array[StringName], "핫바에 있으면 같은 자리에 '핫바에서 빼기'")
+
+
+func test_unassign_removes_from_hotbar_only() -> void:
+	var index: int = _add_skull()
+	var skull: Skull = _skull_at(index)
+	hotbar.assign(1, skull)
+	var action: ItemAction = _action(skull_data, &"unassign_hotbar")
+	assert_eq(action.get_state(_context(index)).warning, "", "소환 중이 아니면 경고 없음")
+	assert_true(action.execute(_context(index)))
+	assert_eq(hotbar.get_skull(1), null, "핫바 칸이 빈다")
+	assert_true(_skull_at(index) == skull, "머리뼈는 인벤토리에 그대로")
+	assert_false(action.execute(_context(index)), "핫바에 없으면 실행 안 됨")
+
+
+func test_unassign_summoned_warns_and_unsummons() -> void:
+	var index: int = _add_skull()
+	inventory.try_add(ItemStack.of_item(bone, BONE_COST))
+	var skull: Skull = _skull_at(index)
+	hotbar.assign(0, skull)
+	roster.summon(skull)
+	var action: ItemAction = _action(skull_data, &"unassign_hotbar")
 	var state: ItemActionState = action.get_state(_context(index))
-	assert_false(state.enabled)
-	assert_eq(state.reason, "이미 등록됨")
+	assert_true(state.enabled)
+	assert_eq(state.warning, "소환이 해제됩니다")
+	var durability: float = skull.durability
+	assert_true(action.execute(_context(index)))
+	assert_false(roster.is_summoned(skull), "핫바에서 빠지면 일반 해제")
+	assert_eq(skull.durability, durability, "죽은 판정이 아니라 내구도 그대로")
 
 
 func test_drop_warns_only_when_summoned() -> void:

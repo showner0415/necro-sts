@@ -1,6 +1,6 @@
 extends RefCounted
 ## 스크린샷 준비: 인벤토리를 열고, 소환 중인 머리뼈(0번 칸)의 우클릭 메뉴를 띄운다.
-## 회복하기·핫바에 등록은 회색 + 이유("소환 중", "이미 등록됨"), 버리기에는 "죽은 판정이 됩니다" 경고가 보인다.
+## 회복하기는 회색 + 이유("소환 중"), 핫바에서 빼기에는 "소환이 해제됩니다", 버리기에는 "죽은 판정이 됩니다" 경고가 보인다.
 
 const RAT_SKULL_PATH: String = "res://data/skulls/rat_skull.tres"
 const BONE_PATH: String = "res://data/items/bone.tres"
