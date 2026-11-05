@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://undead/summoner.gd" id="6_summoner"]
 [ext_resource type="PackedScene" path="res://undead/undead.tscn" id="7_undead"]
 [ext_resource type="Resource" path="res://data/items/bone.tres" id="8_bone"]
+[ext_resource type="Script" path="res://necromancer/stamina_ring.gd" id="9_stamina_ring"]
 
 [node name="Necromancer" type="CharacterBody2D" groups=["necromancer"]]
 collision_layer = 2
@@ -33,3 +34,7 @@ monitorable = false
 script = ExtResource("6_summoner")
 undead_scene = ExtResource("7_undead")
 bone_item = ExtResource("8_bone")
+
+[node name="StaminaRing" type="Node2D" parent="."]
+position = Vector2(13, -6)
+script = ExtResource("9_stamina_ring")

@@ -1,7 +1,7 @@
 class_name Necromancer
 extends CharacterBody2D
 ## 플레이어 캐릭터.
-## move_* 입력으로 움직이고, attack을 누르고 있으면 마우스 방향으로 약한 탄을 쏘고 (마나 비용은 attack 데이터),
+## move_* 입력으로 움직이고(run을 누르고 있으면 뛰기, roll로 구르기. 둘 다 스태미나를 쓴다), attack을 누르고 있으면 마우스 방향으로 약한 탄을 쏘고 (마나 비용은 attack 데이터),
 ## pickup을 누르면 줍기 범위 안에서 가장 가까운 아이템 더미를 인벤토리에 넣는다.
 ## 인벤토리는 이 노드가 아니라 전역 상태(GameState)에 있고, 지역 씬이 inventory에 넣어 준다.
 
@@ -17,6 +17,24 @@ signal died
 @export var pickup_range: float = 16.0
 ## 맞았을 때 하얗게 번쩍이는 시간 (초)
 @export var hit_flash_duration: float = 0.1
+
+@export_group("뛰기·구르기")
+## 뛰기 키를 누르고 움직일 때의 속도 (임시값)
+@export var run_speed: float = 130.0
+## 스태미나 최대치 (임시값)
+@export var max_stamina: float = 100.0
+## 뛰지도 구르지도 않을 때 초당 회복량 (임시값)
+@export var stamina_regen_per_second: float = 30.0
+## 뛰는 동안 초당 쓰는 스태미나 (임시값)
+@export var run_stamina_per_second: float = 25.0
+## 구르기 한 번에 쓰는 스태미나 (임시값)
+@export var roll_stamina_cost: float = 25.0
+## 구르기 한 번에 움직이는 거리 (픽셀, 임시값)
+@export var roll_distance: float = 64.0
+## 구르는 시간 (초, 임시값)
+@export var roll_duration: float = 0.3
+## 구르기를 시작하고 이 시간 동안은 피해를 받지 않는다 (초, 임시값)
+@export var roll_invincible_duration: float = 0.2
 
 @export_group("버리기")
 ## 인벤토리에서 버린 물건을 바닥에 놓을 씬
@@ -38,6 +56,12 @@ signal died
 
 var health: float
 var mana: ManaPool
+var stamina: Stamina
+## 지금 뛰고 있는지 (뛰기 키 + 이동 + 스태미나)
+var is_running: bool = false
+## 구르기를 시작하고 지난 시간. 구르는 중이 아니면 음수.
+var _roll_elapsed: float = -1.0
+var _roll_direction: Vector2 = Vector2.ZERO
 ## 지역 씬이 GameState의 인벤토리를 넣어 준다
 var inventory: Inventory
 ## false면 이동만 하고 공격과 줍기는 하지 않는다 (인벤토리가 열려 있을 때 등)
@@ -52,11 +76,14 @@ var _prompted_pickup: Pickup
 @onready var _collision: CollisionShape2D = $CollisionShape2D
 @onready var _pickup_area: Area2D = $PickupArea
 @onready var _pickup_collision: CollisionShape2D = $PickupArea/CollisionShape2D
+@onready var _stamina_ring: StaminaRing = $StaminaRing
 
 
 func _ready() -> void:
 	health = max_health
 	mana = ManaPool.new(max_mana, mana_regen_per_second)
+	stamina = Stamina.new(max_stamina, stamina_regen_per_second, run_stamina_per_second, roll_stamina_cost)
+	_stamina_ring.bind(stamina)
 	var body_shape: CircleShape2D = CircleShape2D.new()
 	body_shape.radius = placeholder_radius
 	_collision.shape = body_shape
@@ -67,8 +94,24 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	velocity = Input.get_vector(&"move_left", &"move_right", &"move_up", &"move_down") * move_speed
+	var input_direction: Vector2 = Input.get_vector(&"move_left", &"move_right", &"move_up", &"move_down")
+	# 뛰기 키는 UI와 겹치지 않으므로 직접 읽는다. 떼면 지친 상태가 풀린다.
+	var run_held: bool = Input.is_action_pressed(&"run")
+	if not run_held:
+		stamina.release_run()
+	var rolling: bool = is_rolling()
+	if rolling:
+		velocity = _roll_direction * (roll_distance / roll_duration)
+		is_running = false
+	else:
+		is_running = run_held and input_direction != Vector2.ZERO and stamina.can_run()
+		velocity = input_direction * (run_speed if is_running else move_speed)
 	move_and_slide()
+	stamina.process(delta, is_running, rolling)
+	if rolling:
+		_roll_elapsed += delta
+		if _roll_elapsed >= roll_duration:
+			_roll_elapsed = -1.0
 
 	mana.regenerate(delta)
 	_attack_timer = maxf(_attack_timer - delta, 0.0)
@@ -87,6 +130,32 @@ func _unhandled_input(event: InputEvent) -> void:
 		_attack_held = true
 	if actions_enabled and event.is_action_pressed(&"pickup"):
 		_pick_up_nearest()
+	# 구르기도 이동이라 인벤토리가 열려 있어도 된다. UI가 Space를 받으면(버튼 누르기) 여기로 오지 않는다.
+	if event.is_action_pressed(&"roll"):
+		try_roll()
+
+
+## 이동 방향으로 구른다. 멈춰 있으면 마우스 방향. 스태미나가 모자라거나 이미 구르는 중이면 false.
+func try_roll() -> bool:
+	if is_rolling():
+		return false
+	var direction: Vector2 = Input.get_vector(&"move_left", &"move_right", &"move_up", &"move_down").normalized()
+	if direction == Vector2.ZERO:
+		direction = global_position.direction_to(get_global_mouse_position())
+	if direction == Vector2.ZERO or not stamina.try_roll():
+		return false
+	_roll_direction = direction
+	_roll_elapsed = 0.0
+	return true
+
+
+func is_rolling() -> bool:
+	return _roll_elapsed >= 0.0
+
+
+## 구르기 시작 뒤 roll_invincible_duration 동안 무적
+func is_invincible() -> bool:
+	return is_rolling() and _roll_elapsed < roll_invincible_duration
 
 
 ## 테스트·디버그용: 게임 화면에서 누른 공격 버튼을 아직 떼지 않았는지.
@@ -96,7 +165,7 @@ func is_attack_held() -> bool:
 
 
 func take_damage(amount: float) -> void:
-	if health <= 0.0:
+	if health <= 0.0 or is_invincible():
 		return
 	health = maxf(health - amount, 0.0)
 	health_changed.emit(health, max_health)

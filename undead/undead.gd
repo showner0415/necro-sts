@@ -1,7 +1,7 @@
 class_name Undead
 extends CharacterBody2D
 ## 머리뼈 하나로 소환한 언데드 한 마리. 능력치는 원본 몬스터 데이터의 "언데드" 값을 따른다.
-## - 적이 없으면 네크로맨서와 follow_distance 안에 있도록 따라다닌다
+## - 적이 없으면 네크로맨서와 follow_distance 안에 있도록 따라다닌다. catch_up_distance보다 멀면 네크로맨서가 뛰는 속도로 따라간다
 ## - 감지 범위 안의 가장 가까운 몬스터를 쫓아가 몸으로 부딪혀 공격한다
 ## - 쫓는 몬스터가 네크로맨서에게서 leash_distance보다 멀면 그만두고 돌아온다
 ## 체력·내구도는 이 노드가 아니라 머리뼈(Skull)에 있다. 피해를 받으면 damage_received로 알리기만 하고,
@@ -13,12 +13,16 @@ signal damage_received(skull: Skull, amount: float)
 @export var follow_distance: float = 28.0
 ## 네크로맨서에게서 이 거리보다 먼 몬스터는 쫓지 않는다 (픽셀, 임시값)
 @export var leash_distance: float = 120.0
+## 따라가는 중에 네크로맨서에게서 이 거리보다 멀면 catch_up_speed로 빨라진다 (픽셀, 임시값)
+@export var catch_up_distance: float = 48.0
 ## 맞았을 때 하얗게 번쩍이는 시간 (초)
 @export var hit_flash_duration: float = 0.1
 
 var skull: Skull
 var data: MonsterData
 var _master: Node2D
+## 멀리 떨어져 따라갈 때의 속도. 소환할 때 네크로맨서의 뛰는 속도를 넣어 준다. 언데드 자기 속도보다 느리면 쓰지 않는다.
+var catch_up_speed: float = 0.0
 var _attack_timer: float = 0.0
 
 @onready var _collision: CollisionShape2D = $CollisionShape2D
@@ -64,7 +68,13 @@ func _follow() -> void:
 		velocity = Vector2.ZERO
 		return
 	var to_master: Vector2 = _master.global_position - global_position
-	velocity = to_master.normalized() * data.undead_move_speed if to_master.length() > follow_distance else Vector2.ZERO
+	var distance: float = to_master.length()
+	if distance <= follow_distance:
+		velocity = Vector2.ZERO
+		return
+	# 싸울 때는 원래 속도이고, 멀리 떨어져 따라갈 때만 빨라진다.
+	var speed: float = maxf(data.undead_move_speed, catch_up_speed) if distance > catch_up_distance else data.undead_move_speed
+	velocity = to_master.normalized() * speed
 
 
 func _find_target() -> Monster:
