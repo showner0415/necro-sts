@@ -24,6 +24,8 @@ const PARTIAL_FRAMES: int = 10
 const DURATION_TOLERANCE_FRAMES: int = 3
 const PICKUP_KEY_TEXT: String = "[E]"
 const BONE_PATH: String = "res://data/items/bone.tres"
+## "멀면 안내 없음"을 볼 때 시체에서 줍기 범위의 몇 배만큼 떨어져 서는지
+const FAR_RATIO: float = 3.0
 
 var _necromancer: Necromancer
 var _inventory: Inventory
@@ -168,6 +170,10 @@ func _check_corpse() -> bool:
 		return false
 	if not _check("바닥에 바로 떨어지지 않음", _pickups().is_empty(), "바닥 더미 %d개 (기대 0)" % _pickups().size()):
 		return false
+	# 쥐가 발밑까지 와서 죽으면 시체가 처음부터 줍기 범위 안이다. 그때는 떨어져서 본다.
+	if _corpse.global_position.distance_to(_necromancer.global_position) <= _necromancer.pickup_range:
+		_necromancer.global_position = _corpse.global_position + Vector2(_necromancer.pickup_range * FAR_RATIO, 0)
+		await wait_frames(WAIT_FRAMES)
 	return _check("멀면 안내 없음", not _corpse.is_prompt_visible(),
 			"거리 %.0f (줍기 범위 %.0f), 시체 안내 보임 %s" % [_corpse.global_position.distance_to(_necromancer.global_position), _necromancer.pickup_range, _corpse.is_prompt_visible()])
 

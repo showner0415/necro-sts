@@ -8,8 +8,8 @@ extends ScenarioTest
 ## 마우스 입력은 흉내 낸 것이다. 여기서 통과해도 실제 마우스로 같은지는 눈으로 확인해야 한다.
 
 const WAIT_FRAMES: int = 3
-## 버튼을 누르고 있는 시간. 공격 간격(0.4초)보다 길어야 여러 발이 나갈 기회가 있다.
-const HOLD_FRAMES: int = 40
+## 버튼을 누르고 있는 시간. 공격 간격(지금 0.8초)보다 길어야 여러 발이 나갈 기회가 있다.
+const HOLD_FRAMES: int = 60
 const SAFE_POSITION: Vector2 = Vector2(0, 600)
 const RAT_SKULL_PATH: String = "res://data/skulls/rat_skull.tres"
 ## 게임 화면(네크로맨서 오른쪽)의 UI 좌표. 아무 UI도 없는 곳이다.

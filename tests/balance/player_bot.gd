@@ -36,8 +36,6 @@ var fire_range_ratio: float = 0.95
 ## 싸우는 곳의 가운데와 반지름. 밖으로 나가면 가운데 쪽으로 돌아온다 (시험 지역 바닥 안)
 var arena_center: Vector2 = Vector2.ZERO
 var arena_radius: float = 360.0
-## 조준 오차를 다시 뽑는 간격 (초). 한 발마다 다른 오차가 되도록 공격 간격과 맞춘다.
-var aim_resample_interval: float = 0.4
 ## 다시 소환할 때 소환 마나에 더해 남겨 둘 마나
 var summon_mana_margin: float = 2.0
 
@@ -134,7 +132,8 @@ func _should_flee(monsters: Array[Monster]) -> bool:
 func _aim_and_fire(target: Monster, delta: float, fleeing: bool) -> void:
 	_aim_timer -= delta
 	if _aim_timer <= 0.0:
-		_aim_timer = aim_resample_interval
+		# 한 발마다 다른 오차가 되도록 공격 간격마다 다시 뽑는다.
+		_aim_timer = _necromancer.attack.cooldown
 		_aim_offset_deg = randfn(0.0, skill["aim_error"]) if skill["aim_error"] > 0.0 else 0.0
 	var origin: Vector2 = _necromancer.global_position + Vector2(0, -_necromancer.placeholder_radius)
 	var center: Vector2 = target.global_position + PlaceholderBody.center(target.data)
