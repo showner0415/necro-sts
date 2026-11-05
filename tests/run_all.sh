@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # tests/ 안의 모든 테스트를 한 번에 돌린다.
 #   1. 임포트 (새 스크립트·클래스 반영, 스크립트 오류 확인)
-#   2. 단위 테스트: tests/unit/test_*.gd 전부 (한 번의 실행)
-#   3. 시나리오 테스트: tests/scenarios/scenario_*.gd 하나씩 (각각 따로 실행)
+#   2. 단위 테스트: tests/unit/test_*.gd 전부 (한 번의 실행). 코드·씬·데이터의 색이 팔레트 안인지도 여기서 본다 (test_palette_colors.gd)
+#   3. 에셋 팔레트 검사: assets/의 PNG가 팔레트 밖의 색을 쓰는지 (tools/check_palette.gd)
+#   4. 시나리오 테스트: tests/scenarios/scenario_*.gd 하나씩 (각각 따로 실행)
 # 종료 코드가 0이 아니거나, 출력에 SCRIPT ERROR·ERROR: 줄이 있으면(누수 경고 포함) 실패로 센다.
 # 하나라도 실패하면 종료 코드 1로 끝난다.
 # 사용 예: bash tests/run_all.sh
@@ -40,6 +41,9 @@ fi
 
 echo "=== 단위 테스트"
 run_check "단위 테스트" --headless --path . -s tests/run_unit_tests.gd
+
+echo "=== 에셋 팔레트 검사"
+run_check "에셋 팔레트 검사" --headless --path . -s tools/check_palette.gd
 
 for scenario in tests/scenarios/scenario_*.gd; do
 	echo "=== 시나리오: $scenario"
