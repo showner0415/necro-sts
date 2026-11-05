@@ -76,3 +76,8 @@ func test_skull_harvest_multiplier_is_largest() -> void:
 func test_monsters_have_positive_harvest_time() -> void:
 	for monster: MonsterData in _monster_ids().values():
 		assert_true(monster.harvest_base_time > 0.0, "%s의 채집 기본 시간은 0보다 크다" % monster.id)
+
+
+func test_every_monster_has_behavior() -> void:
+	for monster: MonsterData in _monster_ids().values():
+		assert_true(monster.behavior != null, "%s에 적일 때의 행동 조각이 있다" % monster.id)

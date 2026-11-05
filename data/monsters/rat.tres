@@ -4,6 +4,7 @@
 [ext_resource type="Resource" path="res://data/items/bone.tres" id="2_bone"]
 [ext_resource type="Script" uid="uid://bcih3jlpk6ss2" path="res://items/drop_entry.gd" id="3_drop"]
 [ext_resource type="Resource" path="res://data/skulls/rat_skull.tres" id="4_rat_skull"]
+[ext_resource type="Resource" path="res://data/behaviors/approach.tres" id="5_approach"]
 
 [sub_resource type="Resource" id="Resource_drop_bone"]
 script = ExtResource("3_drop")
@@ -19,6 +20,7 @@ chance = 0.5
 script = ExtResource("1_monster")
 id = &"rat"
 display_name = "쥐"
+behavior = ExtResource("5_approach")
 drops = Array[ExtResource("3_drop")]([SubResource("Resource_drop_bone"), SubResource("Resource_drop_skull")])
 harvest_base_time = 1.0
 summon_bone_cost = 4

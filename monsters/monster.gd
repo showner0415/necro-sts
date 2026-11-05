@@ -1,7 +1,8 @@
 class_name Monster
 extends CharacterBody2D
 ## MonsterData 하나로 움직이는 몬스터.
-## 배회하다가 네크로맨서나 언데드가 감지 범위에 들어오면, 그중 가장 가까운 대상을 쫓아가 몸으로 부딪혀 공격한다.
+## 배회하다가 네크로맨서나 언데드가 감지 범위에 들어오면 그중 가장 가까운 대상을 노린다.
+## 대상과 어떻게 싸울지는 데이터의 행동 조각(data.behavior)이 정하고, 수치는 적일 때의 값(data.get_enemy_stats())을 쓴다.
 ## 죽으면 드랍 목록(data.drops)의 확률을 굴려 나온 것을 담은 시체(Corpse)를 남긴다. 네크로맨서가 시체에서 채집한다.
 
 @export var data: MonsterData
@@ -15,13 +16,15 @@ var health: float
 var _target: Node2D
 var _wander_direction: Vector2 = Vector2.ZERO
 var _wander_timer: float = 0.0
-var _attack_timer: float = 0.0
+## 대상과 싸우는 방식 (data.behavior의 이 몬스터용 복사본)
+var _behavior: MonsterBehavior
 
 @onready var _collision: CollisionShape2D = $CollisionShape2D
 
 
 func _ready() -> void:
 	health = data.max_health
+	_behavior = data.make_enemy_behavior()
 	var shape: CircleShape2D = CircleShape2D.new()
 	shape.radius = data.placeholder_radius
 	_collision.shape = shape
@@ -29,25 +32,13 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	_attack_timer = maxf(_attack_timer - delta, 0.0)
+	_behavior.update(delta)
 	_target = _find_nearest_target()
 	if _target != null:
-		_chase()
+		_behavior.act(self, data.get_enemy_stats(), _target)
 	else:
 		_wander(delta)
 	move_and_slide()
-
-
-func _chase() -> void:
-	var to_target: Vector2 = _target.global_position - global_position
-	if to_target.length() > data.attack_range:
-		velocity = to_target.normalized() * data.move_speed
-		return
-	velocity = Vector2.ZERO
-	if _attack_timer == 0.0:
-		_attack_timer = data.attack_cooldown
-		# 네크로맨서와 언데드는 서로 다른 클래스라서 이름으로 부른다.
-		_target.call(&"take_damage", data.contact_damage)
 
 
 func _wander(delta: float) -> void:

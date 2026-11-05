@@ -2,7 +2,7 @@ class_name Undead
 extends CharacterBody2D
 ## 머리뼈 하나로 소환한 언데드 한 마리. 능력치는 원본 몬스터 데이터의 "언데드" 값을 따른다.
 ## - 적이 없으면 네크로맨서와 follow_distance 안에 있도록 따라다닌다. catch_up_distance보다 멀면 네크로맨서가 뛰는 속도로 따라간다
-## - 감지 범위 안의 가장 가까운 몬스터를 쫓아가 몸으로 부딪혀 공격한다
+## - 감지 범위 안의 가장 가까운 몬스터와 싸운다. 싸우는 방식은 원본 몬스터의 언데드용 행동 조각(data.make_undead_behavior())이고, 수치는 언데드 값이다
 ## - 쫓는 몬스터가 네크로맨서에게서 leash_distance보다 멀면 그만두고 돌아온다
 ## 체력·내구도는 이 노드가 아니라 머리뼈(Skull)에 있다. 피해를 받으면 damage_received로 알리기만 하고,
 ## 실제 계산과 사라지는 판단은 UndeadRoster가 한다 (Summoner가 연결한다).
@@ -23,7 +23,8 @@ var data: MonsterData
 var _master: Node2D
 ## 멀리 떨어져 따라갈 때의 속도. 소환할 때 네크로맨서의 뛰는 속도를 넣어 준다. 언데드 자기 속도보다 느리면 쓰지 않는다.
 var catch_up_speed: float = 0.0
-var _attack_timer: float = 0.0
+## 몬스터와 싸우는 방식 (원본 몬스터의 언데드용 행동 조각 복사본)
+var _behavior: MonsterBehavior
 
 @onready var _collision: CollisionShape2D = $CollisionShape2D
 
@@ -36,6 +37,7 @@ func setup(summoned_skull: Skull, monster_data: MonsterData, master: Node2D) -> 
 
 
 func _ready() -> void:
+	_behavior = data.make_undead_behavior()
 	var shape: CircleShape2D = CircleShape2D.new()
 	shape.radius = data.placeholder_radius
 	_collision.shape = shape
@@ -43,24 +45,13 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	_attack_timer = maxf(_attack_timer - delta, 0.0)
+	_behavior.update(delta)
 	var target: Monster = _find_target()
 	if target != null:
-		_fight(target)
+		_behavior.act(self, data.get_undead_stats(), target)
 	else:
 		_follow()
 	move_and_slide()
-
-
-func _fight(target: Monster) -> void:
-	var to_target: Vector2 = target.global_position - global_position
-	if to_target.length() > data.undead_attack_range:
-		velocity = to_target.normalized() * data.undead_move_speed
-		return
-	velocity = Vector2.ZERO
-	if _attack_timer == 0.0:
-		_attack_timer = data.undead_attack_cooldown
-		target.take_damage(data.undead_contact_damage)
 
 
 func _follow() -> void:

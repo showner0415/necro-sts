@@ -5,6 +5,12 @@ extends Resource
 @export var id: StringName
 @export var display_name: String
 
+@export_group("행동")
+## 적일 때 대상과 싸우는 방식 (행동 조각)
+@export var behavior: MonsterBehavior
+## 언데드일 때 싸우는 방식. 비워 두면 적일 때와 같은 조각을 쓴다.
+@export var undead_behavior: MonsterBehavior
+
 @export_group("능력치")
 @export var max_health: float = 3.0
 ## 대상을 쫓을 때의 속도 (픽셀/초)
@@ -52,3 +58,21 @@ extends Resource
 @export var placeholder_color: Color = Color.WHITE
 ## 그림과 충돌 판정에 같이 쓰는 원의 반지름
 @export var placeholder_radius: float = 5.0
+
+
+## 적일 때 쓰는 행동 조각의 복사본 (한 마리에 하나)
+func make_enemy_behavior() -> MonsterBehavior:
+	return behavior.make_instance()
+
+
+## 언데드일 때 쓰는 행동 조각의 복사본. undead_behavior가 비었으면 적일 때와 같은 조각.
+func make_undead_behavior() -> MonsterBehavior:
+	return (undead_behavior if undead_behavior != null else behavior).make_instance()
+
+
+func get_enemy_stats() -> CombatStats:
+	return CombatStats.create(move_speed, attack_range, contact_damage, attack_cooldown)
+
+
+func get_undead_stats() -> CombatStats:
+	return CombatStats.create(undead_move_speed, undead_attack_range, undead_contact_damage, undead_attack_cooldown)
