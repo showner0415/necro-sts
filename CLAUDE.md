@@ -135,6 +135,7 @@ res://
 - **밸런스 측정** (`tests/balance/`): 플레이어 봇(`player_bot.gd`)이 실제 입력만 흉내 내서 싸우고, `run_balance.gd`가 대상 × 조건(혼자 / 쥐 언데드 2마리) × 실력(숙련·보통·초보)마다 여러 번 싸워 잡는 시간·받은 피해·죽은 비율·명중률을 표로 낸다.
   - 판정이 없어서 `run_all.sh`에는 넣지 않는다. 몬스터를 추가하면 `run_balance.gd`의 `TARGETS`에 넣고 다시 잰다.
   - 전부: `bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_balance.gd` (약 1분)
+  - 언데드 대 적 (같은 몬스터끼리): `bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_undead_duel.gd` (일부: `-- --monsters=rat,boar --cases=1,3 --runs=10 --skill=normal`). 경우 1 언데드 1 vs 적 1(목표: 진다), 2 언데드 1 + 네크로맨서(봇) vs 적 1(목표: 이긴다), 3 언데드 2 vs 적 1(목표: 이긴다). 1·3은 네크로맨서가 구경만 하고 마나가 바닥나지 않는다
   - 일부: `-- --targets=boar,bat_pack --skills=normal --undead=0 --runs=5`, 거리 두기를 끄려면 `--keep=0`, 무리 동시 공격(박쥐 동시 돌진)을 처음 N번 일부러 못 피하게 하려면 `--miss_pack=N` (놓친 동시 공격 피해·직후 마나·최저 마나·언데드 죽음/해제 열로 "실수 한 번의 값"을 본다)
   - 창으로 보기: `bash tools/godot.sh --path . -s tests/balance/run_balance.gd -- --targets=boar --skills=normal --undead=0 --runs=1`
 - **박쥐 무리 경로 그림**: `bash tools/godot.sh --headless --fixed-fps 60 --path . -s tools/record_pack_paths.gd -- --seconds=12 --out=<scratchpad 경로>/pack_paths.png`. 네크로맨서를 세워 두고 박쥐 3마리의 경로를 3초씩 칸으로 나눠 그린다(흰 테두리 점은 동시 돌진 예고). 도는 방향 바꾼 횟수, 박쥐끼리 가장 가까운 거리, 동시 돌진 시작 때 박쥐 사이 각도를 출력한다.

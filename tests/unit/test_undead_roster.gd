@@ -34,7 +34,9 @@ func before_each() -> void:
 	monster.summon_mana_cost = SUMMON_MANA
 	monster.undead_upkeep_mana_per_second = UPKEEP
 	monster.undead_death_durability_loss = DEATH_LOSS
-	monster.undead_max_health = MAX_HEALTH
+	# 언데드 체력은 몬스터 체력 × 배율이므로, 배율 1로 두고 몬스터 체력을 정한다.
+	monster.max_health = MAX_HEALTH
+	monster.undead_health_ratio_override = 1.0
 	skull_data = SkullData.new()
 	skull_data.id = &"test_rat_skull"
 	skull_data.source_monster_id = monster.id

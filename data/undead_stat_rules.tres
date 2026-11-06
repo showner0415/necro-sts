@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="UndeadStatRules" format=3]
+
+[ext_resource type="Script" path="res://monsters/undead_stat_rules.gd" id="1_rules"]
+
+[resource]
+script = ExtResource("1_rules")
+health_ratio = 0.85
+damage_ratio = 0.85
+named_health_ratio = 1.2
+named_damage_ratio = 1.2

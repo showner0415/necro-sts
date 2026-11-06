@@ -159,6 +159,8 @@ func _run() -> void:
 	_goblin.free()
 	_necromancer.global_position = UNDEAD_STAGE
 	_rat.global_position = UNDEAD_STAGE + UNDEAD_RAT_OFFSET
+	# 언데드는 감지 범위가 없다. 네크로맨서가 때린 몬스터(또는 아군을 노리는 몬스터)를 노리므로 먼저 쥐를 때려 둔다.
+	_rat.take_damage(0.0, _necromancer)
 	await wait_frames(2)
 	var skull: Skull = Skull.create(load(GOBLIN_SKULL_PATH))
 	_necromancer.inventory.try_add(ItemStack.of_skull(skull))
@@ -174,10 +176,16 @@ func _run() -> void:
 	var groups: Array = stone.hostile_groups.duplicate() if thrown else []
 	frames = await _wait_stone_gone(stone)
 	var undead: Array[Node] = get_nodes_in_group(&"undead")
-	_check("언데드 투석병은 몬스터에게 던짐", not undead.is_empty() and thrown and rat_before - _rat.health >= _goblin_damage() and is_zero_approx(fmod(rat_before - _rat.health, _goblin_damage())),
-		"언데드 %d, 돌 적 그룹 %s, %d프레임 뒤 사라짐, 쥐 체력 %.0f → %.0f (돌 %d개 맞음, 소환 직후 이미 던진 돌 포함)" % [undead.size(), groups, frames, rat_before, _rat.health, roundi((rat_before - _rat.health) / _goblin_damage())])
+	_check("언데드 투석병은 몬스터에게 던짐", not undead.is_empty() and thrown and _stone_hits(rat_before - _rat.health) >= 1,
+		"언데드 %d, 돌 적 그룹 %s, %d프레임 뒤 사라짐, 쥐 체력 %.0f → %.0f (돌 %d개 맞음, 소환 직후 이미 던진 돌 포함)" % [undead.size(), groups, frames, rat_before, _rat.health, _stone_hits(rat_before - _rat.health)])
 	finish(true)
 
 
 func _goblin_damage() -> float:
 	return (load("res://data/monsters/goblin_slinger.tres") as MonsterData).undead_contact_damage
+
+
+## 받은 피해가 돌 몇 개만큼인지 (돌 피해의 정수배가 아니면 -1)
+func _stone_hits(damage: float) -> int:
+	var hits: float = damage / _goblin_damage()
+	return roundi(hits) if absf(hits - roundf(hits)) < 0.01 else -1

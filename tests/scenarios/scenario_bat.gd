@@ -184,7 +184,7 @@ func _undead_bat() -> void:
 		await wait_frames(1)
 		frames += 1
 	var rat_after: float = _rat.health if is_instance_valid(_rat) else 0.0
-	var ok: bool = rat_health - rat_after == undead.data.undead_contact_damage and _necromancer.health == necro_health
+	var ok: bool = is_equal_approx(rat_health - rat_after, undead.data.undead_contact_damage) and _necromancer.health == necro_health
 	_check("언데드 박쥐는 몬스터를 묾", ok, "%d프레임 만에 쥐 체력 %.1f → %.1f (언데드 물기 %.1f), 네크로맨서 체력 %.0f → %.0f" % [
 		frames, rat_health, rat_after, undead.data.undead_contact_damage, necro_health, _necromancer.health])
 	finish(ok)

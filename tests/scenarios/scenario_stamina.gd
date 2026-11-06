@@ -156,7 +156,8 @@ func _undead_catch_up() -> void:
 	if undead == null:
 		fail_step("언데드 따라오기", "소환되지 않음")
 		return
-	var walk_speed: float = undead.data.undead_move_speed
+	# 가까이에서 따라갈 때는 언데드 자기 속도와 네크로맨서 걷는 속도 중 빠른 쪽이다.
+	var walk_speed: float = maxf(undead.data.move_speed, _necromancer.move_speed)
 	press_key(KEY_SHIFT, true)
 	press_moves(Vector2.UP)
 	var max_speed: float = 0.0
@@ -165,7 +166,7 @@ func _undead_catch_up() -> void:
 		max_speed = maxf(max_speed, undead.velocity.length())
 	press_key(KEY_SHIFT, false)
 	press_moves(Vector2.ZERO)
-	var evidence: String = "네크로맨서가 1초 뜀: 언데드 최고 속도 %.0f/초 (언데드 자기 속도 %.0f, 네크로맨서 뛰기 %.0f)" % [max_speed, walk_speed, _necromancer.run_speed]
+	var evidence: String = "네크로맨서가 1초 뜀: 언데드 최고 속도 %.0f/초 (가까이 따라갈 때 속도 %.0f, 네크로맨서 뛰기 %.0f)" % [max_speed, walk_speed, _necromancer.run_speed]
 	if not _check("언데드는 멀어지면 뛰는 속도로 따라옴", walk_speed < _necromancer.run_speed and is_equal_approx(max_speed, _necromancer.run_speed), evidence):
 		return
 	await wait_frames(60)

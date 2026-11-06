@@ -19,6 +19,8 @@ extends CharacterBody2D
 @export_flags_2d_physics var flying_mask: int = 1
 ## 행동 조각이 바닥에 그리는 예고 표시(돌진 방향 선 등)의 색. 적은 위험 표시 색(e83b3b)이다.
 @export var indicator_color: Color = Color(0.9098039, 0.23137255, 0.23137255, 1)
+## 네크로맨서에게 맞은 뒤 이 시간(초) 동안 언데드의 공격 대상이 된다 (임시값)
+@export var necromancer_mark_duration: float = 5.0
 
 ## 맞았을 때 (source는 때린 쪽). 무리가 이것으로 무리 대상을 정한다.
 signal hit_by(source: Node2D)
@@ -32,6 +34,8 @@ var _own_target: Node2D
 var _pack_target: Node2D
 ## 무리 싸움을 시작한 자리 (무리가 포기하면 돌아갈 곳)
 var _pack_home: Vector2
+## 네크로맨서에게 맞은 표시가 남은 시간 (0이면 없음)
+var _necromancer_mark_left: float = 0.0
 var _wander_direction: Vector2 = Vector2.ZERO
 var _wander_timer: float = 0.0
 ## 대상과 싸우는 방식 (data.behavior의 이 몬스터용 복사본)
@@ -58,6 +62,7 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	_behavior.update(delta)
+	_necromancer_mark_left = maxf(_necromancer_mark_left - delta, 0.0)
 	var nearest: Node2D = _find_nearest_target()
 	# 쫓던 공격자가 사라졌을 수 있다 (해제된 언데드 등). 사라진 객체는 형변환하면 오류이므로 먼저 확인한다.
 	var attacker: Node2D = _aggro.attacker as Node2D if is_instance_valid(_aggro.attacker) else null
@@ -176,6 +181,8 @@ func take_damage(amount: float, source: Node2D = null) -> void:
 	if health <= 0.0:
 		return
 	_aggro.on_hit(source, global_position, _find_nearest_target() != null)
+	if source != null and source.is_in_group(&"necromancer"):
+		_necromancer_mark_left = necromancer_mark_duration
 	if source != null:
 		hit_by.emit(source)
 	health -= amount
@@ -218,3 +225,8 @@ func _find_nearest_target() -> Node2D:
 			nearest = candidate
 			nearest_distance = distance
 	return nearest
+
+
+## 네크로맨서가 최근(necromancer_mark_duration 안)에 때렸는지. 언데드는 이런 몬스터를 노린다.
+func is_marked_by_necromancer() -> bool:
+	return _necromancer_mark_left > 0.0
