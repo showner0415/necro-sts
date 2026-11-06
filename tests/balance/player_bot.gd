@@ -4,6 +4,8 @@ extends RefCounted
 ## 스태미나·마나·공격 간격 같은 제약을 그대로 받는다. 판단에는 몬스터 위치와 예고 상태를 읽는다.
 ## - 겨누기: 가장 가까운 몬스터의 이동 방향을 감안해 탄이 닿을 자리를 겨눈다. 조준 오차(도)만큼 흔들린다
 ## - 피하기: 몬스터가 예고를 시작하면 반응 시간 뒤, 공격 방향이 고정되었으면 그 옆으로 구른다. 회피 성공률만큼만 시도한다
+## - 돌 피하기: 예고 없이 날아오는 돌(Stone)은 처음 본 뒤 반응 시간이 지나면, 맞을 줄 위에 있는 동안 줄에서 벗어나는 옆쪽으로 걷는다 (쏘기는 계속).
+##   회피 성공률만큼만 시도한다
 ##   (방향이 고정되기 전에 구르면 멧돼지가 다시 겨누므로 고정을 기다린다)
 ## - 거리 두기: 근접 몬스터와 keep_distance를 유지하며 쏜다. 다가오는 몬스터가 아주 가까우면 쏘기를 멈추고 뛴다 (쏘는 동안은 느리고 뛸 수 없다)
 ##   예고 중인 공격(돌진 등)은 뛰어서 피하지 않는다. 피하기는 구르기 판단(반응 시간, 회피 성공률) 하나로만 한다.
@@ -47,6 +49,10 @@ var _aim_timer: float = 0.0
 var _last_positions: Dictionary = {}
 ## 지금 보고 있는 예고: 행동 조각 → {"seen": 처음 본 시각, "try": 피하기를 시도할지, "done": 굴렀는지}
 var _telegraphs: Dictionary = {}
+## 지금 날아오는 돌: Stone → {"seen": 처음 본 시각, "try": 피하기를 시도할지}
+var _stones: Dictionary = {}
+## 돌 줄에서 몸 가운데가 이 거리 안이면 맞을 것으로 보고 옆으로 걷는다 (몸 반지름 + 돌 반지름 + 여유)
+var stone_danger_width: float = 12.0
 var _time: float = 0.0
 var _running: bool = false
 var _summon_cooldown: float = 0.0
@@ -56,7 +62,7 @@ var _key_queue: Array[Key] = []
 var shots: int = 0
 var hits: int = 0
 var rolls: int = 0
-## 측정: 본 예고 수, 소환 키를 누른 횟수, 몬스터가 가장 가까이 온 거리
+## 측정: 본 예고 수(날아오는 돌 포함), 소환 키를 누른 횟수, 몬스터가 가장 가까이 온 거리
 var telegraphs_seen: int = 0
 var summons: int = 0
 var closest: float = INF
@@ -107,7 +113,7 @@ func tick(delta: float) -> void:
 	_track_group_attack(monsters, delta)
 	var target: Monster = _nearest(monsters)
 	_aim_and_fire(target, delta, _should_flee(monsters))
-	if not _try_dodge(monsters):
+	if not _try_dodge(monsters) and not _try_sidestep_stones():
 		_move(monsters)
 	_manage_undead()
 	mana_min = minf(mana_min, _necromancer.mana.current)
@@ -240,6 +246,43 @@ func _track_group_attack(monsters: Array[Monster], delta: float) -> void:
 		missed_group_damage += _group_health_before - _necromancer.health
 		mana_after_miss = _necromancer.mana.current
 	_group_missed = false
+
+
+## 날아오는 돌을 반응 시간 뒤 옆으로 걸어 피한다. 이번 프레임에 피하는 중이면 true (그동안 _move 대신).
+func _try_sidestep_stones() -> bool:
+	var center: Vector2 = _necromancer.global_position + Vector2(0, -_necromancer.placeholder_radius)
+	var step: Vector2 = Vector2.ZERO
+	var seen_now: Dictionary = {}
+	for node: Node in _necromancer.get_parent().get_children():
+		var stone: Stone = node as Stone
+		if stone == null or stone.is_queued_for_deletion() or not stone.hostile_groups.has(&"necromancer"):
+			continue
+		seen_now[stone] = true
+		if not _stones.has(stone):
+			telegraphs_seen += 1
+			_stones[stone] = {"seen": _time, "try": randf() < skill["dodge"]}
+		var info: Dictionary = _stones[stone]
+		if not info["try"] or _time - info["seen"] < skill["reaction"]:
+			continue
+		var to_me: Vector2 = center - stone.global_position
+		var along: float = to_me.dot(stone.direction)
+		if along < 0.0:
+			continue
+		var off: Vector2 = to_me - stone.direction * along
+		if off.length() > stone_danger_width:
+			continue
+		var side: Vector2 = stone.direction.orthogonal()
+		if side.dot(off) < 0.0:
+			side = -side
+		step = side
+	for stone: Variant in _stones.keys():
+		if not seen_now.has(stone):
+			_stones.erase(stone)
+	if step == Vector2.ZERO:
+		return false
+	_test.press_moves(_keep_in_arena(step))
+	_set_running(false)
+	return true
 
 
 func _move(monsters: Array[Monster]) -> void:

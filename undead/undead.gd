@@ -74,6 +74,16 @@ func get_behavior() -> MonsterBehavior:
 	return _behavior
 
 
+## 던지는 행동 조각의 돌이 피해를 줄 그룹: 몬스터만.
+func get_hostile_groups() -> Array[StringName]:
+	return [&"monsters"]
+
+
+## 던진 돌이 지나가는 그룹: 네크로맨서와 언데드 (네크로맨서 뒤에서 던져도 막히지 않게).
+func get_stone_pass_groups() -> Array[StringName]:
+	return [&"necromancer", &"undead"]
+
+
 ## 돌진처럼 여러 상대를 치는 행동 조각이 칠 수 있는 상대: 살아 있는 몬스터만.
 func get_hostiles() -> Array[Node2D]:
 	var result: Array[Node2D] = []

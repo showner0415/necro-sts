@@ -25,6 +25,7 @@ const TARGETS: Dictionary = {
 	&"rat": {"name": "쥐 1마리", "data": "res://data/monsters/rat.tres", "offsets": [Vector2.ZERO]},
 	&"boar": {"name": "멧돼지 1마리", "data": "res://data/monsters/boar.tres", "offsets": [Vector2.ZERO]},
 	&"bat_pack": {"name": "박쥐 무리(3)", "data": "res://data/monsters/bat.tres", "offsets": [Vector2(0, -12), Vector2(12, 0), Vector2(0, 12)], "pack": true},
+	&"goblin_pair": {"name": "고블린 투석병(2)", "data": "res://data/monsters/goblin_slinger.tres", "offsets": [Vector2(0, -25), Vector2(10, 25)]},
 }
 const SPAWN_OFFSET: Vector2 = Vector2(150, 0)
 const DEFAULT_RUNS: int = 20
@@ -33,7 +34,7 @@ const DEFAULT_TIMEOUT: float = 60.0
 ## 판마다 시드 = BASE_SEED + 판 번호
 const BASE_SEED: int = 1000
 
-var _targets: Array[StringName] = [&"rat", &"boar", &"bat_pack"]
+var _targets: Array[StringName] = [&"rat", &"boar", &"bat_pack", &"goblin_pair"]
 var _skills: Array[StringName] = [&"skilled", &"normal", &"novice"]
 var _undead_counts: Array[int] = [0, 2]
 var _runs: int = DEFAULT_RUNS
@@ -88,7 +89,7 @@ func _run_all() -> void:
 				print(row)
 				rows.append(row)
 	print("")
-	print("| 대상 | 조건 | 실력 | 잡은 시간 평균 | 가장 늦게 | 받은 피해 평균 | 가장 많이 | 죽음 | 시간 초과 | 명중률 | 본 예고 | 구름 | 소환 | 가장 가까이 온 거리 | 동시 공격 | 놓친 동시 공격 피해 | 놓친 직후 마나 | 최저 마나 | 언데드 죽음 | 언데드 해제 |")
+	print("| 대상 | 조건 | 실력 | 잡은 시간 평균 | 가장 늦게 | 받은 피해 평균 | 가장 많이 | 죽음 | 시간 초과 | 명중률 | 본 예고(돌 포함) | 구름 | 소환 | 가장 가까이 온 거리 | 동시 공격 | 놓친 동시 공격 피해 | 놓친 직후 마나 | 최저 마나 | 언데드 죽음 | 언데드 해제 |")
 	print("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
 	if _miss_pack > 0:
 		print("(무리 동시 공격 처음 %d번은 일부러 피하지 않음)" % _miss_pack)
