@@ -12,12 +12,12 @@ content_margin_left = 4.0
 content_margin_top = 4.0
 content_margin_right = 4.0
 content_margin_bottom = 4.0
-bg_color = Color(0.18039216, 0.13333334, 0.18431373, 1)
+bg_color = Color(0.09411765, 0.078431375, 0.14509805, 1)
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
-border_color = Color(0.38431373, 0.33333334, 0.39607844, 1)
+border_color = Color(0.3529412, 0.4117647, 0.53333336, 1)
 
 [node name="StorageScreen" type="CanvasLayer"]
 script = ExtResource("1_screen")

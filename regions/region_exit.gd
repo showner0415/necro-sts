@@ -9,8 +9,8 @@ signal travel_requested(destination: RegionData)
 @export var destination: RegionData
 
 @export_group("임시 도형")
-@export var fill_color: Color = Color(0.27058825, 0.16078432, 0.24705882, 1)
-@export var ring_color: Color = Color(0.65882355, 0.5176471, 0.9529412, 1)
+@export var fill_color: Color = Color(0.24313726, 0.15294118, 0.19215687, 1)
+@export var ring_color: Color = Color(0.70980394, 0.3137255, 0.53333336, 1)
 @export var ring_width: float = 1.0
 
 

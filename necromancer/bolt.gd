@@ -7,7 +7,7 @@ signal hit_target(body: Node2D)
 ## 속도·피해·사거리는 쏘는 쪽(Necromancer)이 정해서 넣는다.
 
 @export_group("임시 도형")
-@export var placeholder_color: Color = Color(0.56078434, 0.972549, 0.8862745, 1)
+@export var placeholder_color: Color = Color(0.17254902, 0.9098039, 0.9607843, 1)
 ## 그림과 충돌 판정에 같이 쓰는 원의 반지름
 @export var placeholder_radius: float = 2.0
 

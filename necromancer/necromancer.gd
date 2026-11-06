@@ -58,10 +58,10 @@ signal harvest_progress_changed(progress: float)
 @export var attack: AttackData
 @export var bolt_scene: PackedScene
 
-@export_group("임시 도형")
-@export var placeholder_color: Color = Color(0.5647059, 0.36862746, 0.6627451, 1)
-## 그림과 충돌 판정에 같이 쓰는 원의 반지름
-@export var placeholder_radius: float = 6.0
+@export_group("몸")
+## 충돌 원의 반지름. 그림 크기(32×32)가 아니라 망토 몸통(정면 너비 약 14px, 옆 약 10px)에 맞춘다.
+## 원은 발밑 바로 위에 놓이고, 원의 가운데가 몸 가운데(탄이 나가는 곳)다.
+@export var body_radius: float = 6.0
 
 var health: float
 var mana: ManaPool
@@ -91,6 +91,7 @@ var _knockback: Knockback = Knockback.new()
 @onready var _pickup_area: Area2D = $PickupArea
 @onready var _pickup_collision: CollisionShape2D = $PickupArea/CollisionShape2D
 @onready var _stamina_ring: StaminaRing = $StaminaRing
+@onready var _sprite: FacingSprite = $Sprite
 
 
 func _ready() -> void:
@@ -99,9 +100,9 @@ func _ready() -> void:
 	stamina = Stamina.new(max_stamina, stamina_regen_per_second, run_stamina_per_second, roll_stamina_costs.duplicate(), roll_chain_window, roll_regen_delay)
 	_stamina_ring.bind(stamina)
 	var body_shape: CircleShape2D = CircleShape2D.new()
-	body_shape.radius = placeholder_radius
+	body_shape.radius = body_radius
 	_collision.shape = body_shape
-	_collision.position = Vector2(0, -placeholder_radius)
+	_collision.position = Vector2(0, -body_radius)
 	var pickup_shape: CircleShape2D = CircleShape2D.new()
 	pickup_shape.radius = pickup_range
 	_pickup_collision.shape = pickup_shape
@@ -126,6 +127,7 @@ func _physics_process(delta: float) -> void:
 	if _knockback.is_active():
 		velocity = _knockback.get_velocity()
 	move_and_slide()
+	_update_sprite(delta, rolling)
 	_knockback.update(delta)
 	stamina.process(delta, is_running, rolling)
 	if rolling:
@@ -214,9 +216,26 @@ func is_knocked_back() -> bool:
 	return _knockback.is_active()
 
 
+## 몸 가운데 (충돌 원의 가운데). 바라보는 방향의 기준이다.
+func get_body_center() -> Vector2:
+	return global_position + Vector2(0, -body_radius)
+
+
+## 탄이 나가는 곳: 지금 바라보는 방향의 그림에서 지팡이 보석 자리 (방향마다 다르다, FacingSprite).
+func get_shot_origin() -> Vector2:
+	return global_position + _sprite.get_muzzle_offset()
+
+
+## 마우스 쪽을 바라보고, 걷거나 뛰는 동안만 들썩인다 (구르기·밀려나기 중에는 들썩이지 않는다).
+func _update_sprite(delta: float, rolling: bool) -> void:
+	_sprite.face(get_global_mouse_position() - get_body_center())
+	var walking: bool = not rolling and not _knockback.is_active()
+	_sprite.update_bob(delta, get_real_velocity().length() / move_speed if walking else 0.0)
+
+
 func _shoot() -> void:
-	# 발밑이 아니라 몸 가운데에서 쏜다.
-	var origin: Vector2 = global_position + Vector2(0, -placeholder_radius)
+	# 지팡이 보석에서 마우스 쪽으로 쏜다. 바라보는 방향은 이번 프레임에 _update_sprite에서 정했다.
+	var origin: Vector2 = get_shot_origin()
 	var direction: Vector2 = origin.direction_to(get_global_mouse_position())
 	if direction == Vector2.ZERO:
 		return
@@ -330,8 +349,3 @@ func _find_nearest_target() -> GroundTarget:
 			nearest = target
 			nearest_distance = distance
 	return nearest
-
-
-func _draw() -> void:
-	# 그림이 생기기 전까지 쓰는 임시 도형. 기준점(발밑) 위에 원을 그린다.
-	draw_circle(Vector2(0, -placeholder_radius), placeholder_radius, placeholder_color)

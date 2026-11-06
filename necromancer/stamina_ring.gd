@@ -10,10 +10,10 @@ extends Node2D
 @export var thickness: float = 2.0
 ## 원을 그릴 때 쓰는 점 수
 @export var point_count: int = 24
-## 남은 스태미나 색 (임시값, Resurrect 64의 91db69)
-@export var fill_color: Color = Color(0.5686275, 0.85882354, 0.4117647, 1)
-## 빈 부분 색 (Resurrect 64의 3e3546)
-@export var track_color: Color = Color(0.24313726, 0.20784314, 0.27450982, 1)
+## 남은 스태미나 색 (임시값, Endesga 32의 63c74d)
+@export var fill_color: Color = Color(0.3882353, 0.78039217, 0.3019608, 1)
+## 빈 부분 색 (Endesga 32의 262b44)
+@export var track_color: Color = Color(0.14901961, 0.16862746, 0.26666668, 1)
 
 var _stamina: Stamina
 

@@ -12,9 +12,9 @@ extends InteractZone
 @export_group("임시 도형")
 ## 상자 그림의 크기 (기준점은 바닥 가운데)
 @export var box_size: Vector2 = Vector2(18, 12)
-## 몸통·뚜껑 색 (Resurrect 64의 966c6c, ab947a)
-@export var box_color: Color = Color(0.5882353, 0.42352942, 0.42352942, 1)
-@export var lid_color: Color = Color(0.67058825, 0.5803922, 0.47843137, 1)
+## 몸통·뚜껑 색 (Endesga 32의 733e39, c28569)
+@export var box_color: Color = Color(0.4509804, 0.24313726, 0.22352941, 1)
+@export var lid_color: Color = Color(0.7607843, 0.52156866, 0.4117647, 1)
 @export var lid_height: float = 4.0
 
 var contents: ChestContents

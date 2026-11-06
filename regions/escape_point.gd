@@ -16,8 +16,8 @@ signal escaped(destination: RegionData)
 @export var radius: float = 20.0
 
 @export_group("임시 도형")
-@export var fill_color: Color = Color(0.043137256, 0.36862746, 0.39607844, 1)
-@export var ring_color: Color = Color(0.1882353, 0.88235295, 0.7254902, 1)
+@export var fill_color: Color = Color(0.09803922, 0.23529412, 0.24313726, 1)
+@export var ring_color: Color = Color(0.17254902, 0.9098039, 0.9607843, 1)
 @export var ring_width: float = 1.0
 
 var _timer: EscapeTimer

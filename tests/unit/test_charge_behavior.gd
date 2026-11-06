@@ -8,8 +8,8 @@ const DAMAGE: float = 3.0
 const BODY_MASK: int = 23
 const BODY_LAYER: int = 4
 const WORLD_MASK: int = 1
-## 원래 몸 색 (팔레트 2e222f)
-const BASE_COLOR: Color = Color(0.18039216, 0.13333334, 0.18431373, 1)
+## 원래 몸 색 (팔레트 181425)
+const BASE_COLOR: Color = Color(0.09411765, 0.078431375, 0.14509805, 1)
 
 
 ## get_hostiles()가 있는 가짜 몸

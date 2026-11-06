@@ -4,7 +4,7 @@ extends GroundTarget
 ## 안에 무엇이 남았는지는 보여주지 않는다. 다 채집하면 빈 시체로 남아 empty_color로 그려지고, 더는 E 대상이 아니다.
 
 ## 다 채집한 빈 시체의 색
-@export var empty_color: Color = Color(0.29803923, 0.24313726, 0.14117648, 1)
+@export var empty_color: Color = Color(0.4509804, 0.24313726, 0.22352941, 1)
 ## 누운 모양으로 그리려고 원의 세로를 이 비율로 줄인다
 @export var flatten_ratio: float = 0.5
 

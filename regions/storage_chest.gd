@@ -6,8 +6,8 @@ extends InteractZone
 @export_group("임시 도형")
 ## 상자 그림의 크기 (기준점은 바닥 가운데)
 @export var box_size: Vector2 = Vector2(20, 14)
-@export var box_color: Color = Color(0.61960787, 0.27058825, 0.22352941, 1)
-@export var lid_color: Color = Color(0.8039216, 0.40784314, 0.23921569, 1)
+@export var box_color: Color = Color(0.63529414, 0.14901961, 0.2, 1)
+@export var lid_color: Color = Color(0.84313726, 0.4627451, 0.2627451, 1)
 @export var lid_height: float = 4.0
 
 

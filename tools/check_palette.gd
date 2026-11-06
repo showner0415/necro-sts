@@ -6,7 +6,7 @@ extends SceneTree
 ##   bash tools/godot.sh --headless --path . -s tools/check_palette.gd -- assets/monsters
 ##
 ## 인자가 없으면 assets/ 전체를 검사한다. 인자로 파일이나 폴더를 줄 수 있다.
-## 팔레트는 assets/palette/ 안의 .hex 파일 하나를 읽는다 (한 줄에 색 하나, 예: 2e222f).
+## 팔레트는 assets/palette/ 안의 .hex 파일 하나를 읽는다 (한 줄에 색 하나, 예: be4a2f).
 ## 완전히 투명한 픽셀(알파 0)은 검사하지 않는다. 그 외 픽셀은 RGB만 비교한다.
 ## 위반이 있으면 종료 코드 1, 팔레트를 읽지 못하면 2로 끝난다.
 

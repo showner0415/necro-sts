@@ -4,8 +4,8 @@ extends Node2D
 @export var tile_size: int = 32
 ## 원점을 가운데로 하는 바닥 크기 (타일 수)
 @export var size_in_tiles: Vector2i = Vector2i(30, 30)
-@export var color_a: Color = Color(0.18039216, 0.13333334, 0.18431373, 1)
-@export var color_b: Color = Color(0.24313726, 0.20784314, 0.27450982, 1)
+@export var color_a: Color = Color(0.24313726, 0.15294118, 0.19215687, 1)
+@export var color_b: Color = Color(0.14901961, 0.16862746, 0.26666668, 1)
 
 
 func _draw() -> void:

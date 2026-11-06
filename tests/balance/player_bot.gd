@@ -177,7 +177,7 @@ func _aim_and_fire(target: Monster, delta: float, fleeing: bool) -> void:
 		# 한 발마다 다른 오차가 되도록 aim_resample_interval(_init에서 공격 간격과 맞춤)마다 다시 뽑는다.
 		_aim_timer = aim_resample_interval
 		_aim_offset_deg = randfn(0.0, skill["aim_error"]) if skill["aim_error"] > 0.0 else 0.0
-	var origin: Vector2 = _necromancer.global_position + Vector2(0, -_necromancer.placeholder_radius)
+	var origin: Vector2 = _necromancer.get_shot_origin()
 	var center: Vector2 = target.global_position + PlaceholderBody.center(target.data)
 	# 이동 방향 감안: 탄이 닿는 시간만큼 앞을 겨눈다.
 	var velocity: Vector2 = Vector2.ZERO
@@ -257,7 +257,7 @@ func _track_group_attack(monsters: Array[Monster], delta: float) -> void:
 
 ## 날아오는 돌을 반응 시간 뒤 옆으로 걸어 피한다. 이번 프레임에 피하는 중이면 true (그동안 _move 대신).
 func _try_sidestep_stones() -> bool:
-	var center: Vector2 = _necromancer.global_position + Vector2(0, -_necromancer.placeholder_radius)
+	var center: Vector2 = _necromancer.get_body_center()
 	var step: Vector2 = Vector2.ZERO
 	var seen_now: Dictionary = {}
 	for node: Node in _necromancer.get_parent().get_children():

@@ -18,7 +18,7 @@ const DRAG_KEY: String = "hotbar_slot"
 @export var selected_border_color: Color = Color(1, 1, 1, 1)
 @export var selected_border_width: float = 1.0
 ## 소환 중인 머리뼈가 든 칸: 칸 안쪽 가장자리를 덮는 테두리
-@export var summoned_border_color: Color = Color(0.9764706, 0.7607843, 0.16862746, 1)
+@export var summoned_border_color: Color = Color(0.99607843, 0.68235296, 0.20392157, 1)
 @export var summoned_border_width: float = 2.0
 
 ## 핫바에서 몇 번째 칸인지

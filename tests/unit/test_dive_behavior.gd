@@ -5,8 +5,8 @@ extends TestCase
 const DT: float = 1.0 / 60.0
 const SPEED: float = 70.0
 const DAMAGE: float = 1.0
-## 원래 몸 색 (팔레트 2e222f)
-const BASE_COLOR: Color = Color(0.18039216, 0.13333334, 0.18431373, 1)
+## 원래 몸 색 (팔레트 181425)
+const BASE_COLOR: Color = Color(0.09411765, 0.078431375, 0.14509805, 1)
 const MAX_FRAMES: int = 600
 
 

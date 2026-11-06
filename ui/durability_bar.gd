@@ -3,13 +3,13 @@ extends ProgressBar
 ## 머리뼈의 내구도 바. 현재 / 최대 비율만큼 채워지고, 비율에 따라 색이 세 단계로 바뀐다.
 ## 인벤토리 칸과 핫바 칸이 같이 쓴다.
 
-@export var normal_color: Color = Color(0.11764706, 0.7372549, 0.4509804, 1)
+@export var normal_color: Color = Color(0.3882353, 0.78039217, 0.3019608, 1)
 ## 비율이 이 값 이하이면 low 색 (0~1)
 @export_range(0.0, 1.0) var low_ratio: float = 0.5
-@export var low_color: Color = Color(0.9764706, 0.7607843, 0.16862746, 1)
+@export var low_color: Color = Color(0.99607843, 0.68235296, 0.20392157, 1)
 ## 비율이 이 값 이하이면 critical 색 (0~1)
 @export_range(0.0, 1.0) var critical_ratio: float = 0.25
-@export var critical_color: Color = Color(0.9098039, 0.23137255, 0.23137255, 1)
+@export var critical_color: Color = Color(0.89411765, 0.23137255, 0.26666668, 1)
 
 
 func _ready() -> void:

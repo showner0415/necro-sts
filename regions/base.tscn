@@ -19,8 +19,8 @@ death_destination = ExtResource("2_data")
 [node name="Ground" type="Node2D" parent="."]
 script = ExtResource("3_ground")
 size_in_tiles = Vector2i(12, 8)
-color_a = Color(0.19607843, 0.2, 0.3254902, 1)
-color_b = Color(0.28235295, 0.2901961, 0.46666667, 1)
+color_a = Color(0.09803922, 0.23529412, 0.24313726, 1)
+color_b = Color(0.14901961, 0.36078432, 0.25882354, 1)
 
 [node name="RegionExit" parent="." instance=ExtResource("4_exit")]
 position = Vector2(0, -88)

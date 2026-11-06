@@ -23,8 +23,8 @@ signal damage_received(skull: Skull, amount: float)
 ## 날아다니는 몬스터(data.flying)가 쓰는 충돌층과, 부딪히는 대상(벽)
 @export_flags_2d_physics var flying_layer: int = 32
 @export_flags_2d_physics var flying_mask: int = 1
-## 행동 조각이 바닥에 그리는 예고 표시(돌진 방향 선 등)의 색. 적의 표시(빨강)와 구별되는 아군 색(30e1b9)이다.
-@export var indicator_color: Color = Color(0.1882353, 0.88235295, 0.7254902, 1)
+## 행동 조각이 바닥에 그리는 예고 표시(돌진 방향 선 등)의 색. 적의 표시(빨강)와 구별되는 아군 색(2ce8f5)이다.
+@export var indicator_color: Color = Color(0.17254902, 0.9098039, 0.9607843, 1)
 
 var skull: Skull
 var data: MonsterData

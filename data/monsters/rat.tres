@@ -25,5 +25,5 @@ max_health = 7.0
 drops = Array[ExtResource("3_drop")]([SubResource("Resource_drop_bone"), SubResource("Resource_drop_skull")])
 summon_mana_cost = 4.0
 undead_upkeep_mana_per_second = 1.0
-undead_placeholder_color = Color(0.78039217, 0.8627451, 0.8156863, 1)
-placeholder_color = Color(0.5882353, 0.42352942, 0.42352942, 1)
+undead_placeholder_color = Color(0.7529412, 0.79607844, 0.8627451, 1)
+placeholder_color = Color(0.72156864, 0.43529412, 0.3137255, 1)

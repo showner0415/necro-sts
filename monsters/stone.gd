@@ -7,8 +7,8 @@ extends Area2D
 ## 속도·피해·사거리·적 그룹은 던지는 쪽(행동 조각 ThrowBehavior)이 정해서 넣는다.
 
 @export_group("임시 도형")
-## 돌 색 (Resurrect 64의 ab947a)
-@export var placeholder_color: Color = Color(0.67058825, 0.5803922, 0.47843137, 1)
+## 돌 색 (Endesga 32의 c28569)
+@export var placeholder_color: Color = Color(0.7607843, 0.52156866, 0.4117647, 1)
 ## 그림과 충돌 판정에 같이 쓰는 원의 반지름
 @export var placeholder_radius: float = 2.0
 

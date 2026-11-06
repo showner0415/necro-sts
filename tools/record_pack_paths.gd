@@ -10,13 +10,13 @@ extends ScenarioTest
 ## 회색 원은 도는 반경의 최소·최대. 0.5초마다 선 위에 밝은 점을 찍어 빠르기를 볼 수 있게 한다.
 ## 출력: 박쥐마다 도는 방향이 바뀐 횟수, 박쥐끼리 가장 가까웠던 거리, 동시 돌진을 시작할 때 박쥐 사이 각도.
 
-const PALETTE_PATH: String = "res://assets/palette/resurrect-64.hex"
-## 팔레트에서 쓸 색의 번호 (resurrect-64.hex의 줄 순서)
-const BACKGROUND_INDEX: int = 0
-const GRID_INDEX: int = 1
-const NECRO_INDEX: int = 9
-const SECOND_MARK_INDEX: int = 8
-const BAT_COLOR_INDICES: Array[int] = [18, 47, 52]
+const PALETTE_PATH: String = "res://assets/palette/endesga-32.hex"
+## 팔레트에서 쓸 색의 번호 (endesga-32.hex의 줄 순서, 0부터)
+const BACKGROUND_INDEX: int = 25
+const GRID_INDEX: int = 24
+const NECRO_INDEX: int = 19
+const SECOND_MARK_INDEX: int = 20
+const BAT_COLOR_INDICES: Array[int] = [10, 17, 28]
 ## 그림 배율과 그릴 범위 (네크로맨서에서 이 거리까지, 픽셀)
 const SCALE: float = 2.0
 const VIEW_RADIUS: float = 120.0

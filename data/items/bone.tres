@@ -11,5 +11,5 @@ id = &"bone"
 display_name = "뼈"
 actions = Array[ExtResource("3_action")]([ExtResource("2_drop")])
 harvest_time_multiplier = 0.8
-placeholder_color = Color(0.78039217, 0.8627451, 0.8156863, 1)
+placeholder_color = Color(0.7529412, 0.79607844, 0.8627451, 1)
 rarity = ExtResource("r_rarity")
