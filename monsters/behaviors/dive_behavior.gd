@@ -178,6 +178,11 @@ func get_orbit_sign() -> float:
 	return _orbit_sign
 
 
+## 공격 반경: 돌진을 시작하는 거리 (dive_range).
+func get_engage_range(_stats: CombatStats) -> float:
+	return dive_range
+
+
 func is_telegraphing() -> bool:
 	return _state == State.WINDUP or _state == State.DIVE or _state == State.PACK_WINDUP
 

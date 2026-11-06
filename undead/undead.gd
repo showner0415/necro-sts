@@ -3,10 +3,11 @@ extends CharacterBody2D
 ## 머리뼈 하나로 소환한 언데드 한 마리. 능력치는 원본 몬스터 데이터의 "언데드" 값을 따른다.
 ## - 적이 없으면 네크로맨서와 follow_distance 안에 있도록 따라다닌다. 따라갈 때는 적어도 네크로맨서가 걷는 속도(follow_speed),
 ##   catch_up_distance보다 멀면 네크로맨서가 뛰는 속도(catch_up_speed)로 따라간다. 싸울 때는 원래 몬스터의 속도다
-## - 감지 범위는 없다. 다음 몬스터 중 가장 가까운 것과 싸운다:
-##   네크로맨서가 최근에 때린 몬스터(Monster.is_marked_by_necromancer), 네크로맨서나 언데드(자기·다른 언데드)를 노리는 몬스터.
+## - 이유 없이 먼저 공격하지 않는다. 싸울 몬스터는 UndeadTargeting 규칙으로 정한다: 네크로맨서를 노리는 몬스터가 네크로맨서의 공격 반경
+##   (master_attack_radius) 안에 들어오거나, 네크로맨서가 몬스터를 맞히거나, 이 언데드를 노리는 몬스터가 언데드의 공격 반경 안에 들어오면
+##   그 몬스터를 노린다. 언데드의 공격 반경(행동 조각의 get_engage_range)에 들어오면 대상을 고정한다.
 ##   싸우는 방식은 원본 몬스터의 언데드용 행동 조각(data.make_undead_behavior())이고, 수치는 언데드 값이다 (MonsterData.get_undead_stats)
-## - 쫓는 몬스터가 네크로맨서에게서 leash_distance보다 멀면 그만두고 돌아온다
+## - 대상이 네크로맨서에게서 leash_distance보다 멀어지면 그만두고 돌아온다
 ## 체력·내구도는 이 노드가 아니라 머리뼈(Skull)에 있다. 피해를 받으면 damage_received로 알리기만 하고,
 ## 실제 계산과 사라지는 판단은 UndeadRoster가 한다 (Summoner가 연결한다).
 
@@ -14,8 +15,8 @@ signal damage_received(skull: Skull, amount: float)
 
 ## 네크로맨서에게서 이 거리 안이면 따라가지 않고 멈춘다 (픽셀, 임시값)
 @export var follow_distance: float = 28.0
-## 네크로맨서에게서 이 거리보다 먼 몬스터는 쫓지 않는다 (픽셀, 임시값)
-@export var leash_distance: float = 120.0
+## 네크로맨서에게서 이 거리보다 먼 몬스터는 쫓지 않는다 (픽셀, 임시값. 네크로맨서의 공격 반경과 같게 둔다)
+@export var leash_distance: float = 160.0
 ## 따라가는 중에 네크로맨서에게서 이 거리보다 멀면 catch_up_speed로 빨라진다 (픽셀, 임시값)
 @export var catch_up_distance: float = 48.0
 ## 맞았을 때 하얗게 번쩍이는 시간 (초)
@@ -33,6 +34,12 @@ var _master: Node2D
 var catch_up_speed: float = 0.0
 ## 따라갈 때의 최소 속도. 소환할 때 네크로맨서가 걷는 속도를 넣어 준다 (몬스터 속도가 느려도 걷는 네크로맨서를 따라오게).
 var follow_speed: float = 0.0
+## 네크로맨서의 공격 반경 (기본 공격 사거리). 소환할 때 넣어 준다. 네크로맨서를 노리는 몬스터가 이 안에 들어오면 싸우러 간다.
+var master_attack_radius: float = 0.0
+## 싸울 몬스터를 정하는 규칙
+var _targeting: UndeadTargeting = UndeadTargeting.new()
+## 몬스터마다 지난 프레임까지 본 "네크로맨서에게 맞은 횟수" (늘었으면 방금 맞은 것)
+var _seen_necromancer_hits: Dictionary = {}
 ## 몬스터와 싸우는 방식 (원본 몬스터의 언데드용 행동 조각 복사본)
 var _behavior: MonsterBehavior
 var _knockback: Knockback = Knockback.new()
@@ -120,30 +127,44 @@ func _follow() -> void:
 	velocity = to_master.normalized() * speed
 
 
+## 살아 있는 몬스터마다 이번 프레임 정보를 모아 UndeadTargeting에 넣고, 정해진 대상을 돌려준다.
 func _find_target() -> Monster:
-	var nearest: Monster = null
-	var nearest_distance: float = INF
+	var engage_range: float = _behavior.get_engage_range(data.get_undead_stats())
+	var candidates: Array[UndeadTargeting.Candidate] = []
+	var hits: Dictionary = {}
 	for node: Node in get_tree().get_nodes_in_group(&"monsters"):
 		var monster: Monster = node as Monster
 		if monster == null or monster.is_queued_for_deletion() or monster.health <= 0.0:
 			continue
-		if is_instance_valid(_master) and monster.global_position.distance_to(_master.global_position) > leash_distance:
-			continue
-		if not is_fight_candidate(monster):
-			continue
-		var distance: float = global_position.distance_squared_to(monster.global_position)
-		if distance < nearest_distance:
-			nearest = monster
-			nearest_distance = distance
-	return nearest
+		var c: UndeadTargeting.Candidate = UndeadTargeting.Candidate.new()
+		c.monster = monster
+		c.distance = global_position.distance_to(monster.global_position)
+		c.in_engage_range = c.distance <= engage_range
+		var hit_count: int = monster.get_necromancer_hit_count()
+		# 처음 보는 몬스터는 지금까지의 횟수부터 센다 (소환 전에 맞은 것은 계기가 아니다. 최근이면 is_marked_by_necromancer로 고른다).
+		c.hit_by_necromancer = hit_count > _seen_necromancer_hits.get(monster, hit_count)
+		hits[monster] = hit_count
+		if is_instance_valid(_master):
+			var to_master: float = monster.global_position.distance_to(_master.global_position)
+			c.within_leash = to_master <= leash_distance
+			var monster_target: Node2D = monster.get_target()
+			c.qualified = monster.is_marked_by_necromancer() \
+					or (monster_target == _master and to_master <= master_attack_radius) \
+					or (monster_target == self and c.in_engage_range)
+		candidates.append(c)
+	# 사라진 몬스터는 지운다.
+	_seen_necromancer_hits = hits
+	return _targeting.update(candidates) as Monster
 
 
-## 언데드가 싸울 몬스터인지: 네크로맨서가 최근에 때렸거나, 네크로맨서나 언데드를 노리고 있다.
-static func is_fight_candidate(monster: Monster) -> bool:
-	if monster.is_marked_by_necromancer():
-		return true
-	var target: Node2D = monster.get_target()
-	return target != null and (target.is_in_group(&"necromancer") or target.is_in_group(&"undead"))
+## 테스트·디버그용: 지금 노리는 몬스터 (없으면 null)
+func get_target() -> Monster:
+	return _targeting.target as Monster if is_instance_valid(_targeting.target) else null
+
+
+## 테스트·디버그용: 지금 대상이 고정되었는지
+func is_target_locked() -> bool:
+	return _targeting.locked
 
 
 ## source는 공격한 쪽 (언데드는 쓰지 않는다. 몬스터 타게팅 규칙은 언데드에 적용하지 않는다).

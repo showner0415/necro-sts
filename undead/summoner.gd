@@ -109,6 +109,7 @@ func _spawn(skull: Skull) -> void:
 	# 멀리 떨어져 따라갈 때는 네크로맨서가 뛰는 속도까지 빨라진다.
 	undead.catch_up_speed = _necromancer.run_speed
 	undead.follow_speed = _necromancer.move_speed
+	undead.master_attack_radius = _necromancer.attack.projectile_range
 	undead.damage_received.connect(roster.damage)
 	_undead_nodes[skull] = undead
 	_necromancer.get_parent().add_child(undead)

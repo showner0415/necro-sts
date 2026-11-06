@@ -71,6 +71,11 @@ func is_direction_locked() -> bool:
 	return _state == State.WINDUP and _timer >= windup_time - lock_time
 
 
+## 공격 반경: 돌진을 시작하는 거리 (charge_range).
+func get_engage_range(_stats: CombatStats) -> float:
+	return charge_range
+
+
 func is_telegraphing() -> bool:
 	return _state == State.WINDUP or _state == State.CHARGE
 

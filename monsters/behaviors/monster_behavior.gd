@@ -28,6 +28,11 @@ func act(_body: CharacterBody2D, _stats: CombatStats, _target: Node2D, _delta: f
 	pass
 
 
+## 이 조각의 공격 반경: 이 거리 안이면 공격을 시작한다 (다가가기·던지기는 공격 거리). 언데드가 대상을 고정하는 거리로 쓴다.
+func get_engage_range(stats: CombatStats) -> float:
+	return stats.attack_range
+
+
 ## 공격 예고 중인지 (돌진 전 깜빡임 등). 밸런스 측정 봇이 피할 때를 고르는 데 쓴다.
 func is_telegraphing() -> bool:
 	return false
