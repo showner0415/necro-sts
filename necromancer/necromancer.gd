@@ -13,7 +13,7 @@ signal harvest_progress_changed(progress: float)
 
 @export var move_speed: float = 80.0
 @export var max_health: float = 10.0
-@export var max_mana: float = 20.0
+@export var max_mana: float = 40.0
 ## 초당 마나 자연 회복량
 @export var mana_regen_per_second: float = 1.0
 ## 이 거리 안의 아이템을 주울 수 있다
