@@ -4,6 +4,7 @@ extends RefCounted
 ## - 끌어 놓기(move): 빈 칸이면 옮기기, 같은 종류의 뼈 칸이면 합치기, 아니면 자리 바꾸기
 ## - 보내기(send, 메뉴의 "옮기기"): 받는 쪽의 같은 종류 뼈 칸에 합치고, 없으면 가장 앞의 빈 칸. 자리가 없으면 FULL
 ## - 소환 중인 머리뼈는 네크로맨서의 인벤토리 밖(창고)으로 나갈 수 없다 (자리 바꾸기로 밀려나는 경우도 포함)
+## - 잠긴 칸(상자에서 아직 드러나지 않은 칸)은 꺼낼 수도, 그 칸에 놓을 수도 없다 (LOCKED)
 ## 핫바는 인벤토리에 없는 머리뼈를 가리키지 않으므로, 머리뼈를 창고로 옮기면 그 핫바 칸은 저절로 빈다.
 ## 노드에 의존하지 않으므로 씬 없이 확인할 수 있다.
 
@@ -13,6 +14,8 @@ enum Result {
 	INVALID,
 	## 소환 중인 머리뼈가 인벤토리 밖으로 나가게 됨
 	SUMMONED,
+	## 아직 무엇인지 드러나지 않은 상자 칸 (꺼내거나 그 칸에 넣을 수 없음)
+	LOCKED,
 	## 받는 쪽에 자리가 없음 (보내기)
 	FULL,
 }
@@ -32,6 +35,8 @@ func check_move(from: Inventory, from_index: int, to: Inventory, to_index: int) 
 	var moving: ItemStack = from.get_slot(from_index)
 	if moving == null or to_index < 0 or to_index >= to.get_slot_count():
 		return Result.INVALID
+	if from.is_locked(from_index) or to.is_locked(to_index):
+		return Result.LOCKED
 	if from == to:
 		return Result.OK
 	var target: ItemStack = to.get_slot(to_index)
@@ -56,6 +61,8 @@ func check_send(from: Inventory, from_index: int, to: Inventory) -> Result:
 	var moving: ItemStack = from.get_slot(from_index)
 	if moving == null or from == to:
 		return Result.INVALID
+	if from.is_locked(from_index):
+		return Result.LOCKED
 	if from == inventory and _is_summoned(moving):
 		return Result.SUMMONED
 	if not to.can_add(moving):

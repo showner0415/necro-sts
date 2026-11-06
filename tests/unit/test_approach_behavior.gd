@@ -81,13 +81,29 @@ func test_undead_uses_enemy_behavior_when_not_set() -> void:
 	assert_false(data.make_undead_behavior() is ApproachBehavior, "언데드 조각을 정하면 그것을 쓴다")
 
 
-func test_enemy_and_undead_stats_come_from_their_own_values() -> void:
+func test_undead_stats_scale_only_health_and_damage() -> void:
 	var data: MonsterData = MonsterData.new()
 	data.move_speed = 10.0
-	data.undead_move_speed = 20.0
-	data.contact_damage = 1.0
-	data.undead_contact_damage = 3.0
-	assert_eq(data.get_enemy_stats().move_speed, 10.0)
-	assert_eq(data.get_undead_stats().move_speed, 20.0)
-	assert_eq(data.get_enemy_stats().contact_damage, 1.0)
-	assert_eq(data.get_undead_stats().contact_damage, 3.0)
+	data.attack_range = 16.0
+	data.attack_cooldown = 1.0
+	data.contact_damage = 2.0
+	data.max_health = 10.0
+	var rules: UndeadStatRules = MonsterData.get_undead_rules()
+	assert_eq(data.get_undead_stats().move_speed, 10.0, "이동 속도는 몬스터와 같다")
+	assert_eq(data.get_undead_stats().attack_range, 16.0, "공격 거리는 같다")
+	assert_eq(data.get_undead_stats().attack_cooldown, 1.0, "공격 간격은 같다")
+	assert_almost_eq(data.get_undead_stats().contact_damage, 2.0 * rules.damage_ratio, 0.0001, "공격력은 기본 배율")
+	assert_almost_eq(data.undead_max_health, 10.0 * rules.health_ratio, 0.0001, "체력은 기본 배율")
+	assert_almost_eq(rules.health_ratio, 0.85, 0.0001, "기본 체력 배율 85% (임시값)")
+	assert_almost_eq(rules.damage_ratio, 0.85, 0.0001, "기본 공격력 배율 85% (임시값)")
+	assert_true(rules.named_health_ratio > rules.health_ratio and rules.named_damage_ratio > rules.damage_ratio, "네임드는 일반보다 배율이 높다")
+
+
+func test_undead_ratio_override_per_monster() -> void:
+	var data: MonsterData = MonsterData.new()
+	data.max_health = 10.0
+	data.contact_damage = 2.0
+	data.undead_health_ratio_override = 0.5
+	data.undead_damage_ratio_override = 1.0
+	assert_almost_eq(data.undead_max_health, 5.0, 0.0001, "몬스터마다 따로 둔 체력 배율")
+	assert_almost_eq(data.undead_contact_damage, 2.0, 0.0001, "몬스터마다 따로 둔 공격력 배율")

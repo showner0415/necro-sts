@@ -73,3 +73,16 @@ func test_hit_again_while_chasing_keeps_origin() -> void:
 	aggro.on_hit(other, START + Vector2(-40, 0), false)
 	assert_eq(aggro.attacker, other, "새 공격자를 쫓는다")
 	assert_eq(aggro.origin, START, "맞기 시작한 자리는 처음 맞은 곳 그대로")
+
+
+func test_start_return_goes_home_and_ignores_hits() -> void:
+	aggro.on_hit(attacker, START, false)
+	var home: Vector2 = Vector2(-50, 20)
+	aggro.start_return(home)
+	assert_eq(aggro.state, Aggro.State.RETURNING, "무리가 포기하면 돌아간다")
+	assert_eq(aggro.origin, home, "무리 싸움을 시작한 자리로")
+	assert_eq(aggro.attacker, null)
+	aggro.on_hit(other, home + Vector2(30, 0), false)
+	assert_eq(aggro.state, Aggro.State.RETURNING, "돌아가는 중에는 맞아도 대상을 바꾸지 않는다")
+	aggro.update(home + Vector2(1, 0), false, false, Vector2.ZERO)
+	assert_eq(aggro.state, Aggro.State.IDLE, "다 돌아오면 평소로")

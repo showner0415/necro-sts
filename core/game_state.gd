@@ -14,8 +14,10 @@ var storage: Inventory
 
 func _ready() -> void:
 	inventory = Inventory.new(inventory_data.slot_count)
+	inventory.display_name = inventory_data.display_name
 	hotbar = Hotbar.new(inventory_data.hotbar_slot_count, inventory)
 	storage = Inventory.new(storage_data.slot_count)
+	storage.display_name = storage_data.display_name
 
 
 ## 네크로맨서가 지역에서 죽으면 인벤토리의 물건을 전부 잃는다 (설계 확정). 창고는 비우지 않는다.

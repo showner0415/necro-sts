@@ -3,7 +3,7 @@ extends CharacterBody2D
 ## MonsterData 하나로 움직이는 몬스터.
 ## 배회하다가 네크로맨서나 언데드가 감지 범위에 들어오면 그중 가장 가까운 대상을 노린다.
 ## 감지 범위에 아무도 없을 때 맞으면 공격한 대상을 쫓고, 너무 멀어지면 포기하고 맞기 시작한 자리로 돌아간다 (Aggro).
-## 무리(부모가 MonsterPack)에 속하면 어그로를 공유한다: 무리가 싸우는 중이면 감지 범위 밖이어도 가장 가까운 대상을 노린다.
+## 무리(MonsterPack)에 속해 있으면 무리가 정한 대상(set_pack_target)을 자기 판단보다 먼저 노린다.
 ## 대상과 어떻게 싸울지는 데이터의 행동 조각(data.behavior)이 정하고, 수치는 적일 때의 값(data.get_enemy_stats())을 쓴다.
 ## 죽으면 드랍 목록(data.drops)의 확률을 굴려 나온 것을 담은 시체(Corpse)를 남긴다. 네크로맨서가 시체에서 채집한다.
 
@@ -19,10 +19,23 @@ extends CharacterBody2D
 @export_flags_2d_physics var flying_mask: int = 1
 ## 행동 조각이 바닥에 그리는 예고 표시(돌진 방향 선 등)의 색. 적은 위험 표시 색(e83b3b)이다.
 @export var indicator_color: Color = Color(0.9098039, 0.23137255, 0.23137255, 1)
+## 네크로맨서에게 맞은 뒤 이 시간(초) 동안 언데드의 공격 대상이 된다 (임시값)
+@export var necromancer_mark_duration: float = 5.0
+
+## 맞았을 때 (source는 때린 쪽). 무리가 이것으로 무리 대상을 정한다.
+signal hit_by(source: Node2D)
 
 var health: float
 ## 지금 노리는 대상 (네크로맨서 또는 언데드). take_damage(amount, source)가 있어야 한다.
 var _target: Node2D
+## 무리 대상과 상관없이 스스로 노렸을 대상 (감지·공격자 쫓기)
+var _own_target: Node2D
+## 무리(MonsterPack)가 정한 대상. 있으면 _own_target 대신 이것을 노린다.
+var _pack_target: Node2D
+## 무리 싸움을 시작한 자리 (무리가 포기하면 돌아갈 곳)
+var _pack_home: Vector2
+## 네크로맨서에게 맞은 표시가 남은 시간 (0이면 없음)
+var _necromancer_mark_left: float = 0.0
 var _wander_direction: Vector2 = Vector2.ZERO
 var _wander_timer: float = 0.0
 ## 대상과 싸우는 방식 (data.behavior의 이 몬스터용 복사본)
@@ -30,10 +43,6 @@ var _behavior: MonsterBehavior
 var _knockback: Knockback = Knockback.new()
 ## 감지 범위 밖에서 맞았을 때 공격자를 쫓는 규칙
 var _aggro: Aggro
-## 속한 무리 (없으면 null)
-var _pack: MonsterPack
-## 이 몬스터가 직접 싸우는 중인지 (감지 범위에 대상이 있거나 공격자를 쫓는 중). 무리가 읽는다.
-var _engaged_by_itself: bool = false
 
 @onready var _collision: CollisionShape2D = $CollisionShape2D
 
@@ -42,7 +51,6 @@ func _ready() -> void:
 	health = data.max_health
 	_behavior = data.make_enemy_behavior()
 	_aggro = Aggro.new(data.chase_attacker_limit, data.chase_home_limit, return_arrive_distance)
-	_pack = get_parent() as MonsterPack
 	_collision.shape = PlaceholderBody.make_shape(data)
 	_collision.rotation = PlaceholderBody.shape_rotation(data)
 	_collision.position = PlaceholderBody.center(data)
@@ -54,25 +62,25 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	_behavior.update(delta)
+	_necromancer_mark_left = maxf(_necromancer_mark_left - delta, 0.0)
 	var nearest: Node2D = _find_nearest_target()
-	var attacker: Node2D = _aggro.attacker as Node2D
+	# 쫓던 공격자가 사라졌을 수 있다 (해제된 언데드 등). 사라진 객체는 형변환하면 오류이므로 먼저 확인한다.
+	var attacker: Node2D = _aggro.attacker as Node2D if is_instance_valid(_aggro.attacker) else null
 	var attacker_alive: bool = is_instance_valid(attacker) and not attacker.is_queued_for_deletion()
 	_aggro.update(global_position, nearest != null, attacker_alive, attacker.global_position if attacker_alive else Vector2.ZERO)
 	match _aggro.state:
 		Aggro.State.CHASING:
-			_target = _aggro.attacker as Node2D
+			_own_target = _aggro.attacker as Node2D
 		Aggro.State.RETURNING:
-			_target = null
+			_own_target = null
 		_:
-			_target = nearest
-			# 무리가 싸우는 중이면 감지 범위 밖이어도 가장 가까운 대상을 노린다.
-			if _target == null and _pack != null and _pack.is_engaged():
-				_target = _find_nearest_target(INF)
-	_engaged_by_itself = nearest != null or _aggro.state == Aggro.State.CHASING
+			_own_target = nearest
+	# 무리에 대상이 있으면 자기 판단과 상관없이 그 대상을 노린다.
+	_target = _pack_target if _is_alive_node(_pack_target) else _own_target
 	# 하던 동작(돌진 예고 등)은 대상이 사라져도 이어 간다.
 	if _target != null or _behavior.is_busy():
 		_behavior.act(self, data.get_enemy_stats(), _target, delta)
-	elif _aggro.state == Aggro.State.RETURNING:
+	elif _aggro.state == Aggro.State.RETURNING and _target == null:
 		velocity = global_position.direction_to(_aggro.origin) * data.move_speed
 	else:
 		_wander(delta)
@@ -82,11 +90,6 @@ func _physics_process(delta: float) -> void:
 	_knockback.update(delta)
 	# 예고 표시(깜빡임, 방향 선)가 프레임마다 바뀐다.
 	queue_redraw()
-
-
-## 이 몬스터가 직접 싸우는 중인지 (무리의 어그로 공유가 읽는다)
-func is_engaged_by_itself() -> bool:
-	return _engaged_by_itself
 
 
 ## 테스트·디버그용: 지금 노리는 대상 (없으면 null)
@@ -102,6 +105,16 @@ func get_aggro() -> Aggro:
 ## 테스트·디버그용: 이 한 마리가 쓰는 행동 조각
 func get_behavior() -> MonsterBehavior:
 	return _behavior
+
+
+## 던지는 행동 조각의 돌이 피해를 줄 그룹: 네크로맨서와 언데드.
+func get_hostile_groups() -> Array[StringName]:
+	return [&"necromancer", &"undead"]
+
+
+## 던진 돌이 지나가는 그룹: 없음 (적 투석병의 돌은 다른 몬스터 몸에도 막힌다).
+func get_stone_pass_groups() -> Array[StringName]:
+	return []
 
 
 ## 돌진처럼 여러 상대를 치는 행동 조각이 칠 수 있는 상대: 네크로맨서와 언데드.
@@ -131,11 +144,47 @@ func _wander(delta: float) -> void:
 	velocity = _wander_direction * data.wander_speed
 
 
-## source는 공격한 쪽. 감지 범위에 아무도 없을 때 맞으면 그 대상을 쫓는다.
+## 무리(MonsterPack)가 프레임마다 정해 준다: 무리 대상 (없으면 null). 있으면 자기 판단 대신 이 대상을 노린다.
+## 무리 대상이 처음 생길 때의 자리를 기억해 두었다가, 무리가 포기하면(return_home) 그리로 돌아간다.
+func set_pack_target(target: Node2D) -> void:
+	if target != null and _pack_target == null:
+		_pack_home = _aggro.origin if _aggro.state != Aggro.State.IDLE else global_position
+	_pack_target = target
+
+
+## 무리가 함께 포기했을 때 부른다. 무리 싸움을 시작한 자리로 돌아간다 (돌아가는 동안 감지·피격으로 대상을 바꾸지 않는다).
+func return_home() -> void:
+	_pack_target = null
+	_aggro.start_return(_pack_home)
+
+
+## 이 몬스터가 무리 대상 target을 아직 원하는지: 감지 범위 안이거나,
+## 공격한 대상을 쫓는 한계 안(대상과 chase_attacker_limit, 무리 싸움을 시작한 자리에서 chase_home_limit)이면 원한다.
+func wants_pack_target(target: Node2D) -> bool:
+	var distance: float = global_position.distance_to(target.global_position)
+	if distance <= data.detect_range:
+		return true
+	return distance <= data.chase_attacker_limit and global_position.distance_to(_pack_home) <= data.chase_home_limit
+
+
+## 무리 판단용: 무리 대상과 상관없이 이 몬스터가 스스로 노렸을 대상 (감지·공격자 쫓기 규칙)
+func get_own_target() -> Node2D:
+	return _own_target
+
+
+func _is_alive_node(node: Node2D) -> bool:
+	return is_instance_valid(node) and not node.is_queued_for_deletion()
+
+
+## source는 공격한 쪽. 감지 범위에 아무도 없을 때 맞으면 그 대상을 쫓는다. 무리는 hit_by로 알고 무리 전체가 source를 노린다.
 func take_damage(amount: float, source: Node2D = null) -> void:
 	if health <= 0.0:
 		return
 	_aggro.on_hit(source, global_position, _find_nearest_target() != null)
+	if source != null and source.is_in_group(&"necromancer"):
+		_necromancer_mark_left = necromancer_mark_duration
+	if source != null:
+		hit_by.emit(source)
 	health -= amount
 	if health <= 0.0:
 		_die()
@@ -160,12 +209,11 @@ func _draw() -> void:
 	PlaceholderBody.draw(self, data, _behavior.get_body_color(data.placeholder_color), PlaceholderBody.center(data))
 
 
-## max_range 안(기본: 감지 범위)의 네크로맨서·언데드 중 가장 가까운 것. 없으면 null.
+## 감지 범위 안의 네크로맨서·언데드 중 가장 가까운 것. 없으면 null.
 ## 몬스터는 둘을 똑같이 적으로 본다.
-func _find_nearest_target(max_range: float = -1.0) -> Node2D:
+func _find_nearest_target() -> Node2D:
 	var nearest: Node2D = null
-	var limit: float = data.detect_range if max_range < 0.0 else max_range
-	var nearest_distance: float = limit * limit
+	var nearest_distance: float = data.detect_range * data.detect_range
 	var candidates: Array[Node] = get_tree().get_nodes_in_group(&"necromancer")
 	candidates.append_array(get_tree().get_nodes_in_group(&"undead"))
 	for node: Node in candidates:
@@ -177,3 +225,8 @@ func _find_nearest_target(max_range: float = -1.0) -> Node2D:
 			nearest = candidate
 			nearest_distance = distance
 	return nearest
+
+
+## 네크로맨서가 최근(necromancer_mark_duration 안)에 때렸는지. 언데드는 이런 몬스터를 노린다.
+func is_marked_by_necromancer() -> bool:
+	return _necromancer_mark_left > 0.0

@@ -4,6 +4,8 @@ extends RefCounted
 ## 스태미나·마나·공격 간격 같은 제약을 그대로 받는다. 판단에는 몬스터 위치와 예고 상태를 읽는다.
 ## - 겨누기: 가장 가까운 몬스터의 이동 방향을 감안해 탄이 닿을 자리를 겨눈다. 조준 오차(도)만큼 흔들린다
 ## - 피하기: 몬스터가 예고를 시작하면 반응 시간 뒤, 공격 방향이 고정되었으면 그 옆으로 구른다. 회피 성공률만큼만 시도한다
+## - 돌 피하기: 예고 없이 날아오는 돌(Stone)은 처음 본 뒤 반응 시간이 지나면, 맞을 줄 위에 있는 동안 줄에서 벗어나는 옆쪽으로 걷는다 (쏘기는 계속).
+##   회피 성공률만큼만 시도한다
 ##   (방향이 고정되기 전에 구르면 멧돼지가 다시 겨누므로 고정을 기다린다)
 ## - 거리 두기: 근접 몬스터와 keep_distance를 유지하며 쏜다. 다가오는 몬스터가 아주 가까우면 쏘기를 멈추고 뛴다 (쏘는 동안은 느리고 뛸 수 없다)
 ##   예고 중인 공격(돌진 등)은 뛰어서 피하지 않는다. 피하기는 구르기 판단(반응 시간, 회피 성공률) 하나로만 한다.
@@ -36,6 +38,12 @@ var fire_range_ratio: float = 0.95
 ## 싸우는 곳의 가운데와 반지름. 밖으로 나가면 가운데 쪽으로 돌아온다 (시험 지역 바닥 안)
 var arena_center: Vector2 = Vector2.ZERO
 var arena_radius: float = 360.0
+## 조준 오차를 다시 뽑는 간격 (초). 한 발마다 다른 오차가 되도록 _init에서 공격 간격과 맞춘다.
+var aim_resample_interval: float = 0.4
+## 처음 이 횟수만큼의 무리 동시 공격은 일부러 피하지 않는다 (실수했을 때를 재기 위해)
+var miss_group_attacks: int = 0
+## 무리 동시 공격 하나가 끝났다고 보기까지 기다리는 시간 (초). 예고가 끝난 뒤 물린 피해까지 센다.
+var group_attack_settle_time: float = 0.3
 ## 다시 소환할 때 소환 마나에 더해 남겨 둘 마나
 var summon_mana_margin: float = 2.0
 
@@ -47,6 +55,10 @@ var _aim_timer: float = 0.0
 var _last_positions: Dictionary = {}
 ## 지금 보고 있는 예고: 행동 조각 → {"seen": 처음 본 시각, "try": 피하기를 시도할지, "done": 굴렀는지}
 var _telegraphs: Dictionary = {}
+## 지금 날아오는 돌: Stone → {"seen": 처음 본 시각, "try": 피하기를 시도할지}
+var _stones: Dictionary = {}
+## 돌 줄에서 몸 가운데가 이 거리 안이면 맞을 것으로 보고 옆으로 걷는다 (몸 반지름 + 돌 반지름 + 여유)
+var stone_danger_width: float = 12.0
 var _time: float = 0.0
 var _running: bool = false
 var _summon_cooldown: float = 0.0
@@ -56,17 +68,38 @@ var _key_queue: Array[Key] = []
 var shots: int = 0
 var hits: int = 0
 var rolls: int = 0
-## 측정: 본 예고 수, 소환 키를 누른 횟수, 몬스터가 가장 가까이 온 거리
+## 측정: 본 예고 수(날아오는 돌 포함), 소환 키를 누른 횟수, 몬스터가 가장 가까이 온 거리
 var telegraphs_seen: int = 0
 var summons: int = 0
 var closest: float = INF
+## 측정: 본 무리 동시 공격 수, 일부러 놓친 동시 공격에서 받은 피해 합,
+## 놓친 동시 공격이 끝난 직후의 마나 (놓친 것이 없으면 -1), 싸우는 동안 가장 낮았던 마나
+var group_attacks_seen: int = 0
+var missed_group_damage: float = 0.0
+var mana_after_miss: float = -1.0
+var mana_min: float = INF
+## 측정: 언데드가 죽은 판정으로 사라진 수, 그 밖의 이유(마나 0 등)로 해제된 수
+var undead_died: int = 0
+var undead_released: int = 0
+
+## 진행 중인 무리 동시 공격: 일부러 놓치는지, 시작할 때 체력, 예고가 안 보인 지 얼마나 됐는지
+var _group_active: bool = false
+var _group_missed: bool = false
+var _group_health_before: float = 0.0
+var _group_quiet_time: float = 0.0
 
 
 func _init(test: ScenarioTest, necromancer: Necromancer, skill_id: StringName) -> void:
 	_test = test
 	_necromancer = necromancer
 	skill = SKILLS[skill_id]
+	aim_resample_interval = necromancer.attack.cooldown
 	_necromancer.get_parent().child_entered_tree.connect(_on_actor_added)
+	_necromancer.summoner.roster.unsummoned.connect(func(_skull: Skull, died: bool) -> void:
+		if died:
+			undead_died += 1
+		else:
+			undead_released += 1)
 
 
 ## 핫바 칸 순서대로 소환할 머리뼈 (언데드와 함께 싸울 때)
@@ -83,14 +116,23 @@ func tick(delta: float) -> void:
 	if monsters.is_empty():
 		release_all()
 		return
+	_track_group_attack(monsters, delta)
 	var target: Monster = _nearest(monsters)
 	_aim_and_fire(target, delta, _should_flee(monsters))
-	if not _try_dodge(monsters):
+	if not _try_dodge(monsters) and not _try_sidestep_stones():
 		_move(monsters)
 	_manage_undead()
+	mana_min = minf(mana_min, _necromancer.mana.current)
 	for monster: Monster in monsters:
 		_last_positions[monster] = monster.global_position
 		closest = minf(closest, monster.global_position.distance_to(_necromancer.global_position))
+
+
+## 판이 끝났을 때 부른다. 놓친 동시 공격 도중에 죽었으면 남아 있던 체력을 모두 그 피해로 센다.
+func finish_tracking(died: bool) -> void:
+	if _group_active and _group_missed:
+		missed_group_damage += _group_health_before if died else _group_health_before - _necromancer.health
+		_group_active = false
 
 
 func release_all() -> void:
@@ -132,8 +174,8 @@ func _should_flee(monsters: Array[Monster]) -> bool:
 func _aim_and_fire(target: Monster, delta: float, fleeing: bool) -> void:
 	_aim_timer -= delta
 	if _aim_timer <= 0.0:
-		# 한 발마다 다른 오차가 되도록 공격 간격마다 다시 뽑는다.
-		_aim_timer = _necromancer.attack.cooldown
+		# 한 발마다 다른 오차가 되도록 aim_resample_interval(_init에서 공격 간격과 맞춤)마다 다시 뽑는다.
+		_aim_timer = aim_resample_interval
 		_aim_offset_deg = randfn(0.0, skill["aim_error"]) if skill["aim_error"] > 0.0 else 0.0
 	var origin: Vector2 = _necromancer.global_position + Vector2(0, -_necromancer.placeholder_radius)
 	var center: Vector2 = target.global_position + PlaceholderBody.center(target.data)
@@ -160,7 +202,9 @@ func _try_dodge(monsters: Array[Monster]) -> bool:
 		seen_now[behavior] = true
 		if not _telegraphs.has(behavior):
 			telegraphs_seen += 1
-			_telegraphs[behavior] = {"seen": _time, "try": randf() < skill["dodge"], "done": false}
+			# 일부러 놓치는 무리 동시 공격에는 피하기를 시도하지 않는다.
+			var skip: bool = behavior.is_group_attack() and _group_missed
+			_telegraphs[behavior] = {"seen": _time, "try": not skip and randf() < skill["dodge"], "done": false}
 		var info: Dictionary = _telegraphs[behavior]
 		if rolled or info["done"] or not info["try"]:
 			continue
@@ -184,6 +228,68 @@ func _try_dodge(monsters: Array[Monster]) -> bool:
 		if not seen_now.has(behavior):
 			_telegraphs.erase(behavior)
 	return rolled
+
+
+## 무리 동시 공격의 시작과 끝을 본다. 처음 miss_group_attacks번은 놓치기로 하고, 그동안 받은 피해와 끝난 직후 마나를 잰다.
+## _try_dodge보다 먼저 시작을 알아야 하므로, 새 예고가 보이는 프레임에 _try_dodge 안에서 쓰는 _group_missed를 여기서 정한다.
+func _track_group_attack(monsters: Array[Monster], delta: float) -> void:
+	var group_now: bool = false
+	for monster: Monster in monsters:
+		var behavior: MonsterBehavior = monster.get_behavior()
+		if behavior != null and behavior.is_group_attack():
+			group_now = true
+	if group_now and not _group_active:
+		_group_active = true
+		group_attacks_seen += 1
+		_group_missed = group_attacks_seen <= miss_group_attacks
+		_group_health_before = _necromancer.health
+	if not _group_active:
+		return
+	_group_quiet_time = 0.0 if group_now else _group_quiet_time + delta
+	if _group_quiet_time < group_attack_settle_time:
+		return
+	_group_active = false
+	if _group_missed:
+		missed_group_damage += _group_health_before - _necromancer.health
+		mana_after_miss = _necromancer.mana.current
+	_group_missed = false
+
+
+## 날아오는 돌을 반응 시간 뒤 옆으로 걸어 피한다. 이번 프레임에 피하는 중이면 true (그동안 _move 대신).
+func _try_sidestep_stones() -> bool:
+	var center: Vector2 = _necromancer.global_position + Vector2(0, -_necromancer.placeholder_radius)
+	var step: Vector2 = Vector2.ZERO
+	var seen_now: Dictionary = {}
+	for node: Node in _necromancer.get_parent().get_children():
+		var stone: Stone = node as Stone
+		if stone == null or stone.is_queued_for_deletion() or not stone.hostile_groups.has(&"necromancer"):
+			continue
+		seen_now[stone] = true
+		if not _stones.has(stone):
+			telegraphs_seen += 1
+			_stones[stone] = {"seen": _time, "try": randf() < skill["dodge"]}
+		var info: Dictionary = _stones[stone]
+		if not info["try"] or _time - info["seen"] < skill["reaction"]:
+			continue
+		var to_me: Vector2 = center - stone.global_position
+		var along: float = to_me.dot(stone.direction)
+		if along < 0.0:
+			continue
+		var off: Vector2 = to_me - stone.direction * along
+		if off.length() > stone_danger_width:
+			continue
+		var side: Vector2 = stone.direction.orthogonal()
+		if side.dot(off) < 0.0:
+			side = -side
+		step = side
+	for stone: Variant in _stones.keys():
+		if not seen_now.has(stone):
+			_stones.erase(stone)
+	if step == Vector2.ZERO:
+		return false
+	_test.press_moves(_keep_in_arena(step))
+	_set_running(false)
+	return true
 
 
 func _move(monsters: Array[Monster]) -> void:

@@ -23,7 +23,9 @@ var skull_data: SkullData
 
 func before_each() -> void:
 	inventory = Inventory.new(INVENTORY_SLOTS)
+	inventory.display_name = "인벤토리"
 	storage = Inventory.new(STORAGE_SLOTS)
+	storage.display_name = "창고"
 	hotbar = Hotbar.new(2, inventory)
 	mana = ManaPool.new(10.0, 0.0)
 	bone = ItemData.new()
@@ -35,7 +37,9 @@ func before_each() -> void:
 	monster.id = skull_data.source_monster_id
 	monster.summon_bone_cost = 0
 	monster.summon_mana_cost = 0.0
-	monster.undead_max_health = 4.0
+	# 언데드 체력은 몬스터 체력 × 배율이므로, 배율 1로 두고 몬스터 체력을 정한다.
+	monster.max_health = 4.0
+	monster.undead_health_ratio_override = 1.0
 	roster = UndeadRoster.new(inventory, hotbar, mana, bone.id, _find_monster, 1.0)
 	transfer = ItemTransfer.new(inventory, roster)
 

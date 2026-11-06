@@ -6,6 +6,8 @@ extends Node2D
 ## - 출구(RegionExit, 거점에 둠): F를 누르면 그 목적지 지역으로 간다
 ## - 창고 상자(StorageChest, 거점에 둠): F를 누르면 창고(오른쪽)와 인벤토리(왼쪽)를 나란히 연다.
 ##   Tab·Esc를 누르거나 상자에서 멀어지면 둘 다 닫는다. 창고 화면(StorageScreen)이 없는 지역에서는 열 수 없다
+## - 지역 상자(LootChest): F를 누르면 그 상자(오른쪽)와 인벤토리(왼쪽)를 나란히 연다 (상자 화면 ChestScreen).
+##   열려 있는 동안만 상자의 내용물이 하나씩 드러난다. 상자에서 open_distance보다 멀어지거나 Tab·Esc로 둘 다 닫는다
 ## - 네크로맨서가 죽으면 인벤토리를 전부 잃고 death_destination(거점)으로 간다
 ## 다른 씬으로 갈 때 소환 중인 언데드는 일반 해제된다. 네크로맨서는 새 씬에서 새로 만들어지므로 체력·마나가 가득 찬다.
 
@@ -20,12 +22,17 @@ var _traveling: bool = false
 ## 인벤토리가 열려 있으면 막는 시설들 (출구, 창고 상자)
 var _zones: Array[InteractZone] = []
 var _chests: Array[StorageChest] = []
+## 지역 상자들과 지금 열려 있는 상자 (없으면 null)
+var _loot_chests: Array[LootChest] = []
+var _open_chest: LootChest
 
 @onready var _necromancer: Necromancer = $Actors/Necromancer
 @onready var _hud: Hud = $HUD
 @onready var _inventory_screen: InventoryScreen = $InventoryScreen
 ## 거점에만 있다. 없으면 null.
 @onready var _storage_screen: InventoryScreen = get_node_or_null("StorageScreen")
+## 지역 상자가 있는 지역에만 있다. 없으면 null.
+@onready var _chest_screen: InventoryScreen = get_node_or_null("ChestScreen")
 
 
 func _ready() -> void:
@@ -60,9 +67,17 @@ func _ready() -> void:
 		_zones.append(node as InteractZone)
 		if node is RegionExit:
 			(node as RegionExit).travel_requested.connect(travel_to)
+		elif node is LootChest and _chest_screen != null:
+			var loot_chest: LootChest = node as LootChest
+			loot_chest.interacted.connect(open_chest.bind(loot_chest))
+			_loot_chests.append(loot_chest)
 		elif node is StorageChest and _storage_screen != null:
 			(node as StorageChest).interacted.connect(open_storage)
 			_chests.append(node as StorageChest)
+	if _chest_screen != null and not _loot_chests.is_empty():
+		# 상자 화면은 열 때마다 그 상자로 바꾼다 (set_container). 처음에는 첫 상자로 묶어 둔다.
+		_chest_screen.bind(_loot_chests[0].contents.inventory, roster, GameState.hotbar, _necromancer.drop_to_ground, transfer, _inventory)
+		_chest_screen.open_changed.connect(_on_chest_open_changed)
 
 
 ## destination 지역 씬으로 간다. 소환 중인 언데드는 일반 해제된다 (머리뼈의 체력·내구도는 그대로).
@@ -84,13 +99,45 @@ func open_storage() -> void:
 	_inventory_screen.set_open(true)
 
 
-func _physics_process(_delta: float) -> void:
+## 지역 상자(오른쪽)와 인벤토리(왼쪽)를 나란히 연다. 이미 드러난 칸은 그대로 드러나 있다.
+func open_chest(chest: LootChest) -> void:
+	if _chest_screen == null or chest.contents == null:
+		return
+	_open_chest = chest
+	_chest_screen.set_container(chest.contents.inventory, chest.contents)
+	_chest_screen.set_title(chest.data.display_name)
+	_inventory_screen.open_storage = chest.contents.inventory
+	_chest_screen.set_open(true)
+	_inventory_screen.set_open(true)
+
+
+## 테스트용: 지금 열려 있는 지역 상자 (없으면 null)
+func get_open_chest() -> LootChest:
+	return _open_chest
+
+
+func _physics_process(delta: float) -> void:
+	# 상자가 열려 있는 동안만 내용물이 드러난다. 상자에서 멀어지면 닫는다.
+	if _open_chest != null and _chest_screen.is_open():
+		if _open_chest.is_in_open_range(_necromancer.global_position):
+			_open_chest.contents.advance(delta)
+		else:
+			_chest_screen.set_open(false)
 	# 마나 초당 변화량: 유지비는 소환·해제로, 회복 여부는 마나가 가득 찼는지로 바뀌므로 매 프레임 다시 계산한다.
 	var upkeep: float = _necromancer.summoner.roster.get_upkeep_per_second()
 	_hud.show_mana_change(_necromancer.mana.get_change_per_second(upkeep), _necromancer.mana.has_change(upkeep))
 	# 상자에서 멀어지면 창고를 닫는다.
 	if _storage_screen != null and _storage_screen.is_open() and not _chests.any(func(chest: StorageChest) -> bool: return chest.is_necromancer_inside()):
 		_storage_screen.set_open(false)
+
+
+## 상자가 닫히면(Esc, 멀어짐, Tab) 인벤토리도 같이 닫는다.
+func _on_chest_open_changed(is_open: bool) -> void:
+	if is_open:
+		return
+	_open_chest = null
+	_inventory_screen.open_storage = null
+	_inventory_screen.set_open(false)
 
 
 ## 창고가 닫히면(Esc, 멀어짐, Tab) 인벤토리도 같이 닫는다.
@@ -115,6 +162,8 @@ func _on_inventory_open_changed(is_open: bool) -> void:
 	# 인벤토리를 닫으면 같이 열려 있던 창고도 닫는다.
 	if not is_open and _storage_screen != null:
 		_storage_screen.set_open(false)
+	if not is_open and _chest_screen != null:
+		_chest_screen.set_open(false)
 
 
 func _on_necromancer_died() -> void:

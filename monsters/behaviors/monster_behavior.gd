@@ -43,6 +43,31 @@ func is_attack_locked() -> bool:
 	return false
 
 
+## 예고 중인 공격이 무리 동시 공격인지 (밸런스 측정 봇이 구별하는 데 쓴다).
+func is_group_attack() -> bool:
+	return false
+
+
+## 무리 동시 공격 규칙을 만든다 (MonsterPack이 첫 멤버에게 부른다). 지원하지 않으면 null.
+func make_pack_attack() -> PackAttack:
+	return null
+
+
+## 무리의 동시 공격 규칙을 받는다. 지원하지 않으면 무시한다.
+func join_pack(_pack: PackAttack) -> void:
+	pass
+
+
+## 무리가 프레임마다 알려 주는 자리: 번호(0부터), 싸우는 마리 수(0이면 자리 없음), 자기를 뺀 동료들의 위치. 쓰지 않으면 무시한다.
+func set_pack_slot(_index: int, _count: int, _mates: Array[Vector2]) -> void:
+	pass
+
+
+## 지금 무리 동시 공격에 들어갈 수 있는지 (자기 공격 중이 아님). 지원하지 않으면 true (기다리게 하지 않는다).
+func can_join_pack_attack() -> bool:
+	return true
+
+
 ## 몸 색. 깜빡임 같은 표시가 있으면 바꿔서 돌려준다.
 func get_body_color(base: Color) -> Color:
 	return base

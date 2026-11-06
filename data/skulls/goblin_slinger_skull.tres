@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="SkullData" format=3]
+
+[ext_resource type="Resource" path="res://data/rarities/rare.tres" id="r_rarity"]
+[ext_resource type="Script" path="res://items/skull_data.gd" id="1_skull"]
+[ext_resource type="Resource" path="res://data/item_actions/heal_skull.tres" id="2_heal"]
+[ext_resource type="Resource" path="res://data/item_actions/assign_hotbar.tres" id="3_assign"]
+[ext_resource type="Resource" path="res://data/item_actions/drop.tres" id="4_drop"]
+[ext_resource type="Script" path="res://items/actions/item_action.gd" id="5_action"]
+[ext_resource type="Resource" path="res://data/item_actions/unassign_hotbar.tres" id="6_unassign"]
+
+[resource]
+script = ExtResource("1_skull")
+source_monster_id = &"goblin_slinger"
+max_durability = 10.0
+id = &"goblin_slinger_skull"
+display_name = "고블린 투석병의 머리뼈"
+actions = Array[ExtResource("5_action")]([ExtResource("2_heal"), ExtResource("3_assign"), ExtResource("6_unassign"), ExtResource("4_drop")])
+harvest_time_multiplier = 1.5
+placeholder_color = Color(1, 1, 1, 1)
+placeholder_size = Vector2(4, 4)
+rarity = ExtResource("r_rarity")

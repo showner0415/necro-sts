@@ -1,5 +1,6 @@
 [gd_resource type="Resource" script_class="SkullData" format=3 uid="uid://bra1oda508qor"]
 
+[ext_resource type="Resource" path="res://data/rarities/uncommon.tres" id="r_rarity"]
 [ext_resource type="Script" uid="uid://dhb0myastftyu" path="res://items/skull_data.gd" id="1_skull"]
 [ext_resource type="Resource" path="res://data/item_actions/heal_skull.tres" id="2_heal"]
 [ext_resource type="Resource" path="res://data/item_actions/assign_hotbar.tres" id="3_assign"]
@@ -15,3 +16,4 @@ display_name = "쥐의 머리뼈"
 actions = Array[ExtResource("5_action")]([ExtResource("2_heal"), ExtResource("3_assign"), ExtResource("6_unassign"), ExtResource("4_drop")])
 harvest_time_multiplier = 1.5
 placeholder_size = Vector2(5, 4)
+rarity = ExtResource("r_rarity")

@@ -10,6 +10,8 @@ extends ScenarioTest
 ##   bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_balance.gd
 ## 일부만: -- --targets=boar,bat_pack --skills=normal --undead=0 --runs=5
 ## 봇이 몬스터와 유지하는 거리 바꾸기: -- --keep=0 (0이면 거리를 두지 않고 제자리에서 쏘며 예고만 피한다)
+## 무리 동시 공격(박쥐 동시 돌진)을 처음 N번 일부러 못 피하게: -- --miss_pack=1
+##   놓친 동시 공격에서 받은 피해, 그 직후 마나, 언데드가 죽거나 해제된 수, 죽은 비율로 "실수 한 번의 값"을 본다
 ## 봇이 싸우는 모습을 창으로 보기 (실제 속도, 한 판):
 ##   bash tools/godot.sh --path . -s tests/balance/run_balance.gd -- --targets=boar --skills=normal --undead=0 --runs=1
 ##
@@ -25,6 +27,7 @@ const TARGETS: Dictionary = {
 	&"rat": {"name": "쥐 1마리", "data": "res://data/monsters/rat.tres", "offsets": [Vector2.ZERO]},
 	&"boar": {"name": "멧돼지 1마리", "data": "res://data/monsters/boar.tres", "offsets": [Vector2.ZERO]},
 	&"bat_pack": {"name": "박쥐 무리(3)", "data": "res://data/monsters/bat.tres", "offsets": [Vector2(0, -12), Vector2(12, 0), Vector2(0, 12)], "pack": true},
+	&"goblin_pair": {"name": "고블린 투석병(2)", "data": "res://data/monsters/goblin_slinger.tres", "offsets": [Vector2(0, -25), Vector2(10, 25)]},
 }
 const SPAWN_OFFSET: Vector2 = Vector2(150, 0)
 const DEFAULT_RUNS: int = 20
@@ -33,13 +36,15 @@ const DEFAULT_TIMEOUT: float = 60.0
 ## 판마다 시드 = BASE_SEED + 판 번호
 const BASE_SEED: int = 1000
 
-var _targets: Array[StringName] = [&"rat", &"boar", &"bat_pack"]
+var _targets: Array[StringName] = [&"rat", &"boar", &"bat_pack", &"goblin_pair"]
 var _skills: Array[StringName] = [&"skilled", &"normal", &"novice"]
 var _undead_counts: Array[int] = [0, 2]
 var _runs: int = DEFAULT_RUNS
 var _timeout: float = DEFAULT_TIMEOUT
 ## 봇이 근접 몬스터와 유지하는 거리. 음수면 봇의 기본값.
 var _keep: float = -1.0
+## 처음 이 횟수만큼의 무리 동시 공격은 봇이 일부러 피하지 않는다
+var _miss_pack: int = 0
 
 
 func get_start_scene() -> String:
@@ -68,6 +73,8 @@ func _parse_args() -> void:
 				_runs = int(parts[1])
 			"timeout":
 				_timeout = float(parts[1])
+			"miss_pack":
+				_miss_pack = int(parts[1])
 			"keep":
 				_keep = float(parts[1])
 
@@ -89,8 +96,10 @@ func _run_all() -> void:
 				print(row)
 				rows.append(row)
 	print("")
-	print("| 대상 | 조건 | 실력 | 잡은 시간 평균 | 가장 늦게 | 받은 피해 평균 | 가장 많이 | 죽음 | 시간 초과 | 언데드 효과: 시간 | 언데드 효과: 피해 | 언데드 효과: 사망률 | 명중률 | 본 예고 | 구름 | 소환 | 가장 가까이 온 거리 |")
-	print("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
+	print("| 대상 | 조건 | 실력 | 잡은 시간 평균 | 가장 늦게 | 받은 피해 평균 | 가장 많이 | 죽음 | 시간 초과 | 언데드 효과: 시간 | 언데드 효과: 피해 | 언데드 효과: 사망률 | 명중률 | 본 예고(돌 포함) | 구름 | 소환 | 가장 가까이 온 거리 | 동시 공격 | 놓친 동시 공격 피해 | 놓친 직후 마나 | 최저 마나 | 언데드 죽음 | 언데드 해제 |")
+	print("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
+	if _miss_pack > 0:
+		print("(무리 동시 공격 처음 %d번은 일부러 피하지 않음)" % _miss_pack)
 	for row: String in rows:
 		print(row)
 	finish(true)
@@ -110,23 +119,21 @@ func _fight(target_id: StringName, undead_count: int, skill_id: StringName, run:
 
 	var target: Dictionary = TARGETS[target_id]
 	var data: MonsterData = load(target["data"])
-	# 무리는 MonsterPack 아래에 둔다 (어그로 공유).
-	var parent: Node2D = necromancer.get_parent()
-	var origin: Vector2 = SPAWN_OFFSET
-	if target.get("pack", false):
-		var pack: MonsterPack = MonsterPack.new()
-		pack.y_sort_enabled = true
-		pack.position = SPAWN_OFFSET
-		parent.add_child(pack)
-		parent = pack
-		origin = Vector2.ZERO
+	var spawned: Array[Monster] = []
 	for offset: Vector2 in target["offsets"]:
 		var monster: Monster = (load(MONSTER_SCENE) as PackedScene).instantiate()
 		monster.data = data
-		monster.position = origin + offset
-		parent.add_child(monster)
+		monster.position = SPAWN_OFFSET + offset
+		necromancer.get_parent().add_child(monster)
+		spawned.append(monster)
+	# 무리면 MonsterPack으로 묶는다: 어그로 공유와 동시 공격 시각 맞추기 (시험 지역의 BatPack과 같다).
+	if target.get("pack", false):
+		var pack: MonsterPack = MonsterPack.new()
+		pack.set_members(spawned)
+		region.add_child(pack)
 
 	var bot: PlayerBot = PlayerBot.new(self, necromancer, skill_id)
+	bot.miss_group_attacks = _miss_pack
 	if _keep >= 0.0:
 		bot.keep_distance = _keep
 	if undead_count > 0:
@@ -151,6 +158,7 @@ func _fight(target_id: StringName, undead_count: int, skill_id: StringName, run:
 			break
 		bot.tick(delta)
 	bot.release_all()
+	bot.finish_tracking(result["died"])
 	result["time"] = time
 	result["damage"] = max_health if result["died"] else max_health - necromancer.health
 	result["shots"] = bot.shots
@@ -159,6 +167,12 @@ func _fight(target_id: StringName, undead_count: int, skill_id: StringName, run:
 	result["telegraphs"] = bot.telegraphs_seen
 	result["summons"] = bot.summons
 	result["closest"] = bot.closest
+	result["group_attacks"] = bot.group_attacks_seen
+	result["missed_damage"] = bot.missed_group_damage
+	result["mana_after_miss"] = bot.mana_after_miss
+	result["mana_min"] = bot.mana_min
+	result["undead_died"] = bot.undead_died
+	result["undead_released"] = bot.undead_released
 	return result
 
 
@@ -206,6 +220,8 @@ func _summarize(results: Array[Dictionary]) -> Dictionary:
 	for r: Dictionary in results:
 		shots += r["shots"]
 		hits += r["hits"]
+	var missed: Array[Dictionary] = results.filter(func(r: Dictionary) -> bool: return r["mana_after_miss"] >= 0.0 or r["missed_damage"] > 0.0)
+	var after_miss: Array = results.filter(func(r: Dictionary) -> bool: return r["mana_after_miss"] >= 0.0).map(func(r: Dictionary) -> float: return r["mana_after_miss"])
 	return {
 		"time_mean": _mean(times) if not times.is_empty() else -1.0,
 		"time_worst": times.max() if not times.is_empty() else -1.0,
@@ -218,6 +234,13 @@ func _summarize(results: Array[Dictionary]) -> Dictionary:
 		"rolls": _mean(results.map(func(r: Dictionary) -> float: return r["rolls"])),
 		"summons": _mean(results.map(func(r: Dictionary) -> float: return r["summons"])),
 		"closest": _mean(results.map(func(r: Dictionary) -> float: return r["closest"])),
+		"group_attacks": _mean(results.map(func(r: Dictionary) -> float: return r["group_attacks"])),
+		# 놓친 동시 공격 열은 실제로 놓친 판(놓친 직후 마나를 잰 판, 또는 놓친 중에 죽은 판)만 평균한다.
+		"missed_damage": "%.1f (%d판)" % [_mean(missed.map(func(r: Dictionary) -> float: return r["missed_damage"])), missed.size()] if not missed.is_empty() else "-",
+		"mana_after_miss": "%.1f" % _mean(after_miss) if not after_miss.is_empty() else "-",
+		"mana_min": _mean(results.map(func(r: Dictionary) -> float: return r["mana_min"])),
+		"undead_died": _mean(results.map(func(r: Dictionary) -> float: return r["undead_died"])),
+		"undead_released": _mean(results.map(func(r: Dictionary) -> float: return r["undead_released"])),
 	}
 
 
@@ -237,13 +260,15 @@ func _summary_row(target_id: StringName, undead_count: int, skill_id: StringName
 				effect_time = _change(stats["time_mean"], base["time_mean"], "초")
 			effect_damage = _change(stats["damage_mean"], base["damage_mean"], "")
 			effect_death = "%+.0f%%p" % (stats["death_rate"] - base["death_rate"])
-	return "| %s | %s | %s | %s | %s | %.1f | %.0f | %.0f%% | %.0f%% | %s | %s | %s | %.0f%% | %.1f | %.1f | %.1f | %.0f |" % [
+	return "| %s | %s | %s | %s | %s | %.1f | %.0f | %.0f%% | %.0f%% | %s | %s | %s | %.0f%% | %.1f | %.1f | %.1f | %.0f | %.1f | %s | %s | %.1f | %.1f | %.1f |" % [
 		TARGETS[target_id]["name"], condition, PlayerBot.SKILLS[skill_id]["name"],
 		"%.1f초" % stats["time_mean"] if stats["time_mean"] >= 0.0 else "-",
 		"%.1f초" % stats["time_worst"] if stats["time_worst"] >= 0.0 else "-",
 		stats["damage_mean"], stats["damage_worst"], stats["death_rate"], stats["timeout_rate"],
 		effect_time, effect_damage, effect_death,
-		stats["hit_rate"], stats["telegraphs"], stats["rolls"], stats["summons"], stats["closest"]]
+		stats["hit_rate"], stats["telegraphs"], stats["rolls"], stats["summons"], stats["closest"],
+		stats["group_attacks"], stats["missed_damage"], stats["mana_after_miss"],
+		stats["mana_min"], stats["undead_died"], stats["undead_released"]]
 
 
 ## 기준 대비 변화: "-2.6초 (-15%)". 기준이 0이면 비율은 뺀다.

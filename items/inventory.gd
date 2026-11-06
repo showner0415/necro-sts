@@ -4,14 +4,21 @@ extends RefCounted
 ## 물건은 들어간 칸 위치를 유지하고, 칸끼리 옮기거나 자리를 바꿀 수 있다.
 ## 노드가 아니므로 씬 없이 만들어 쓰고 확인할 수 있다. 게임에서는 GameState가 하나 가진다.
 ## 칸 내용이 바뀌면 changed로 알린다.
+## 칸을 잠글 수 있다 (상자에서 아직 무엇인지 드러나지 않은 칸). 잠긴 칸의 물건은 옮기거나 꺼낼 수 없고,
+## 잠긴 칸에 넣을 수도 없으며, 자동으로 넣을 자리(합치기·빈 칸)로도 쓰지 않는다.
 
 signal changed
 
+## 화면·메뉴에 보이는 이름 ("인벤토리", "창고", "상자")
+var display_name: String = ""
 var _slots: Array[ItemStack] = []
+var _locked: Array[bool] = []
 
 
 func _init(slot_count: int) -> void:
 	_slots.resize(slot_count)
+	_locked.resize(slot_count)
+	_locked.fill(false)
 
 
 func get_slot_count() -> int:
@@ -64,7 +71,7 @@ func move_slot(from_index: int, to_index: int) -> bool:
 ## from 인벤토리의 칸에서 to 인벤토리의 칸으로 옮긴다 (인벤토리 ↔ 창고). 규칙은 move_slot과 같다.
 ## 두 쪽을 다 바꾼 뒤에 changed를 알린다. 바뀐 것이 없거나 범위 밖이면 false.
 static func transfer(from: Inventory, from_index: int, to: Inventory, to_index: int) -> bool:
-	if from.get_slot(from_index) == null or not to._is_valid_index(to_index):
+	if from.get_slot(from_index) == null or not to._is_valid_index(to_index) or from.is_locked(from_index) or to.is_locked(to_index):
 		return false
 	if from == to and from_index == to_index:
 		return true
@@ -135,14 +142,37 @@ func get_skull_counts() -> Dictionary[SkullData, int]:
 
 func _find_merge_slot(stack: ItemStack) -> int:
 	for i: int in _slots.size():
-		if _slots[i] != null and _slots[i].can_merge(stack):
+		if _slots[i] != null and not _locked[i] and _slots[i].can_merge(stack):
 			return i
 	return -1
 
 
 func _find_empty_slot() -> int:
-	return _slots.find(null)
+	for i: int in _slots.size():
+		if _slots[i] == null and not _locked[i]:
+			return i
+	return -1
 
 
 func _is_valid_index(index: int) -> bool:
 	return index >= 0 and index < _slots.size()
+
+
+## 그 칸을 잠그거나 푼다. 바뀌면 changed로 알린다.
+func set_locked(index: int, locked: bool) -> void:
+	if not _is_valid_index(index) or _locked[index] == locked:
+		return
+	_locked[index] = locked
+	changed.emit()
+
+
+## 그 칸이 잠겨 있는지 (범위 밖이면 false)
+func is_locked(index: int) -> bool:
+	return _is_valid_index(index) and _locked[index]
+
+
+## 칸 내용을 처음 채운다 (상자). changed는 한 번 알린다. stacks가 칸 수보다 짧으면 나머지는 빈 칸이다.
+func fill(stacks: Array[ItemStack]) -> void:
+	for i: int in _slots.size():
+		_slots[i] = stacks[i] if i < stacks.size() else null
+	changed.emit()

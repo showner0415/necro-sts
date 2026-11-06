@@ -211,7 +211,7 @@ func _fight_keeps_nearest() -> void:
 	press_mouse(false)
 	var damage: float = health_before - _fight_rat.health
 	# 그동안 언데드 혼자 줄 수 있는 최대 피해. 이보다 많이 받았으면 네크로맨서의 탄도 맞은 것이다.
-	var cooldown_frames: float = undead.data.undead_attack_cooldown * Engine.physics_ticks_per_second
+	var cooldown_frames: float = undead.data.attack_cooldown * Engine.physics_ticks_per_second
 	var undead_max: float = ceilf(FIGHT_FRAMES / cooldown_frames) * undead.data.undead_contact_damage
 	var ok: bool = wrong_frames == 0 and undead_frames > 0 and damage > undead_max and _fight_rat.get_aggro().state == Aggro.State.IDLE
 	_check("싸우는 중에 맞아도 가장 가까운 대상", ok,

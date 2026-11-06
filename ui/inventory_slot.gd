@@ -3,6 +3,8 @@ extends Panel
 ## 인벤토리 칸 하나. 비어 있거나, ItemStack 하나(뼈 N개 또는 머리뼈 하나)를 보여준다.
 ## - 뼈 같은 아이템: 임시 도형과 개수
 ## - 머리뼈: 임시 도형과 아래쪽 내구도 바 (항상 보임)
+## - 아직 무엇인지 드러나지 않은 칸(상자, Inventory.is_locked): 어두운 칸에 "?". 드러나는 중이면 아래쪽에 진행 바.
+##   이 칸은 끌거나 이 칸에 놓을 수 없다
 ## 마우스 입력은 시그널로 알리기만 하고, 실제로 옮기거나 버리는 일은 바깥(InventoryScreen)이 한다.
 ## - 마우스를 올리고 내림: hovered / unhovered
 ## - 우클릭: menu_requested (아이템 메뉴)
@@ -31,6 +33,10 @@ var _stack: ItemStack
 @onready var _icon: ColorRect = %Icon
 @onready var _count_label: Label = %CountLabel
 @onready var _durability_bar: DurabilityBar = %DurabilityBar
+@onready var _hidden_shade: ColorRect = %HiddenShade
+@onready var _hidden_label: Label = %HiddenLabel
+@onready var _reveal_bar: ColorRect = %RevealBar
+@onready var _reveal_fill: ColorRect = %RevealFill
 
 
 func _ready() -> void:
@@ -41,6 +47,7 @@ func _ready() -> void:
 ## 칸에 보여줄 물건. null이면 빈 칸.
 func show_stack(stack: ItemStack) -> void:
 	_stack = stack
+	_set_hidden(false)
 	_icon.visible = stack != null
 	_count_label.text = ""
 	_durability_bar.show_skull(stack.skull if stack != null else null)
@@ -51,6 +58,34 @@ func show_stack(stack: ItemStack) -> void:
 	_icon.custom_minimum_size = stack.item.placeholder_size
 	if not stack.is_skull():
 		_count_label.text = str(stack.count)
+
+
+## 아직 무엇인지 드러나지 않은 칸으로 보여준다. revealing이면 아래쪽에 progress(0~1)만큼 찬 진행 바.
+func show_hidden(revealing: bool, progress: float) -> void:
+	_stack = null
+	_icon.visible = false
+	_count_label.text = ""
+	_durability_bar.show_skull(null)
+	_set_hidden(true)
+	_reveal_bar.visible = revealing
+	_reveal_fill.anchor_right = clampf(progress, 0.0, 1.0)
+
+
+## 테스트용: 드러나지 않은 칸("?")으로 보이는지
+func is_showing_hidden() -> bool:
+	return _hidden_label.visible
+
+
+## 테스트용: 진행 바 비율 (진행 바가 안 보이면 -1)
+func get_reveal_bar_ratio() -> float:
+	return _reveal_fill.anchor_right if _reveal_bar.visible else -1.0
+
+
+func _set_hidden(hidden: bool) -> void:
+	_hidden_shade.visible = hidden
+	_hidden_label.visible = hidden
+	if not hidden:
+		_reveal_bar.visible = false
 
 
 func get_stack() -> ItemStack:
@@ -72,7 +107,8 @@ func _get_drag_data(_at_position: Vector2) -> Variant:
 
 
 func _can_drop_data(_at_position: Vector2, data: Variant) -> bool:
-	return data is Dictionary and (data as Dictionary).has(DRAG_KEY)
+	# 아직 드러나지 않은 칸에는 놓을 수 없다.
+	return data is Dictionary and (data as Dictionary).has(DRAG_KEY) and not (container != null and container.is_locked(index))
 
 
 func _drop_data(_at_position: Vector2, data: Variant) -> void:

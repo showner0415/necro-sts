@@ -5,6 +5,5 @@
 [resource]
 script = ExtResource("1_action")
 to_storage = false
-full_reason = "인벤토리 가득 참"
 id = &"send_to_inventory"
 label = "인벤토리로 옮기기"

@@ -57,14 +57,22 @@ enum PlaceholderShape { CIRCLE, ELLIPSE, DIAMOND }
 @export var undead_upkeep_mana_per_second: float = 0.5
 ## 언데드가 죽은 판정이 되면 머리뼈 내구도가 이만큼 준다
 @export var undead_death_durability_loss: float = 3.0
-@export var undead_max_health: float = 4.0
-@export var undead_move_speed: float = 60.0
-## 언데드가 이 거리 안의 몬스터를 노린다
-@export var undead_detect_range: float = 90.0
-@export var undead_attack_range: float = 14.0
-@export var undead_contact_damage: float = 1.0
-@export var undead_attack_cooldown: float = 0.8
+## 이 몬스터만 언데드 체력·공격력 배율을 따로 둘 때 (0보다 작으면 기본 배율, UndeadStatRules)
+@export var undead_health_ratio_override: float = -1.0
+@export var undead_damage_ratio_override: float = -1.0
 @export var undead_placeholder_color: Color = Color.WHITE
+
+## 언데드 능력치는 몬스터 값에서 계산한다 (규칙: UndeadStatRules). 체력·공격력에만 배율, 나머지는 몬스터와 같다.
+## 내구도가 가득 찼을 때의 값이다.
+var undead_max_health: float:
+	get:
+		return max_health * get_undead_health_ratio()
+var undead_contact_damage: float:
+	get:
+		return contact_damage * get_undead_damage_ratio()
+
+const UNDEAD_STAT_RULES_PATH: String = "res://data/undead_stat_rules.tres"
+static var _undead_rules: UndeadStatRules
 
 @export_group("임시 도형")
 @export var placeholder_color: Color = Color.WHITE
@@ -90,8 +98,26 @@ func get_enemy_stats() -> CombatStats:
 	return CombatStats.create(move_speed, attack_range, contact_damage, attack_cooldown)
 
 
+## 언데드일 때의 능력치: 이동 속도·공격 거리·공격 간격은 몬스터와 같고, 공격력만 배율을 곱한다.
 func get_undead_stats() -> CombatStats:
-	return CombatStats.create(undead_move_speed, undead_attack_range, undead_contact_damage, undead_attack_cooldown)
+	return CombatStats.create(move_speed, attack_range, undead_contact_damage, attack_cooldown)
+
+
+## 언데드 체력 배율 (이 몬스터에 따로 둔 값이 있으면 그것, 없으면 기본 배율)
+func get_undead_health_ratio() -> float:
+	return undead_health_ratio_override if undead_health_ratio_override >= 0.0 else get_undead_rules().health_ratio
+
+
+## 언데드 공격력 배율 (이 몬스터에 따로 둔 값이 있으면 그것, 없으면 기본 배율)
+func get_undead_damage_ratio() -> float:
+	return undead_damage_ratio_override if undead_damage_ratio_override >= 0.0 else get_undead_rules().damage_ratio
+
+
+## 언데드 능력치 기본 배율 (data/undead_stat_rules.tres, 처음 쓸 때 한 번 불러 둔다)
+static func get_undead_rules() -> UndeadStatRules:
+	if _undead_rules == null:
+		_undead_rules = load(UNDEAD_STAT_RULES_PATH)
+	return _undead_rules
 
 
 ## 임시 도형의 가로·세로 반지름 (원이면 둘 다 placeholder_radius)
