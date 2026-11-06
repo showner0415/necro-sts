@@ -1,0 +1,51 @@
+[gd_resource type="Resource" script_class="ChestData" format=3]
+
+[ext_resource type="Script" path="res://items/chest_data.gd" id="1_chest"]
+[ext_resource type="Script" path="res://items/chest_loot_entry.gd" id="2_entry"]
+[ext_resource type="Resource" path="res://data/items/bone.tres" id="3_bone"]
+[ext_resource type="Resource" path="res://data/skulls/rat_skull.tres" id="4_rat"]
+[ext_resource type="Resource" path="res://data/skulls/boar_skull.tres" id="5_boar"]
+[ext_resource type="Resource" path="res://data/skulls/bat_skull.tres" id="6_bat"]
+[ext_resource type="Resource" path="res://data/skulls/goblin_slinger_skull.tres" id="7_goblin"]
+[ext_resource type="Resource" path="res://data/rarities/common.tres" id="8_common"]
+
+[sub_resource type="Resource" id="Entry_empty"]
+script = ExtResource("2_entry")
+weight = 30.0
+
+[sub_resource type="Resource" id="Entry_bone"]
+script = ExtResource("2_entry")
+item = ExtResource("3_bone")
+min_count = 2
+max_count = 4
+weight = 45.0
+
+[sub_resource type="Resource" id="Entry_rat"]
+script = ExtResource("2_entry")
+item = ExtResource("4_rat")
+weight = 15.0
+
+[sub_resource type="Resource" id="Entry_boar"]
+script = ExtResource("2_entry")
+item = ExtResource("5_boar")
+weight = 3.334
+
+[sub_resource type="Resource" id="Entry_bat"]
+script = ExtResource("2_entry")
+item = ExtResource("6_bat")
+weight = 3.333
+
+[sub_resource type="Resource" id="Entry_goblin"]
+script = ExtResource("2_entry")
+item = ExtResource("7_goblin")
+weight = 3.333
+
+[resource]
+script = ExtResource("1_chest")
+id = &"test_chest"
+display_name = "상자"
+slot_count = 6
+entries = Array[ExtResource("2_entry")]([SubResource("Entry_empty"), SubResource("Entry_bone"), SubResource("Entry_rat"), SubResource("Entry_boar"), SubResource("Entry_bat"), SubResource("Entry_goblin")])
+empty_rarity = ExtResource("8_common")
+placeholder_contents = true
+note = "임시 내용물: 상자의 내용물은 설계 미정이다. 지금은 뼈와 머리뼈만 넣었다 (칸마다 빈 칸 30%, 뼈 2~4개 45%, 쥐 머리뼈 15%, 멧돼지·박쥐·투석병 머리뼈 합쳐 10%)."

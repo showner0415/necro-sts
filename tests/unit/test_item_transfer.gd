@@ -23,7 +23,9 @@ var skull_data: SkullData
 
 func before_each() -> void:
 	inventory = Inventory.new(INVENTORY_SLOTS)
+	inventory.display_name = "인벤토리"
 	storage = Inventory.new(STORAGE_SLOTS)
+	storage.display_name = "창고"
 	hotbar = Hotbar.new(2, inventory)
 	mana = ManaPool.new(10.0, 0.0)
 	bone = ItemData.new()

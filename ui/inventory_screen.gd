@@ -16,6 +16,8 @@ signal open_changed(is_open: bool)
 @export var close_on_cancel: bool = false
 ## 아이템 종류와 상관없이 칸에 붙는 메뉴 항목 (창고로·인벤토리로 옮기기)
 @export var container_actions: Array[ItemAction] = []
+## 아직 드러나지 않은 칸(상자)에 마우스를 올렸을 때 정보 줄
+@export var hidden_info_text: String = "무엇인지 아직 모름"
 
 ## 지금 열려 있는 창고. 인벤토리 화면은 창고가 열릴 때 지역 씬이 넣어 주고, 닫히면 null이 된다.
 var open_storage: Inventory:
@@ -42,6 +44,8 @@ var _menu_stack: ItemStack
 var _menu_actions: Array[ItemAction] = []
 var _hotbar: Hotbar
 var _drop_to_ground: Callable
+## 상자의 드러나기 진행 (상자 화면일 때만). 잠긴 칸에 "?"와 진행 바를 보여줄 때 쓴다.
+var _reveal: ChestContents
 
 @onready var _grid: GridContainer = %Grid
 @onready var _info_label: Label = %InfoLabel
@@ -69,6 +73,39 @@ func bind(container: Inventory, roster: UndeadRoster = null, hotbar: Hotbar = nu
 	# 소환 중에 피해를 받으면 내구도·체력이 바뀌므로 다시 그린다.
 	if _roster != null:
 		_roster.changed.connect(_refresh)
+	_build_slots()
+	_refresh()
+
+
+## 보여줄 곳을 바꾼다 (지역의 상자가 여럿이라 열 때마다 그 상자로). reveal이 있으면 잠긴 칸에 드러나는 진행을 보여준다.
+## 칸 수가 다르면 칸을 다시 만든다.
+func set_container(container: Inventory, reveal: ChestContents = null) -> void:
+	_reveal = reveal
+	if container == _container:
+		_refresh()
+		return
+	_menu.close()
+	if _container != null and _container.changed.is_connected(_refresh):
+		_container.changed.disconnect(_refresh)
+	_container = container
+	_container.changed.connect(_refresh)
+	_build_slots()
+	_hovered_index = -1
+	_refresh()
+
+
+## 제목 글자를 바꾼다 (제목이 있는 화면만, 예: 창고 화면을 상자 화면으로 쓸 때).
+func set_title(text: String) -> void:
+	var title: Label = get_node_or_null("Panel/Content/Title") as Label
+	if title != null:
+		title.text = text
+
+
+func _build_slots() -> void:
+	for slot: InventorySlot in _slots:
+		_grid.remove_child(slot)
+		slot.queue_free()
+	_slots.clear()
 	for i: int in _container.get_slot_count():
 		var slot: InventorySlot = slot_scene.instantiate()
 		slot.index = i
@@ -79,7 +116,14 @@ func bind(container: Inventory, roster: UndeadRoster = null, hotbar: Hotbar = nu
 		slot.menu_requested.connect(open_menu)
 		slot.move_requested.connect(_on_slot_move_requested)
 		_slots.append(slot)
-	_refresh()
+
+
+func _process(_delta: float) -> void:
+	# 드러나는 중인 칸의 진행 바는 시간에 따라 차므로 열려 있는 동안 프레임마다 다시 그린다.
+	if visible and _reveal != null:
+		var index: int = _reveal.get_revealing_index()
+		if index != -1 and index < _slots.size():
+			_slots[index].show_hidden(true, _reveal.get_reveal_progress())
 
 
 func is_open() -> bool:
@@ -100,7 +144,8 @@ func set_open(open: bool) -> void:
 ## 그 칸의 메뉴를 칸 옆에 띄운다. 빈 칸이거나 보이는 항목이 없으면 아무것도 하지 않는다.
 func open_menu(index: int) -> void:
 	var stack: ItemStack = _container.get_slot(index)
-	if stack == null:
+	# 아직 드러나지 않은 칸은 메뉴를 띄우지 않는다.
+	if stack == null or _container.is_locked(index):
 		return
 	var context: ItemActionContext = ItemActionContext.new()
 	context.inventory = _player_inventory
@@ -194,7 +239,11 @@ func _on_slot_move_requested(from_container: Inventory, from_index: int, to_inde
 
 func _refresh() -> void:
 	for i: int in _slots.size():
-		_slots[i].show_stack(_container.get_slot(i))
+		if _container.is_locked(i):
+			var revealing: bool = _reveal != null and _reveal.get_revealing_index() == i
+			_slots[i].show_hidden(revealing, _reveal.get_reveal_progress() if revealing else 0.0)
+		else:
+			_slots[i].show_stack(_container.get_slot(i))
 	_update_info()
 	if _menu.is_open():
 		# 메뉴를 연 칸의 물건이 바뀌었으면 닫고, 그대로면 항목 상태(뼈 부족, 소환 중 등)만 다시 그린다.
@@ -206,7 +255,10 @@ func _refresh() -> void:
 
 func _update_info() -> void:
 	var stack: ItemStack = _container.get_slot(_hovered_index) if _hovered_index != -1 else null
-	if stack == null:
+	if _hovered_index != -1 and _container.is_locked(_hovered_index):
+		# 무엇인지(빈 칸인지도) 드러나기 전에는 알려주지 않는다.
+		_info_label.text = hidden_info_text
+	elif stack == null:
 		_info_label.text = ""
 	elif stack.is_skull():
 		_info_label.text = _skull_info(stack.skull)

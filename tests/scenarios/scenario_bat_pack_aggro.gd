@@ -89,16 +89,16 @@ func _run() -> void:
 		if bat.global_position.distance_to(_necromancer.global_position) < shot.global_position.distance_to(_necromancer.global_position):
 			shot = bat
 	var health_before: float = shot.health
-	aim_mouse_at(shot.global_position + Vector2(0, -4))
-	press_mouse(true)
-	await wait_frames(2)
-	press_mouse(false)
+	# 박쥐가 배회하므로 맞을 때까지 계속 겨누며 쏜다 (공격 간격마다 한 발).
 	var hit_frames: int = -1
-	for frame: int in TIMEOUT_FRAMES:
+	press_mouse(true)
+	for frame: int in TIMEOUT_FRAMES * 3:
+		aim_mouse_at(shot.global_position + Vector2(0, -4))
+		await wait_frames(1)
 		if _bats.any(func(bat: Monster) -> bool: return bat.health < bat.data.max_health):
 			hit_frames = frame
 			break
-		await wait_frames(1)
+	press_mouse(false)
 	var hit_count: int = _bats.filter(func(bat: Monster) -> bool: return bat.health < bat.data.max_health).size()
 	var frames: int = await _wait_all_target(_necromancer)
 	if not _check("한 마리만 맞아도 무리 전체", hit_frames >= 0 and hit_count == 1 and frames >= 0,

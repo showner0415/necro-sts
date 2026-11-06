@@ -12,6 +12,8 @@ var enabled: bool = true
 var reason: String = ""
 var warning: String = ""
 var warning_kind: WarningKind = WarningKind.CAUTION
+## 비어 있지 않으면 항목 이름 대신 이 글자를 보여준다 (받는 쪽 이름이 들어가는 "상자로 옮기기" 등)
+var label: String = ""
 
 
 static func available(warning_text: String = "", kind: WarningKind = WarningKind.CAUTION) -> ItemActionState:

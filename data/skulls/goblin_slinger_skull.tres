@@ -1,5 +1,6 @@
 [gd_resource type="Resource" script_class="SkullData" format=3]
 
+[ext_resource type="Resource" path="res://data/rarities/rare.tres" id="r_rarity"]
 [ext_resource type="Script" path="res://items/skull_data.gd" id="1_skull"]
 [ext_resource type="Resource" path="res://data/item_actions/heal_skull.tres" id="2_heal"]
 [ext_resource type="Resource" path="res://data/item_actions/assign_hotbar.tres" id="3_assign"]
@@ -17,3 +18,4 @@ actions = Array[ExtResource("5_action")]([ExtResource("2_heal"), ExtResource("3_
 harvest_time_multiplier = 1.5
 placeholder_color = Color(1, 1, 1, 1)
 placeholder_size = Vector2(4, 4)
+rarity = ExtResource("r_rarity")

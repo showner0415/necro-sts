@@ -7,3 +7,4 @@ script = ExtResource("1_inventory")
 id = &"necromancer_inventory"
 slot_count = 10
 hotbar_slot_count = 2
+display_name = "인벤토리"

@@ -7,3 +7,4 @@ script = ExtResource("1_inventory")
 id = &"storage"
 slot_count = 100
 hotbar_slot_count = 0
+display_name = "창고"

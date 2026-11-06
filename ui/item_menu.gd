@@ -62,7 +62,7 @@ func show_states(actions: Array[ItemAction], states: Array[ItemActionState]) -> 
 			continue
 		var state: ItemActionState = states[i]
 		button.disabled = not state.enabled
-		button.text = actions[i].label
+		button.text = state.label if not state.label.is_empty() else actions[i].label
 		if not state.enabled and not state.reason.is_empty():
 			button.text += " (%s)" % state.reason
 		if not state.warning.is_empty():

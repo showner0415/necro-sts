@@ -10,9 +10,13 @@
 [ext_resource type="Resource" path="res://data/monsters/rat.tres" id="5_rat"]
 [ext_resource type="Resource" path="res://data/monsters/boar.tres" id="11_boar"]
 [ext_resource type="Resource" path="res://data/monsters/bat.tres" id="12_bat"]
+[ext_resource type="Resource" path="res://data/monsters/goblin_slinger.tres" id="14_goblin"]
 [ext_resource type="PackedScene" path="res://ui/hud.tscn" id="6_hud"]
 [ext_resource type="PackedScene" path="res://ui/inventory_screen.tscn" id="7_inventory"]
 [ext_resource type="Script" path="res://monsters/monster_pack.gd" id="13_pack"]
+[ext_resource type="PackedScene" path="res://regions/loot_chest.tscn" id="15_loot_chest"]
+[ext_resource type="Resource" path="res://data/chests/test_chest.tres" id="16_chest_data"]
+[ext_resource type="PackedScene" path="res://ui/storage_screen.tscn" id="17_chest_screen"]
 
 [node name="TestRegion" type="Node2D"]
 script = ExtResource("1_region")
@@ -25,6 +29,14 @@ script = ExtResource("2_ground")
 [node name="EscapePoint" parent="." instance=ExtResource("10_escape")]
 position = Vector2(0, -260)
 destination = ExtResource("9_base")
+
+[node name="ChestNearBoars" parent="." instance=ExtResource("15_loot_chest")]
+position = Vector2(400, 30)
+data = ExtResource("16_chest_data")
+
+[node name="ChestSafe" parent="." instance=ExtResource("15_loot_chest")]
+position = Vector2(-260, 250)
+data = ExtResource("16_chest_data")
 
 [node name="Actors" type="Node2D" parent="."]
 y_sort_enabled = true
@@ -59,6 +71,14 @@ data = ExtResource("11_boar")
 position = Vector2(380, 90)
 data = ExtResource("11_boar")
 
+[node name="Goblin1" parent="Actors" instance=ExtResource("4_monster")]
+position = Vector2(440, 0)
+data = ExtResource("14_goblin")
+
+[node name="Goblin2" parent="Actors" instance=ExtResource("4_monster")]
+position = Vector2(450, 70)
+data = ExtResource("14_goblin")
+
 [node name="Bat1" parent="Actors" instance=ExtResource("4_monster")]
 position = Vector2(-360, -20)
 data = ExtResource("12_bat")
@@ -78,3 +98,5 @@ members = Array[NodePath]([NodePath("../Actors/Bat1"), NodePath("../Actors/Bat2"
 [node name="HUD" parent="." instance=ExtResource("6_hud")]
 
 [node name="InventoryScreen" parent="." instance=ExtResource("7_inventory")]
+
+[node name="ChestScreen" parent="." instance=ExtResource("17_chest_screen")]

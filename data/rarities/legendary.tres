@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="RarityData" format=3]
+
+[ext_resource type="Script" path="res://items/rarity_data.gd" id="1_rarity"]
+
+[resource]
+script = ExtResource("1_rarity")
+id = &"legendary"
+display_name = "전설"
+reveal_time = 7.5
