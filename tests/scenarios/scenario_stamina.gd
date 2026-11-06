@@ -101,10 +101,10 @@ func _run() -> void:
 			regen_during_roll = true
 	var offset: Vector2 = _necromancer.global_position - start
 	evidence = "구르기 시작 %s, %d프레임 동안 %s 방향으로 (%.1f, %.1f) 이동 (거리 설정 %.0f), 스태미나 %.1f → %.1f (비용 %.0f), 구르는 중 회복 %s, 무적 %d프레임 (설정 %.2f초), 무적 중 피해 → 체력 %.0f → %.0f" % [
-		rolled, roll_frames, ROLL_DIRECTION, offset.x, offset.y, _necromancer.roll_distance, stamina.maximum, after_cost, stamina.roll_cost, regen_during_roll,
+		rolled, roll_frames, ROLL_DIRECTION, offset.x, offset.y, _necromancer.roll_distance, stamina.maximum, after_cost, stamina.roll_costs[0], regen_during_roll,
 		invincible_frames, _necromancer.roll_invincible_duration, health_before, health_in_invincible]
 	if not _check("구르기", rolled and absf(offset.y - _necromancer.roll_distance) < _necromancer.roll_distance * 0.1 and absf(offset.x) < 0.5
-			and is_equal_approx(after_cost, stamina.maximum - stamina.roll_cost) and not regen_during_roll and health_in_invincible == health_before and invincible_frames > 0, evidence):
+			and is_equal_approx(after_cost, stamina.maximum - stamina.roll_costs[0]) and not regen_during_roll and health_in_invincible == health_before and invincible_frames > 0, evidence):
 		return
 	_necromancer.take_damage(1.0)
 	if not _check("구른 뒤에는 피해를 받음", _necromancer.health == health_before - 1.0, "구르기가 끝난 뒤 피해 1 → 체력 %.0f → %.0f" % [health_before, _necromancer.health]):

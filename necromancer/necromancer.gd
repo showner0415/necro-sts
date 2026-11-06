@@ -32,8 +32,12 @@ signal harvest_progress_changed(progress: float)
 @export var stamina_regen_per_second: float = 30.0
 ## 뛰는 동안 초당 쓰는 스태미나 (임시값)
 @export var run_stamina_per_second: float = 25.0
-## 구르기 한 번에 쓰는 스태미나 (임시값)
-@export var roll_stamina_cost: float = 25.0
+## 구르기 비용. 짧은 시간 안에 연속으로 구르면 차례대로 커지고, 끝을 넘으면 마지막 값을 쓴다 (임시값)
+@export var roll_stamina_costs: Array[float] = [25.0, 40.0, 60.0]
+## 구르기가 끝나고 이 시간(초) 안에 다시 구르면 연속으로 본다 (임시값)
+@export var roll_chain_window: float = 1.0
+## 구르기가 끝나고 이 시간(초) 동안은 스태미나가 회복되지 않는다 (임시값)
+@export var roll_regen_delay: float = 0.6
 ## 구르기 한 번에 움직이는 거리 (픽셀, 임시값)
 @export var roll_distance: float = 64.0
 ## 구르는 시간 (초, 임시값)
@@ -92,7 +96,7 @@ var _knockback: Knockback = Knockback.new()
 func _ready() -> void:
 	health = max_health
 	mana = ManaPool.new(max_mana, mana_regen_per_second)
-	stamina = Stamina.new(max_stamina, stamina_regen_per_second, run_stamina_per_second, roll_stamina_cost)
+	stamina = Stamina.new(max_stamina, stamina_regen_per_second, run_stamina_per_second, roll_stamina_costs.duplicate(), roll_chain_window, roll_regen_delay)
 	_stamina_ring.bind(stamina)
 	var body_shape: CircleShape2D = CircleShape2D.new()
 	body_shape.radius = placeholder_radius

@@ -52,6 +52,13 @@ func update(position: Vector2, someone_in_detect: bool, attacker_alive: bool, at
 				_reset()
 
 
+## home으로 돌아가기 시작한다 (무리가 함께 포기했을 때). 다 돌아갈 때까지 감지·피격을 무시하는 것은 같다.
+func start_return(home: Vector2) -> void:
+	state = State.RETURNING
+	origin = home
+	attacker = null
+
+
 func _reset() -> void:
 	state = State.IDLE
 	attacker = null

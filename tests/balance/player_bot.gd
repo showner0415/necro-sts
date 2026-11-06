@@ -30,8 +30,12 @@ var fire_range_ratio: float = 0.95
 ## 싸우는 곳의 가운데와 반지름. 밖으로 나가면 가운데 쪽으로 돌아온다 (시험 지역 바닥 안)
 var arena_center: Vector2 = Vector2.ZERO
 var arena_radius: float = 360.0
-## 조준 오차를 다시 뽑는 간격 (초). 한 발마다 다른 오차가 되도록 공격 간격과 맞춘다.
+## 조준 오차를 다시 뽑는 간격 (초). 한 발마다 다른 오차가 되도록 _init에서 공격 간격과 맞춘다.
 var aim_resample_interval: float = 0.4
+## 처음 이 횟수만큼의 무리 동시 공격은 일부러 피하지 않는다 (실수했을 때를 재기 위해)
+var miss_group_attacks: int = 0
+## 무리 동시 공격 하나가 끝났다고 보기까지 기다리는 시간 (초). 예고가 끝난 뒤 물린 피해까지 센다.
+var group_attack_settle_time: float = 0.3
 ## 다시 소환할 때 소환 마나에 더해 남겨 둘 마나
 var summon_mana_margin: float = 2.0
 
@@ -56,13 +60,34 @@ var rolls: int = 0
 var telegraphs_seen: int = 0
 var summons: int = 0
 var closest: float = INF
+## 측정: 본 무리 동시 공격 수, 일부러 놓친 동시 공격에서 받은 피해 합,
+## 놓친 동시 공격이 끝난 직후의 마나 (놓친 것이 없으면 -1), 싸우는 동안 가장 낮았던 마나
+var group_attacks_seen: int = 0
+var missed_group_damage: float = 0.0
+var mana_after_miss: float = -1.0
+var mana_min: float = INF
+## 측정: 언데드가 죽은 판정으로 사라진 수, 그 밖의 이유(마나 0 등)로 해제된 수
+var undead_died: int = 0
+var undead_released: int = 0
+
+## 진행 중인 무리 동시 공격: 일부러 놓치는지, 시작할 때 체력, 예고가 안 보인 지 얼마나 됐는지
+var _group_active: bool = false
+var _group_missed: bool = false
+var _group_health_before: float = 0.0
+var _group_quiet_time: float = 0.0
 
 
 func _init(test: ScenarioTest, necromancer: Necromancer, skill_id: StringName) -> void:
 	_test = test
 	_necromancer = necromancer
 	skill = SKILLS[skill_id]
+	aim_resample_interval = necromancer.attack.cooldown
 	_necromancer.get_parent().child_entered_tree.connect(_on_actor_added)
+	_necromancer.summoner.roster.unsummoned.connect(func(_skull: Skull, died: bool) -> void:
+		if died:
+			undead_died += 1
+		else:
+			undead_released += 1)
 
 
 ## 핫바 칸 순서대로 소환할 머리뼈 (언데드와 함께 싸울 때)
@@ -79,14 +104,23 @@ func tick(delta: float) -> void:
 	if monsters.is_empty():
 		release_all()
 		return
+	_track_group_attack(monsters, delta)
 	var target: Monster = _nearest(monsters)
 	_aim_and_fire(target, delta, _should_flee(monsters))
 	if not _try_dodge(monsters):
 		_move(monsters)
 	_manage_undead()
+	mana_min = minf(mana_min, _necromancer.mana.current)
 	for monster: Monster in monsters:
 		_last_positions[monster] = monster.global_position
 		closest = minf(closest, monster.global_position.distance_to(_necromancer.global_position))
+
+
+## 판이 끝났을 때 부른다. 놓친 동시 공격 도중에 죽었으면 남아 있던 체력을 모두 그 피해로 센다.
+func finish_tracking(died: bool) -> void:
+	if _group_active and _group_missed:
+		missed_group_damage += _group_health_before if died else _group_health_before - _necromancer.health
+		_group_active = false
 
 
 func release_all() -> void:
@@ -155,7 +189,9 @@ func _try_dodge(monsters: Array[Monster]) -> bool:
 		seen_now[behavior] = true
 		if not _telegraphs.has(behavior):
 			telegraphs_seen += 1
-			_telegraphs[behavior] = {"seen": _time, "try": randf() < skill["dodge"], "done": false}
+			# 일부러 놓치는 무리 동시 공격에는 피하기를 시도하지 않는다.
+			var skip: bool = behavior.is_group_attack() and _group_missed
+			_telegraphs[behavior] = {"seen": _time, "try": not skip and randf() < skill["dodge"], "done": false}
 		var info: Dictionary = _telegraphs[behavior]
 		if rolled or info["done"] or not info["try"]:
 			continue
@@ -179,6 +215,31 @@ func _try_dodge(monsters: Array[Monster]) -> bool:
 		if not seen_now.has(behavior):
 			_telegraphs.erase(behavior)
 	return rolled
+
+
+## 무리 동시 공격의 시작과 끝을 본다. 처음 miss_group_attacks번은 놓치기로 하고, 그동안 받은 피해와 끝난 직후 마나를 잰다.
+## _try_dodge보다 먼저 시작을 알아야 하므로, 새 예고가 보이는 프레임에 _try_dodge 안에서 쓰는 _group_missed를 여기서 정한다.
+func _track_group_attack(monsters: Array[Monster], delta: float) -> void:
+	var group_now: bool = false
+	for monster: Monster in monsters:
+		var behavior: MonsterBehavior = monster.get_behavior()
+		if behavior != null and behavior.is_group_attack():
+			group_now = true
+	if group_now and not _group_active:
+		_group_active = true
+		group_attacks_seen += 1
+		_group_missed = group_attacks_seen <= miss_group_attacks
+		_group_health_before = _necromancer.health
+	if not _group_active:
+		return
+	_group_quiet_time = 0.0 if group_now else _group_quiet_time + delta
+	if _group_quiet_time < group_attack_settle_time:
+		return
+	_group_active = false
+	if _group_missed:
+		missed_group_damage += _group_health_before - _necromancer.health
+		mana_after_miss = _necromancer.mana.current
+	_group_missed = false
 
 
 func _move(monsters: Array[Monster]) -> void:
