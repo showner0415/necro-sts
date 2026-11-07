@@ -25,6 +25,8 @@ const LEGEND: Dictionary = {
 	"f77622": {"kind": Kind.OBJECT, "object": "boar", "name": "멧돼지"},
 	"b55088": {"kind": Kind.OBJECT, "object": "bat", "name": "박쥐"},
 	"e4a672": {"kind": Kind.OBJECT, "object": "goblin_slinger", "name": "고블린 투석병"},
+	"a22633": {"kind": Kind.OBJECT, "object": "spider", "name": "거미 자리"},
+	"fee761": {"kind": Kind.OBJECT, "object": "light", "name": "바깥의 빛 표지"},
 }
 ## 굴 바닥 글자 (통로가 아닌 바닥)
 const ROOM_CHARS: String = "12b"
@@ -41,6 +43,9 @@ var objects: Array[Dictionary] = []
 var errors: PackedStringArray = PackedStringArray()
 ## 굴들: {"cells": 칸 수, "center": Vector2 (칸 좌표), "char": 바닥 글자, "neighbors": Array[int] (이어진 굴 번호), "entrances": int}
 var rooms: Array[Dictionary] = []
+## 굴 안의 바위·기둥: 둘레가 모두 한 굴의 바닥인 벽 덩어리 (맵 테두리·통로에 닿지 않음).
+## {"cells": Array[Vector2i], "room": 굴 번호, "rect": Rect2i (감싸는 사각형)}
+var rocks: Array[Dictionary] = []
 
 ## 칸마다 굴 번호 (굴이 아니면 -1)
 var _room_of: PackedInt32Array = PackedInt32Array()
@@ -52,6 +57,8 @@ static func from_image(image: Image) -> MapLayout:
 	var layout: MapLayout = MapLayout.new()
 	layout._parse(image)
 	layout._find_rooms()
+	layout._find_rocks()
+	layout._check_rocks()
 	return layout
 
 
@@ -62,6 +69,7 @@ static func from_rows(source_rows: PackedStringArray, source_objects: Array[Dict
 	layout.size = Vector2i(source_rows[0].length(), source_rows.size())
 	layout.objects = source_objects
 	layout._find_rooms()
+	layout._find_rocks()
 	return layout
 
 
@@ -164,6 +172,12 @@ func describe_rooms() -> PackedStringArray:
 				counts[o.object] = counts.get(o.object, 0) + 1
 		for object: String in counts:
 			contents.append("%s %d" % [_object_name(object), counts[object]])
+		var rock_sizes: PackedStringArray = []
+		for rock: Dictionary in rocks:
+			if rock.room == i:
+				rock_sizes.append("%d×%d" % [rock.rect.size.x, rock.rect.size.y])
+		if not rock_sizes.is_empty():
+			contents.append("바위 %d (%s)" % [rock_sizes.size(), ", ".join(rock_sizes)])
 		lines.append("굴 %d (%s, 가운데 칸 %s, %d칸): 입구 %d, 이어진 굴 %s, 안에 %s" % [
 			i, LEGEND_NAME_BY_CHAR.get(room.char, room.char), room.center.round(), room.cells, room.entrances, room.neighbors, ", ".join(contents) if not contents.is_empty() else "없음"])
 	return lines
@@ -279,6 +293,75 @@ func _find_rooms() -> void:
 				_link(list[i], list[j])
 	for i: int in rooms.size():
 		rooms[i].entrances = _count_clusters(room_entrances[i].keys())
+
+
+## 벽 칸("#")을 붙어 있는(대각선 포함) 덩어리로 나눠, 맵 테두리에 닿지 않고 둘레 바닥이 모두 한 굴인 덩어리를 바위로 모은다.
+## 굴 고리 안쪽의 큰 벽처럼 여러 굴·통로에 둘러싸인 덩어리는 바위가 아니다.
+func _find_rocks() -> void:
+	var seen: Dictionary = {}
+	for y: int in size.y:
+		for x: int in size.x:
+			var start: Vector2i = Vector2i(x, y)
+			if rows[y][x] != "#" or seen.has(start):
+				continue
+			var cells: Array[Vector2i] = []
+			var stack: Array[Vector2i] = [start]
+			seen[start] = true
+			var on_border: bool = false
+			var touched_rooms: Dictionary = {}
+			var touches_other: bool = false
+			while not stack.is_empty():
+				var cell: Vector2i = stack.pop_back()
+				cells.append(cell)
+				if cell.x == 0 or cell.y == 0 or cell.x == size.x - 1 or cell.y == size.y - 1:
+					on_border = true
+				for dy: int in range(-1, 2):
+					for dx: int in range(-1, 2):
+						var n: Vector2i = cell + Vector2i(dx, dy)
+						if n.x < 0 or n.y < 0 or n.x >= size.x or n.y >= size.y:
+							continue
+						var c: String = rows[n.y][n.x]
+						if c == "#":
+							if not seen.has(n):
+								seen[n] = true
+								stack.append(n)
+						elif c == "x":
+							touches_other = true
+						elif room_at(n) >= 0:
+							touched_rooms[room_at(n)] = true
+						else:
+							touches_other = true
+			if on_border or touches_other or touched_rooms.size() != 1:
+				continue
+			var rect: Rect2i = Rect2i(cells[0], Vector2i.ONE)
+			for cell: Vector2i in cells:
+				rect = rect.merge(Rect2i(cell, Vector2i.ONE))
+			rocks.append({"cells": cells, "room": touched_rooms.keys()[0], "rect": rect})
+
+
+## 바위 규칙 (docs/maps/map_png_rules.md): 최소 2×2 (모든 칸이 2×2 바위 덩어리에 든다), 굴 중심(다듬기 보호 구역)에 두지 않는다.
+## 둘레 길이 2칸 이상인지는 바닥 검사(MapSmoother.narrow_cells)가 본다.
+func _check_rocks() -> void:
+	for rock: Dictionary in rocks:
+		var cells: Dictionary = {}
+		for cell: Vector2i in rock.cells:
+			cells[cell] = true
+		var center: Vector2 = rooms[rock.room].center
+		var thin: Array[Vector2i] = []
+		var in_core: Array[Vector2i] = []
+		for cell: Vector2i in rock.cells:
+			var in_block: bool = false
+			for corner: Vector2i in [cell, cell - Vector2i(1, 0), cell - Vector2i(0, 1), cell - Vector2i(1, 1)]:
+				if cells.has(corner) and cells.has(corner + Vector2i(1, 0)) and cells.has(corner + Vector2i(0, 1)) and cells.has(corner + Vector2i(1, 1)):
+					in_block = true
+			if not in_block:
+				thin.append(cell)
+			if Vector2(cell).distance_to(center) <= MapSmoother.ROOM_CORE_RADIUS:
+				in_core.append(cell)
+		if not thin.is_empty():
+			errors.append("바위가 2×2보다 가는 곳 (굴 %d, 칸 %s)" % [rock.room, thin])
+		if not in_core.is_empty():
+			errors.append("바위가 굴 중심(가운데에서 %.0f칸) 안에 있음 (굴 %d, 칸 %s)" % [MapSmoother.ROOM_CORE_RADIUS, rock.room, in_core])
 
 
 func _link(a: int, b: int) -> void:

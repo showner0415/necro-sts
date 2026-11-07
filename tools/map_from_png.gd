@@ -26,11 +26,16 @@ const MONSTER_DATA: Dictionary = {
 	"boar": "res://data/monsters/boar.tres",
 	"bat": "res://data/monsters/bat.tres",
 	"goblin_slinger": "res://data/monsters/goblin_slinger.tres",
+	## 거미 자리: 동굴 거미가 아직 없어 임시로 고블린 투석병을 둔다 (사용자 결정). 거미를 만들면 이 줄만 바꾼다
+	"spider": "res://data/monsters/goblin_slinger.tres",
 }
 ## 이 몬스터의 픽셀끼리 붙어 있으면(대각선 포함) 한 무리(MonsterPack)다
 const PACK_MONSTERS: Array[String] = ["bat"]
 ## 노드 이름에 쓰는 물건 이름
-const NODE_NAMES: Dictionary = {"rat": "Rat", "boar": "Boar", "bat": "Bat", "goblin_slinger": "Goblin"}
+const NODE_NAMES: Dictionary = {"rat": "Rat", "boar": "Boar", "bat": "Bat", "goblin_slinger": "Goblin", "spider": "SpiderSpot"}
+## 바깥의 빛 표지: 그 칸 바닥 위에 이 색을 반투명하게 덮는다 (Endesga 32, 그림이 생기기 전까지)
+const LIGHT_COLOR: String = "fee761"
+const LIGHT_ALPHA: float = 0.45
 ## 바닥 글자마다 체크무늬 두 색 (첫 색이 PNG의 색), 벽 글자마다 윗면 색. 모두 Endesga 32.
 const FLOOR_COLORS: Dictionary = {
 	".": ["3a4466", "262b44"],
@@ -131,6 +136,15 @@ func _build(layout: MapLayout, rows: PackedStringArray, region_path: String, roo
 	for i: int in chests.size():
 		nodes.append('[node name="Chest%d" parent="." instance=%s]\nposition = %s\ndata = %s\n' % [
 			i + 1, _id("res://regions/loot_chest.tscn", "PackedScene"), _center(chests[i]), _id(CHEST_DATA, "Resource")])
+
+	var lights: Array[Vector2i] = layout.cells_of("light")
+	if not lights.is_empty():
+		var c: Color = Color(LIGHT_COLOR)
+		nodes.append('[node name="OutsideLight" type="Node2D" parent="."]\n')
+		for i: int in lights.size():
+			var corner: Vector2 = Vector2(lights[i] * TILE_SIZE)
+			nodes.append('[node name="Light%d" type="Polygon2D" parent="OutsideLight"]\ncolor = Color(%s, %s, %s, %s)\npolygon = PackedVector2Array(%s, %s, %s, %s, %s, %s, %s, %s)\n' % [
+				i + 1, c.r, c.g, c.b, LIGHT_ALPHA, corner.x, corner.y, corner.x + TILE_SIZE, corner.y, corner.x + TILE_SIZE, corner.y + TILE_SIZE, corner.x, corner.y + TILE_SIZE])
 
 	nodes.append('[node name="Actors" type="Node2D" parent="."]\ny_sort_enabled = true\n')
 	nodes.append('[node name="Necromancer" parent="Actors" instance=%s]\nposition = %s\n' % [

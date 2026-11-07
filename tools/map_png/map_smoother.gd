@@ -163,6 +163,10 @@ func _prepare(layout: MapLayout) -> void:
 					_carve_depth[cell] = true
 	for o: Dictionary in layout.objects:
 		_protect_around(o.cell, 1)
+	# 굴 안의 바위·기둥은 깎지 않는다 (둘레를 메우는 것은 너비 규칙 안에서 된다).
+	for rock: Dictionary in layout.rocks:
+		for cell: Vector2i in rock.cells:
+			_protected[cell] = true
 	for room: Dictionary in layout.rooms:
 		var center: Vector2 = room.center
 		var r: int = ceili(ROOM_CORE_RADIUS)

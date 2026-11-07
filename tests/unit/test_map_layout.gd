@@ -75,3 +75,34 @@ func test_transparent_is_wall_and_unknown_color_is_error() -> void:
 func test_spawn_must_be_single() -> void:
 	var layout: MapLayout = MapLayout.from_image(_image(["...", "..."]))
 	assert_eq(layout.errors.size(), 1, "도착 지점이 없으면 문제")
+
+
+## 넓은 굴 하나의 왼쪽에 2×2 바위가 있는 맵 (바위는 굴 가운데에서 3칸 넘게 떨어져 있다)
+func _rock_map(rock_rows: Array[String] = ["#11##11111111111#", "#11##1111s111111#"]) -> MapLayout:
+	var lines: Array[String] = ["#################", "#111111111111111#", "#111111111111111#"]
+	lines.append_array(rock_rows)
+	lines.append_array(["#111111111111111#", "#111111111111111#", "#################"] as Array[String])
+	return MapLayout.from_image(_image(lines))
+
+
+func test_rock_inside_room_is_found() -> void:
+	var layout: MapLayout = _rock_map()
+	assert_eq(layout.errors, PackedStringArray(), "문제없음")
+	assert_eq(layout.rocks.size(), 1, "바위 하나")
+	assert_eq(layout.rocks[0].room, layout.room_at(Vector2i(1, 1)), "바위가 든 굴")
+	assert_eq(layout.rocks[0].rect, Rect2i(3, 3, 2, 2), "바위 사각형")
+	assert_eq(layout.rooms.size(), 1, "바위가 있어도 굴 하나")
+
+
+func test_wall_inside_room_ring_is_not_rock() -> void:
+	var layout: MapLayout = _ring_map()
+	assert_eq(layout.rocks.size(), 0, "굴 고리 안쪽 벽은 여러 굴·통로에 닿아 바위가 아니다")
+
+
+func test_thin_rock_and_rock_in_core_are_errors() -> void:
+	var thin: MapLayout = _rock_map(["#11#111111111111#", "#1111111s1111111#"])
+	assert_eq(thin.errors.size(), 1, "한 칸 바위는 문제")
+	assert_true(thin.errors[0].contains("2×2"), "이유를 알려준다: %s" % thin.errors)
+	var core: MapLayout = _rock_map(["#1111111##111111#", "#11s1111##111111#"])
+	assert_eq(core.errors.size(), 1, "굴 가운데의 바위는 문제 하나: %s" % core.errors)
+	assert_true(core.errors[0].contains("굴 중심"), "이유를 알려준다: %s" % core.errors)

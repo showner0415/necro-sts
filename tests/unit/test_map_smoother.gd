@@ -88,3 +88,22 @@ func test_room_core_and_objects_untouched() -> void:
 		for room: Dictionary in layout.rooms:
 			var center: Vector2i = Vector2i(room.center.round())
 			assert_eq(rows[center.y][center.x], layout.rows[center.y][center.x], "씨앗 %d: 굴 가운데 그대로" % seed_value)
+
+
+func test_rock_in_room_is_never_carved() -> void:
+	var layout: MapLayout = _layout([
+		"#################",
+		"#111111111111111#",
+		"#111111111111111#",
+		"#11##11111111111#",
+		"#11##1111s111111#",
+		"#111111111111111#",
+		"#111111111111111#",
+		"#################",
+	])
+	assert_eq(layout.rocks.size(), 1, "바위 하나")
+	for seed_value: int in SEEDS:
+		var rows: PackedStringArray = MapSmoother.smooth(layout, seed_value)
+		for cell: Vector2i in layout.rocks[0].cells:
+			assert_true(MapLayout.WALL_CHARS.contains(rows[cell.y][cell.x]), "씨앗 %d: 바위 칸 %s가 남는다" % [seed_value, cell])
+		assert_eq(MapSmoother.narrow_cells(rows), [] as Array[Vector2i], "씨앗 %d: 바위 둘레 길도 2칸 이상" % seed_value)

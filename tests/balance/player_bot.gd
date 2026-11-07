@@ -46,6 +46,8 @@ var miss_group_attacks: int = 0
 var group_attack_settle_time: float = 0.3
 ## 다시 소환할 때 소환 마나에 더해 남겨 둘 마나
 var summon_mana_margin: float = 2.0
+## 봇이 상대할 몬스터를 고르는 거름 (Monster -> bool). 비어 있으면 살아 있는 몬스터 모두. 실제 맵에서 걸려 온 몬스터만 상대할 때 쓴다
+var monster_filter: Callable = Callable()
 
 var skill: Dictionary
 var _test: ScenarioTest
@@ -145,7 +147,7 @@ func _alive_monsters() -> Array[Monster]:
 	var result: Array[Monster] = []
 	for node: Node in _test.get_nodes_in_group(&"monsters"):
 		var monster: Monster = node as Monster
-		if monster != null and not monster.is_queued_for_deletion() and monster.health > 0.0:
+		if monster != null and not monster.is_queued_for_deletion() and monster.health > 0.0 and (not monster_filter.is_valid() or monster_filter.call(monster)):
 			result.append(monster)
 	return result
 
