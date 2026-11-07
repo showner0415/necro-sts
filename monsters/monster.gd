@@ -57,7 +57,7 @@ var _aggro: Aggro
 func _ready() -> void:
 	health = data.max_health
 	_behavior = data.make_enemy_behavior()
-	_aggro = Aggro.new(data.chase_attacker_limit, data.chase_home_limit, return_arrive_distance)
+	_aggro = Aggro.new(data.chase_attacker_limit, data.chase_visible_home_limit, data.chase_lost_time, return_arrive_distance)
 	_collision.shape = PlaceholderBody.make_shape(data)
 	_collision.rotation = PlaceholderBody.shape_rotation(data)
 	_collision.position = PlaceholderBody.center(data)
@@ -76,7 +76,8 @@ func _physics_process(delta: float) -> void:
 	# 쫓던 공격자가 사라졌을 수 있다 (해제된 언데드 등). 사라진 객체는 형변환하면 오류이므로 먼저 확인한다.
 	var attacker: Node2D = _aggro.attacker as Node2D if is_instance_valid(_aggro.attacker) else null
 	var attacker_alive: bool = is_instance_valid(attacker) and not attacker.is_queued_for_deletion()
-	_aggro.update(global_position, nearest != null, attacker_alive, attacker.global_position if attacker_alive else Vector2.ZERO)
+	var attacker_visible: bool = attacker_alive and _path_follower.can_see(self, attacker.global_position)
+	_aggro.update(global_position, nearest != null, attacker_alive, attacker.global_position if attacker_alive else Vector2.ZERO, attacker_visible, delta)
 	match _aggro.state:
 		Aggro.State.CHASING:
 			_own_target = _aggro.attacker as Node2D

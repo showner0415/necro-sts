@@ -68,6 +68,9 @@ func _ready() -> void:
 		point.progress_changed.connect(_hud.show_escape_progress)
 		point.escaped.connect(travel_to)
 	for node: Node in find_children("*", "InteractZone", true, false):
+		# 릴리스 빌드에서 스스로 없어지는 개발용 출구는 건너뛴다.
+		if node.is_queued_for_deletion():
+			continue
 		_zones.append(node as InteractZone)
 		if node is RegionExit:
 			(node as RegionExit).travel_requested.connect(travel_to)

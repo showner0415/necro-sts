@@ -52,8 +52,6 @@ const RAT_TIMEOUT_FRAMES: int = 1200
 const WALL_BOAR_TILE: Vector2 = Vector2(16, 9)
 const BOAR_SEEN_NECRO_TILE: Vector2 = Vector2(11.5, 9)
 const WALL_NECRO_TILE: Vector2 = Vector2(14, 11.5)
-## 꺾인 길로 돌아오면 시작 자리에서 150보다 멀어져 쫓기를 포기하므로, 이 단계에서는 데이터 복사본의 시작 자리 한계를 늘린다
-const BOAR_HOME_LIMIT: float = 400.0
 ## 이 칸 열보다 왼쪽으로 와야 꺾인 길로 돌아온 것이다
 const DETOUR_MAX_COLUMN: float = 10.5
 const BOAR_TIMEOUT_FRAMES: int = 1200
@@ -275,9 +273,7 @@ func _wait_target(monster: Monster) -> int:
 
 func _boar_goes_around() -> bool:
 	_necromancer.global_position = _tile(BOAR_SEEN_NECRO_TILE)
-	var boar_data: MonsterData = (load(BOAR_PATH) as MonsterData).duplicate()
-	boar_data.chase_home_limit = BOAR_HOME_LIMIT
-	var boar: Monster = _spawn(BOAR_PATH, WALL_BOAR_TILE, boar_data)
+	var boar: Monster = _spawn(BOAR_PATH, WALL_BOAR_TILE)
 	if await _wait_target(boar) < 0:
 		boar.queue_free()
 		return _check("멧돼지가 네크로맨서를 봄", false, "%d프레임 안에 대상을 정하지 않음" % TARGET_FRAMES)

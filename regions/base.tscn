@@ -31,10 +31,12 @@ destination = ExtResource("12_shallow_cave")
 [node name="TestRegionExit" parent="." instance=ExtResource("4_exit")]
 position = Vector2(-104, -88)
 destination = ExtResource("5_test_region")
+debug_only = true
 
 [node name="CorridorExit" parent="." instance=ExtResource("4_exit")]
 position = Vector2(104, -88)
 destination = ExtResource("11_test_corridor")
+debug_only = true
 
 [node name="StorageChest" parent="." instance=ExtResource("9_chest")]
 position = Vector2(-120, -40)
