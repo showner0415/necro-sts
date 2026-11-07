@@ -58,6 +58,22 @@ func _storage_center(index: int) -> Vector2:
 	return _storage_screen.get_slot_control(index).get_global_rect().get_center()
 
 
+## 그 머리뼈가 든 칸 번호 (없으면 -1)
+func _find_skull(container: Inventory, skull: Skull) -> int:
+	for i: int in container.get_slot_count():
+		if container.get_slot(i) != null and container.get_slot(i).skull == skull:
+			return i
+	return -1
+
+
+## 뼈가 든 칸 번호 (없으면 -1)
+func _find_bone(container: Inventory) -> int:
+	for i: int in container.get_slot_count():
+		if container.get_slot(i) != null and not container.get_slot(i).is_skull() and container.get_slot(i).item.id == &"bone":
+			return i
+	return -1
+
+
 func _panel_rect(screen: InventoryScreen) -> Rect2:
 	return (screen.get_node("Panel") as Control).get_global_rect()
 
@@ -133,6 +149,38 @@ func _run() -> void:
 	var back: bool = _inventory.get_skulls().has(hotbar_skull)
 	if not _check("창고 메뉴 '인벤토리로 옮기기'", ok and back and _storage.get_slot(1) == null, "메뉴 항목 누름 %s, 머리뼈가 인벤토리로 돌아옴 %s, 창고 1번 빔 %s" % [ok, back, _storage.get_slot(1) == null]):
 		return
+
+	# 5-1. Shift+좌클릭 빠른 옮기기: 양방향, 뼈 합치기, 소환 중, 가득 참. 공격으로 넘어가지 않는다
+	var skull_index: int = _find_skull(_inventory, hotbar_skull)
+	var hud: Hud = find_hud()
+	await shift_click_ui(_inventory_center(skull_index))
+	var to_storage: bool = _storage.get_slot(0) != null and _storage.get_slot(0).skull == hotbar_skull and _inventory.get_slot(skull_index) == null
+	_storage.try_add(ItemStack.of_item(bone, 4))
+	var bone_index: int = _find_bone(_storage)
+	var inventory_bones: int = _inventory.get_count(&"bone")
+	await shift_click_ui(_storage_center(bone_index))
+	var merged: bool = _inventory.get_count(&"bone") == inventory_bones + 4 and _storage.get_slot(bone_index) == null and _inventory.get_slot(skull_index) == null
+	await shift_click_ui(_inventory_center(2))
+	var summoned_text: String = hud.get_message()
+	var summoned_stays: bool = _inventory.get_slot(2) != null and _inventory.get_slot(2).skull == summoned_skull
+	var filler: Array[Skull] = []
+	while _inventory.can_add(ItemStack.of_skull(Skull.create(load(RAT_SKULL_PATH)))):
+		var skull: Skull = Skull.create(load(RAT_SKULL_PATH))
+		filler.append(skull)
+		_inventory.try_add(ItemStack.of_skull(skull))
+	await shift_click_ui(_storage_center(0))
+	var full_text: String = hud.get_message()
+	var full_stays: bool = _storage.get_slot(0) != null and _storage.get_slot(0).skull == hotbar_skull
+	var shift_leaked: bool = _necromancer.is_attack_held()
+	evidence = "인벤토리 머리뼈 → 창고 0번 %s / 창고 뼈 4 → 인벤토리 뼈 %d → %d (새 칸 안 씀 %s) / 소환 중 머리뼈: 그대로 %s, 안내 '%s' / 인벤토리 가득(머리뼈 %d개 채움): 창고에 그대로 %s, 안내 '%s' / 공격으로 넘어감 %s" % [
+		to_storage, inventory_bones, _inventory.get_count(&"bone"), merged, summoned_stays, summoned_text, filler.size(), full_stays, full_text, shift_leaked]
+	if not _check("Shift+좌클릭 빠른 옮기기", to_storage and merged and summoned_stays and summoned_text == "소환 중" and full_stays and full_text == "인벤토리 가득 참" and not shift_leaked, evidence):
+		return
+	for skull: Skull in filler:
+		_inventory.remove_slot(_find_skull(_inventory, skull))
+	# 머리뼈 칸 위에 마우스가 남으면 정보 줄이 세 줄이 되어 스크롤 영역이 줄어든다. 다음 단계(스크롤)는 정보 줄이 빈 상태에서 잰다.
+	move_mouse_to_ui(Vector2.ZERO)
+	await wait_frames(WAIT_FRAMES)
 
 	# 6. 스크롤
 	var last_index: int = _storage.get_slot_count() - 1

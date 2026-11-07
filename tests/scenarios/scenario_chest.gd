@@ -169,4 +169,25 @@ func _run() -> void:
 	_check("다시 열면 그대로", _chest_screen.is_open() and not _chest_screen.get_slot_control(0).is_showing_hidden() and _chest_screen.get_slot_control(1).is_showing_hidden()
 			and absf(progress_reopen - progress_before) < 0.1,
 		"다시 열림 %s, 칸 %s (0번은 가져가서 빈 칸, 1번은 진행 %.2f에서 이어짐)" % [_chest_screen.is_open(), _slots_text(), progress_reopen])
+
+	# 8. Shift+좌클릭 빠른 옮기기: 드러나지 않은 칸은 안 옮겨짐 → 드러나면 인벤토리로 → 인벤토리에서 상자로 (드러난 빈 칸에)
+	var chest_inventory: Inventory = _chest.contents.inventory
+	var skull: Skull = chest_inventory.get_slot(1).skull
+	await shift_click_ui(_chest_screen.get_slot_control(1).get_global_rect().get_center())
+	var hidden_kept: bool = chest_inventory.get_slot(1) != null and not inventory.get_skulls().has(skull)
+	await _wander(2.6)
+	var revealed: bool = _chest.contents.is_revealed(1)
+	await shift_click_ui(_chest_screen.get_slot_control(1).get_global_rect().get_center())
+	var skull_index: int = -1
+	for i: int in inventory.get_slot_count():
+		if inventory.get_slot(i) != null and inventory.get_slot(i).skull == skull:
+			skull_index = i
+	var taken_out: bool = skull_index != -1 and chest_inventory.get_slot(1) == null
+	if skull_index != -1:
+		await shift_click_ui(_inventory_screen.get_slot_control(skull_index).get_global_rect().get_center())
+	var put_back: bool = chest_inventory.get_slot(0) != null and chest_inventory.get_slot(0).skull == skull and not inventory.get_skulls().has(skull)
+	var quick_leaked: bool = _necromancer.is_attack_held()
+	_check("Shift+좌클릭 빠른 옮기기", hidden_kept and revealed and taken_out and put_back and not quick_leaked,
+		"드러나지 않은 1번 칸: 그대로 %s / 드러남 %s → 인벤토리 %d번으로 %s / 인벤토리 → 상자 0번(드러난 빈 칸) %s, 칸 %s / 공격으로 넘어감 %s" % [
+			hidden_kept, revealed, skull_index, taken_out, put_back, _slots_text(), quick_leaked])
 	finish(true)

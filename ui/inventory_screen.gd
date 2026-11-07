@@ -5,9 +5,13 @@ extends CanvasLayer
 ## - 칸에 마우스를 올리면 아래쪽 정보 줄에 이름(머리뼈는 내구도·체력·회복에 필요한 뼈, 뼈는 개수)을 보여준다
 ## - 칸을 끌어서 다른 칸(이 화면이나 다른 화면)에 놓으면 ItemTransfer 규칙으로 옮긴다 (바깥에 놓으면 아무 일도 없다)
 ## - 칸을 우클릭하면 메뉴(ItemMenu)를 띄운다. 항목은 아이템 데이터의 actions + 이 화면의 container_actions 중 보이는 것
+## - 칸을 Shift+좌클릭하면 반대쪽(인벤토리 ↔ 열려 있는 창고·상자)으로 바로 옮긴다 (ItemTransfer.quick_move).
+##   옮기지 못하면(가득 참, 소환 중) message로 이유를 알린다. 인벤토리만 열려 있으면 아무것도 하지 않는다
 ## 열려 있어도 게임은 멈추지 않는다. 열고 닫을 때 open_changed로 알린다.
 
 signal open_changed(is_open: bool)
+## 빠른 옮기기를 못 했을 때 보여줄 안내 ("창고 가득 참" 등)
+signal message(text: String)
 
 @export var slot_scene: PackedScene
 ## 이 입력으로 여닫는다. 비워 두면 키로 여닫지 않는다 (창고는 상자에서 연다).
@@ -18,6 +22,10 @@ signal open_changed(is_open: bool)
 @export var container_actions: Array[ItemAction] = []
 ## 아직 드러나지 않은 칸(상자)에 마우스를 올렸을 때 정보 줄
 @export var hidden_info_text: String = "무엇인지 아직 모름"
+## 빠른 옮기기에서 받는 쪽이 가득 찼을 때 안내. %s에 받는 쪽 이름이 들어간다 (메뉴의 "가득 참"과 같은 글자)
+@export var quick_move_full_format: String = "%s 가득 참"
+## 빠른 옮기기에서 소환 중인 머리뼈를 내보내려 했을 때 안내
+@export var quick_move_summoned_text: String = "소환 중"
 
 ## 지금 열려 있는 창고. 인벤토리 화면은 창고가 열릴 때 지역 씬이 넣어 주고, 닫히면 null이 된다.
 var open_storage: Inventory:
@@ -115,6 +123,7 @@ func _build_slots() -> void:
 		slot.unhovered.connect(_on_slot_unhovered)
 		slot.menu_requested.connect(open_menu)
 		slot.move_requested.connect(_on_slot_move_requested)
+		slot.quick_move_requested.connect(_on_slot_quick_move_requested)
 		_slots.append(slot)
 
 
@@ -235,6 +244,20 @@ func _on_slot_move_requested(from_container: Inventory, from_index: int, to_inde
 		_transfer.move(from_container, from_index, _container, to_index)
 	elif from_container == _container:
 		_container.move_slot(from_index, to_index)
+
+
+## 이 화면의 index 칸을 Shift+좌클릭했다. 인벤토리 화면이면 열려 있는 창고·상자로, 창고·상자 화면이면 인벤토리로 보낸다.
+func _on_slot_quick_move_requested(index: int) -> void:
+	if _transfer == null:
+		return
+	# 창고·상자 화면이면 보낼 곳은 인벤토리라서 open_other는 쓰이지 않는다. 인벤토리 화면이면 열려 있는 창고·상자다.
+	var open_other: Inventory = open_storage if _container == _player_inventory else _container
+	var destination: Inventory = _transfer.get_quick_move_destination(_container, open_other)
+	match _transfer.quick_move(_container, index, open_other):
+		ItemTransfer.Result.FULL:
+			message.emit(quick_move_full_format % destination.display_name)
+		ItemTransfer.Result.SUMMONED:
+			message.emit(quick_move_summoned_text)
 
 
 func _refresh() -> void:

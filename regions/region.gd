@@ -53,6 +53,10 @@ func _ready() -> void:
 	var roster: UndeadRoster = _necromancer.summoner.roster
 	var transfer: ItemTransfer = ItemTransfer.new(_inventory, roster)
 	_inventory_screen.bind(_inventory, roster, GameState.hotbar, _necromancer.drop_to_ground, transfer)
+	# 빠른 옮기기(Shift+좌클릭)를 못 했을 때의 안내("창고 가득 참" 등)는 핫바 위 안내 문구 자리에 띄운다.
+	for screen: InventoryScreen in [_inventory_screen, _storage_screen, _chest_screen]:
+		if screen != null:
+			screen.message.connect(_hud.show_message)
 	if _storage_screen != null:
 		_storage_screen.bind(GameState.storage, roster, GameState.hotbar, _necromancer.drop_to_ground, transfer, _inventory)
 		_storage_screen.open_changed.connect(_on_storage_open_changed)

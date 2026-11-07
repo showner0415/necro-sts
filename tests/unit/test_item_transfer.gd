@@ -238,3 +238,88 @@ func test_send_to_inventory_merges_bones() -> void:
 	assert_true((load(TO_INVENTORY_PATH) as ItemAction).execute(_context(storage, 0)))
 	assert_eq(inventory.get_slot(1).count, 7, "인벤토리의 뼈 칸에 합쳐진다")
 	assert_eq(storage.get_slot(0), null)
+
+
+# --- 빠른 옮기기 (Shift+좌클릭) ---
+
+func test_quick_move_both_ways() -> void:
+	var skull: ItemStack = _skull_stack()
+	inventory.try_add(skull)
+	assert_eq(transfer.quick_move(inventory, 0, storage), ItemTransfer.Result.OK, "인벤토리 → 열려 있는 창고")
+	assert_true(storage.get_slot(0) == skull)
+	assert_eq(inventory.get_slot(0), null)
+	assert_eq(transfer.quick_move(storage, 0, storage), ItemTransfer.Result.OK, "창고 → 인벤토리")
+	assert_true(inventory.get_slot(0) == skull)
+	assert_eq(storage.get_slot(0), null)
+
+
+func test_quick_move_goes_to_first_empty_slot() -> void:
+	storage.try_add(ItemStack.of_item(other_item, 1))
+	storage.try_add(ItemStack.of_item(other_item, 1))
+	storage.remove_slot(0)
+	inventory.try_add(_skull_stack())
+	transfer.quick_move(inventory, 0, storage)
+	assert_true(storage.get_slot(0) != null and storage.get_slot(0).is_skull(), "가장 앞의 빈 칸(0번)으로")
+
+
+func test_quick_move_merges_bones() -> void:
+	storage.try_add(_skull_stack())
+	storage.try_add(ItemStack.of_item(bone, 5))
+	inventory.try_add(ItemStack.of_item(bone, 3))
+	assert_eq(transfer.quick_move(inventory, 0, storage), ItemTransfer.Result.OK)
+	assert_eq(storage.get_slot(1).count, 8, "받는 쪽의 뼈 칸에 합쳐진다")
+	assert_eq(storage.get_slot(2), null, "새 칸을 쓰지 않는다")
+	inventory.try_add(_skull_stack())
+	inventory.try_add(ItemStack.of_item(bone, 2))
+	assert_eq(transfer.quick_move(storage, 1, storage), ItemTransfer.Result.OK)
+	assert_eq(inventory.get_slot(1).count, 10, "창고 → 인벤토리도 뼈 칸에 합쳐진다 (2 + 8)")
+	assert_eq(inventory.get_slot(2), null, "새 칸을 쓰지 않는다")
+
+
+func test_quick_move_to_full_side_fails() -> void:
+	_fill(storage)
+	inventory.try_add(_skull_stack())
+	assert_eq(transfer.quick_move(inventory, 0, storage), ItemTransfer.Result.FULL, "창고가 가득 차면 옮겨지지 않음")
+	assert_true(inventory.get_slot(0) != null, "인벤토리에 그대로")
+	storage.remove_slot(0)
+	_fill(inventory)
+	storage.try_add(_skull_stack())
+	assert_eq(transfer.quick_move(storage, 0, storage), ItemTransfer.Result.FULL, "인벤토리가 가득 차면 옮겨지지 않음")
+	assert_true(storage.get_slot(0) != null, "창고에 그대로")
+
+
+func test_quick_move_hidden_chest_slot_fails() -> void:
+	var chest: ChestContents = ChestContents.new([_skull_stack(), ItemStack.of_item(bone, 2)] as Array[ItemStack], [1.0, 1.0] as Array[float])
+	assert_eq(transfer.quick_move(chest.inventory, 0, chest.inventory), ItemTransfer.Result.LOCKED, "확인되지 않은 칸은 꺼낼 수 없음")
+	assert_eq(inventory.get_slot(0), null)
+	chest.advance(1.0)
+	assert_eq(transfer.quick_move(chest.inventory, 0, chest.inventory), ItemTransfer.Result.OK, "확인된 칸은 꺼낼 수 있음")
+	assert_true(inventory.get_slot(0) != null and inventory.get_slot(0).is_skull())
+	inventory.try_add(ItemStack.of_item(other_item, 1))
+	assert_eq(transfer.quick_move(inventory, 1, chest.inventory), ItemTransfer.Result.OK, "상자로 넣을 때는 확인된 칸(0번)에 들어감")
+	assert_true(chest.inventory.get_slot(0) != null and chest.inventory.get_slot(0).item.id == other_item.id)
+	assert_true(chest.inventory.is_locked(1), "확인되지 않은 칸은 그대로 잠김")
+
+
+func test_quick_move_summoned_skull_fails() -> void:
+	var stack: ItemStack = _skull_stack()
+	inventory.try_add(stack)
+	hotbar.assign(0, stack.skull)
+	roster.summon(stack.skull)
+	assert_eq(transfer.quick_move(inventory, 0, storage), ItemTransfer.Result.SUMMONED, "소환 중인 머리뼈는 못 옮김")
+	assert_true(inventory.get_slot(0) == stack)
+	assert_true(roster.is_summoned(stack.skull))
+
+
+func test_quick_move_hotbar_skull_clears_hotbar() -> void:
+	var stack: ItemStack = _skull_stack()
+	inventory.try_add(stack)
+	hotbar.assign(1, stack.skull)
+	transfer.quick_move(inventory, 0, storage)
+	assert_eq(hotbar.get_skull(1), null, "핫바에 올린 머리뼈를 옮기면 핫바 칸이 빈다")
+
+
+func test_quick_move_with_only_inventory_open_does_nothing() -> void:
+	inventory.try_add(_skull_stack())
+	assert_eq(transfer.quick_move(inventory, 0, null), ItemTransfer.Result.INVALID, "인벤토리만 열려 있으면 아무것도 안 함")
+	assert_true(inventory.get_slot(0) != null)

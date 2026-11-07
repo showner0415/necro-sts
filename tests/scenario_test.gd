@@ -120,13 +120,14 @@ func move_mouse_to_ui(ui_position: Vector2, held_mask: int = 0) -> void:
 	Input.parse_input_event(event)
 
 
-## UI 좌표에서 마우스 버튼을 누르거나 뗀다.
-func press_mouse_at_ui(ui_position: Vector2, button: MouseButton, pressed: bool) -> void:
+## UI 좌표에서 마우스 버튼을 누르거나 뗀다. shift가 true면 Shift를 누른 채인 클릭이다.
+func press_mouse_at_ui(ui_position: Vector2, button: MouseButton, pressed: bool, shift: bool = false) -> void:
 	var event: InputEventMouseButton = InputEventMouseButton.new()
 	event.position = ui_to_window(ui_position)
 	event.global_position = event.position
 	event.button_index = button
 	event.pressed = pressed
+	event.shift_pressed = shift
 	event.button_mask = MOUSE_BUTTON_MASK_LEFT if pressed and button == MOUSE_BUTTON_LEFT else 0
 	Input.parse_input_event(event)
 
@@ -161,6 +162,18 @@ func click_ui(ui_position: Vector2, button: MouseButton = MOUSE_BUTTON_LEFT) -> 
 	press_mouse_at_ui(ui_position, button, true)
 	await wait_frames(1)
 	press_mouse_at_ui(ui_position, button, false)
+	await wait_frames(2)
+
+
+## UI 좌표에서 Shift를 누른 채 좌클릭한다 (빠른 옮기기). 실제 키보드처럼 Shift 키도 눌렀다 뗀다.
+func shift_click_ui(ui_position: Vector2) -> void:
+	press_key(KEY_SHIFT, true)
+	move_mouse_to_ui(ui_position)
+	await wait_frames(1)
+	press_mouse_at_ui(ui_position, MOUSE_BUTTON_LEFT, true, true)
+	await wait_frames(1)
+	press_mouse_at_ui(ui_position, MOUSE_BUTTON_LEFT, false, true)
+	press_key(KEY_SHIFT, false)
 	await wait_frames(2)
 
 
