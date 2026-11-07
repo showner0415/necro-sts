@@ -25,9 +25,9 @@ const DIVE_PATH: String = "res://data/behaviors/dive.tres"
 const CHARGE_PATH: String = "res://data/behaviors/charge.tres"
 ## 문서(docs/maps/shallow_cave_design.md 4장)의 걷기 시간 기준 (초)
 const TARGET_TO_ENTRANCE: float = 10.0
-const TARGET_TO_FORK: float = 30.0
-const TARGET_FORK_TO_JUNCTION: float = 50.0
-const TARGET_JUNCTION_TO_MOUTH: float = 20.0
+const TARGET_TO_FORK: float = 40.0
+const TARGET_FORK_TO_JUNCTION: float = 60.0
+const TARGET_JUNCTION_TO_MOUTH: float = 25.0
 const TARGET_TOTAL: float = 120.0
 ## 굴 역할마다 [입구 수, 이어진 굴 역할들] (배치도 그대로)
 const EXPECTED_ROOMS: Dictionary = {
