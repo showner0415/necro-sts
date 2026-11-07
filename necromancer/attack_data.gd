@@ -12,3 +12,7 @@ extends Resource
 @export var projectile_speed: float = 200.0
 ## 탄이 사라지기 전까지 날아가는 거리
 @export var projectile_range: float = 160.0
+## 탄의 보이는 크기 (그리는 원의 반지름)
+@export var projectile_visual_radius: float = 2.0
+## 탄이 맞는 범위 (충돌 원의 반지름). 보이는 크기와 따로 조절한다.
+@export var projectile_hit_radius: float = 2.0

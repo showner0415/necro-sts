@@ -248,6 +248,8 @@ func _shoot() -> void:
 	bolt.speed = attack.projectile_speed
 	bolt.damage = attack.damage
 	bolt.max_distance = attack.projectile_range
+	bolt.visual_radius = attack.projectile_visual_radius
+	bolt.hit_radius = attack.projectile_hit_radius
 	bolt.source = self
 	get_parent().add_child(bolt)
 	bolt.global_position = origin

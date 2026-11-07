@@ -9,6 +9,7 @@ bg_color = Color(0.09411765, 0.078431375, 0.14509805, 1)
 bg_color = Color(1, 1, 1, 1)
 
 [node name="StatBar" type="ProgressBar"]
+mouse_filter = 2
 custom_minimum_size = Vector2(80, 14)
 size_flags_horizontal = 0
 theme_override_styles/background = SubResource("StyleBoxFlat_background")

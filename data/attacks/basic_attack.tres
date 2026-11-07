@@ -11,3 +11,5 @@ mana_cost = 0.0
 cooldown = 0.8
 projectile_speed = 200.0
 projectile_range = 160.0
+projectile_visual_radius = 3.0
+projectile_hit_radius = 3.0

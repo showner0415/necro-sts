@@ -5,6 +5,7 @@
 [ext_resource type="PackedScene" path="res://ui/stat_bar.tscn" id="3_stat_bar"]
 [ext_resource type="Script" path="res://ui/hotbar_view.gd" id="4_hotbar_view"]
 [ext_resource type="PackedScene" path="res://ui/hotbar_slot.tscn" id="5_hotbar_slot"]
+[ext_resource type="PackedScene" path="res://ui/aim_cursor.tscn" id="6_aim_cursor"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_escape_bg"]
 bg_color = Color(0.09411765, 0.078431375, 0.14509805, 1)
@@ -22,6 +23,7 @@ script = ExtResource("1_hud")
 bone_item = ExtResource("2_bone")
 
 [node name="Stats" type="VBoxContainer" parent="."]
+mouse_filter = 2
 offset_left = 8.0
 offset_top = 8.0
 offset_right = 128.0
@@ -39,11 +41,13 @@ unique_name_in_owner = true
 layout_mode = 2
 
 [node name="SkullList" type="VBoxContainer" parent="Stats"]
+mouse_filter = 2
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 0
 
 [node name="BottomLeft" type="VBoxContainer" parent="."]
+mouse_filter = 2
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
@@ -55,6 +59,7 @@ grow_vertical = 0
 theme_override_constants/separation = 2
 
 [node name="HotbarView" type="HBoxContainer" parent="BottomLeft"]
+mouse_filter = 2
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 4
@@ -161,3 +166,5 @@ theme_override_styles/background = SubResource("StyleBoxFlat_escape_bg")
 theme_override_styles/fill = SubResource("StyleBoxFlat_escape_fill")
 max_value = 1.0
 show_percentage = false
+
+[node name="AimCursor" parent="." instance=ExtResource("6_aim_cursor")]

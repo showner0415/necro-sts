@@ -33,6 +33,9 @@ var _last_qualified: Dictionary = {}
 
 ## 이번 프레임의 대상을 정해 돌려준다. candidates에는 살아 있는 몬스터만 넣는다.
 func update(candidates: Array[Candidate]) -> Object:
+	# 대상이 노드째 지워졌으면(밸런스 측정이 싸움마다 몬스터를 지우는 경우 등) 죽은 것과 같이 본다.
+	if not is_instance_valid(target):
+		target = null
 	var current: Candidate = _find(candidates, target)
 	if current == null or not current.within_leash:
 		target = null

@@ -1,0 +1,13 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/aim_cursor.gd" id="1_aim"]
+[ext_resource type="Texture2D" path="res://assets/ui/aim_cursor/aim_cursor_x1.png" id="tex_x1"]
+[ext_resource type="Texture2D" path="res://assets/ui/aim_cursor/aim_cursor_x2.png" id="tex_x2"]
+[ext_resource type="Texture2D" path="res://assets/ui/aim_cursor/aim_cursor_x3.png" id="tex_x3"]
+[ext_resource type="Texture2D" path="res://assets/ui/aim_cursor/aim_cursor_x4.png" id="tex_x4"]
+[ext_resource type="Texture2D" path="res://assets/ui/aim_cursor/aim_cursor_x5.png" id="tex_x5"]
+[ext_resource type="Texture2D" path="res://assets/ui/aim_cursor/aim_cursor_x6.png" id="tex_x6"]
+
+[node name="AimCursor" type="Node"]
+script = ExtResource("1_aim")
+textures_by_scale = Array[Texture2D]([ExtResource("tex_x1"), ExtResource("tex_x2"), ExtResource("tex_x3"), ExtResource("tex_x4"), ExtResource("tex_x5"), ExtResource("tex_x6")])

@@ -76,3 +76,11 @@ func test_same_frame_triggers_pick_nearest() -> void:
 func test_qualification_lost_keeps_target_until_released() -> void:
 	_update([_candidate(_a, 80.0, true, true)])
 	assert_eq(_update([_candidate(_a, 80.0)]), _a, "조건이 없어져도(네크로맨서를 안 노리게 됨) 대상은 유지")
+
+
+func test_freed_target_is_dropped() -> void:
+	var node: Node = Node.new()
+	_update([_candidate(node, 80.0, true, true)])
+	node.free()
+	assert_eq(_update([_candidate(_b, 50.0, true, true)]), _b, "대상이 노드째 지워지면 죽은 것과 같이 보고 새 계기(b)를 고름")
+	assert_false(_rule.locked, "고정도 풀림")
