@@ -44,6 +44,8 @@ var rooms: Array[Dictionary] = []
 
 ## 칸마다 굴 번호 (굴이 아니면 -1)
 var _room_of: PackedInt32Array = PackedInt32Array()
+## 칸마다 통로 덩어리 번호 (통로가 아니면 -1)
+var _passage_of: PackedInt32Array = PackedInt32Array()
 
 
 static func from_image(image: Image) -> MapLayout:
@@ -51,6 +53,26 @@ static func from_image(image: Image) -> MapLayout:
 	layout._parse(image)
 	layout._find_rooms()
 	return layout
+
+
+## 다듬은 칸 줄(rows)과 원래 물건들로 다시 분석한다 (다듬기 전후의 굴 연결을 비교할 때).
+static func from_rows(source_rows: PackedStringArray, source_objects: Array[Dictionary]) -> MapLayout:
+	var layout: MapLayout = MapLayout.new()
+	layout.rows = source_rows
+	layout.size = Vector2i(source_rows[0].length(), source_rows.size())
+	layout.objects = source_objects
+	layout._find_rooms()
+	return layout
+
+
+## 굴마다 (입구 수, 이어진 굴 수)와 굴 수를 적은 요약. 다듬기 전후가 같아야 한다.
+func connection_summary() -> String:
+	var parts: PackedStringArray = []
+	for room: Dictionary in rooms:
+		var sorted: Array = room.neighbors.duplicate()
+		sorted.sort()
+		parts.append("%s:%d:%s" % [room.center.round(), room.entrances, sorted])
+	return " ".join(parts)
 
 
 static func from_file(path: String) -> MapLayout:
@@ -86,6 +108,17 @@ func room_at(cell: Vector2i) -> int:
 	if cell.x < 0 or cell.y < 0 or cell.x >= size.x or cell.y >= size.y:
 		return -1
 	return _room_of[cell.y * size.x + cell.x]
+
+
+## 칸이 든 바닥 덩어리: 굴이면 "r<번호>", 통로면 "p<번호>", 벽이면 빈 글자. 다듬기가 서로 다른 덩어리를 잇지 않게 하는 데 쓴다.
+func segment_at(cell: Vector2i) -> String:
+	var room: int = room_at(cell)
+	if room >= 0:
+		return "r%d" % room
+	if cell.x < 0 or cell.y < 0 or cell.x >= size.x or cell.y >= size.y:
+		return ""
+	var passage: int = _passage_of[cell.y * size.x + cell.x]
+	return "p%d" % passage if passage >= 0 else ""
 
 
 ## 굴 연결에 고리(같은 굴로 돌아오는 길)가 있는지. among을 주면 그 굴들끼리만 본다.
@@ -200,9 +233,8 @@ func _find_rooms() -> void:
 	_room_of.resize(size.x * size.y)
 	_room_of.fill(-1)
 	# 통로 덩어리 번호도 같은 방식으로 붙인다.
-	var passage_of: PackedInt32Array = PackedInt32Array()
-	passage_of.resize(size.x * size.y)
-	passage_of.fill(-1)
+	_passage_of.resize(size.x * size.y)
+	_passage_of.fill(-1)
 	var passage_count: int = 0
 	for y: int in size.y:
 		for x: int in size.x:
@@ -213,8 +245,8 @@ func _find_rooms() -> void:
 				for cell: Vector2i in cells:
 					sum += Vector2(cell)
 				rooms.append({"cells": cells.size(), "center": sum / cells.size(), "char": c, "neighbors": [] as Array[int], "entrances": 0})
-			elif c == "." and passage_of[y * size.x + x] < 0:
-				_flood(Vector2i(x, y), c, passage_of, passage_count)
+			elif c == "." and _passage_of[y * size.x + x] < 0:
+				_flood(Vector2i(x, y), c, _passage_of, passage_count)
 				passage_count += 1
 	# 통로마다 닿은 굴들, 굴마다 닿은 통로·다른 굴
 	var passage_rooms: Array[Dictionary] = []
@@ -232,7 +264,7 @@ func _find_rooms() -> void:
 				var n: Vector2i = Vector2i(x, y) + offset
 				if n.x < 0 or n.y < 0 or n.x >= size.x or n.y >= size.y:
 					continue
-				var passage: int = passage_of[n.y * size.x + n.x]
+				var passage: int = _passage_of[n.y * size.x + n.x]
 				if passage >= 0:
 					passage_rooms[passage][room] = true
 					room_entrances[room][n] = true

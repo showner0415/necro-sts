@@ -143,7 +143,7 @@ res://
   - 언데드 대 적 (같은 몬스터끼리): `bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_undead_duel.gd` (일부: `-- --monsters=rat,boar --cases=1,3 --runs=10 --skill=normal`). 경우 1 언데드 1 vs 적 1(목표: 진다), 2 언데드 1 + 네크로맨서(봇) vs 적 1(목표: 이긴다), 3 언데드 2 vs 적 1(목표: 이긴다). 1·3은 네크로맨서가 구경만 하고 마나가 바닥나지 않는다
   - 일부: `-- --targets=boar,bat_pack --skills=normal --undead=0 --runs=5`, 거리 두기를 끄려면 `--keep=0`, 무리 동시 공격(박쥐 동시 돌진)을 처음 N번 일부러 못 피하게 하려면 `--miss_pack=N` (놓친 동시 공격 피해·직후 마나·최저 마나·언데드 죽음/해제 열로 "실수 한 번의 값"을 본다)
   - 창으로 보기: `bash tools/godot.sh --path . -s tests/balance/run_balance.gd -- --targets=boar --skills=normal --undead=0 --runs=1`
-- **맵 배치 PNG → 지역 씬**: `bash tools/godot.sh --headless --path . -s tools/map_from_png.gd` (기본은 얕은 굴). 픽셀 하나 = 타일 한 칸이고 색 규칙은 `docs/maps/map_png_rules.md`. 만든 씬(`regions/shallow_cave.tscn`)은 손으로 고치지 않고 PNG를 고쳐 다시 변환한다. 변환할 때 굴마다 입구 수·이어진 굴을 출력한다.
+- **맵 배치 PNG → 지역 씬**: `bash tools/godot.sh --headless --path . -s tools/map_from_png.gd` (기본은 얕은 굴). 픽셀 하나 = 타일 한 칸이고 색 규칙은 `docs/maps/map_png_rules.md`. 만든 씬(`regions/shallow_cave.tscn`)은 손으로 고치지 않고 PNG를 고쳐 다시 변환한다. 변환할 때 벽 가장자리를 동굴처럼 다듬고(`MapSmoother`, 길목·굴 중심은 그대로, 바닥 최소 2칸), 굴마다 입구 수·이어진 굴을 출력한다.
   - 맵 전체 스크린샷: `--setup=res://tools/screenshot_setups/map_overview.gd`
 - **박쥐 무리 경로 그림**: `bash tools/godot.sh --headless --fixed-fps 60 --path . -s tools/record_pack_paths.gd -- --seconds=12 --out=<scratchpad 경로>/pack_paths.png`. 네크로맨서를 세워 두고 박쥐 3마리의 경로를 3초씩 칸으로 나눠 그린다(흰 테두리 점은 동시 돌진 예고). 도는 방향 바꾼 횟수, 박쥐끼리 가장 가까운 거리, 동시 돌진 시작 때 박쥐 사이 각도를 출력한다.
 - 출력에 `SCRIPT ERROR` 또는 `ERROR:`가 있으면 고치고 다시 실행한다.

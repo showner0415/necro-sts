@@ -1,6 +1,6 @@
 extends ScenarioTest
 ## 시나리오: 얕은 굴(앞쪽 절반) 그레이박스. 배치 PNG(art_src/maps/shallow_cave.png)와 만든 씬(regions/shallow_cave.tscn)을 같이 본다.
-## 1. 씬이 PNG와 같다 (PNG를 고치고 tools/map_from_png.gd를 다시 돌리지 않았으면 실패). 쥐·상자·탈출 지점 수
+## 1. 씬이 PNG(를 다듬은 결과)와 같다 (PNG를 고치고 tools/map_from_png.gd를 다시 돌리지 않았으면 실패). 바닥은 최소 2칸, 모든 물건에 걸어서 닿음. 쥐·상자·탈출 지점 수
 ## 2. 쥐가 사는 굴들이 고리로 이어져 있다 (입구 굴·쥐 둥지·물웅덩이 굴 사이에 돌아오는 길이 있다)
 ## 3. 막다른 굴(상자가 있고 입구가 하나인 굴)이 있고, 입구가 하나다
 ## 4. 구간별 걷기 시간: 도착 지점 → 입구 굴, 입구 굴 → 갈림 굴 (걷기, 몬스터는 없앰). 문서 기준값(약 10초, 약 30초)과 함께 출력한다
@@ -75,7 +75,17 @@ func _run() -> void:
 
 func _matches_png() -> bool:
 	var walls: PlaceholderWalls = current_scene.get_node("Walls")
-	var same_layout: bool = walls.layout == _layout.rows
+	# 씬의 벽·바닥은 PNG를 기본 씨앗으로 다듬은 결과와 같아야 한다 (tools/map_from_png.gd).
+	var smoothed: PackedStringArray = MapSmoother.smooth(_layout, MapSmoother.DEFAULT_SEED)
+	var same_layout: bool = walls.layout == smoothed
+	var narrow: Array[Vector2i] = MapSmoother.narrow_cells(walls.layout)
+	var reach: Dictionary = MapSmoother.reachable(walls.layout, _layout.cells_of("spawn")[0])
+	var unreachable: int = _layout.objects.filter(func(o: Dictionary) -> bool: return not reach.has(o.cell)).size()
+	var changed: int = 0
+	for y: int in smoothed.size():
+		for x: int in smoothed[y].length():
+			if MapLayout.WALL_CHARS.contains(smoothed[y][x]) != _layout.is_wall(Vector2i(x, y)):
+				changed += 1
 	var rats: int = 0
 	for node: Node in get_nodes_in_group(&"monsters"):
 		if (node as Monster).data.id == &"rat":
@@ -83,9 +93,9 @@ func _matches_png() -> bool:
 	var chests: int = current_scene.find_children("*", "LootChest", true, false).size()
 	var escapes: int = current_scene.find_children("*", "EscapePoint", true, false).size()
 	var nav: NavigationGrid = current_scene.get_node("NavigationGrid")
-	var ok: bool = _layout.errors.is_empty() and same_layout and rats == _layout.cells_of("rat").size() and chests == 2 and escapes == 1 and nav.has_walls()
-	return _check("씬이 배치 PNG와 같음", ok, "PNG %d×%d칸, 읽기 문제 %s, 벽·바닥 배치 같음 %s, 쥐 %d (PNG %d), 상자 %d, 탈출 지점 %d, 길찾기 벽 있음 %s" % [
-		_layout.size.x, _layout.size.y, _layout.errors, same_layout, rats, _layout.cells_of("rat").size(), chests, escapes, nav.has_walls()])
+	var ok: bool = _layout.errors.is_empty() and same_layout and changed > 0 and narrow.is_empty() and unreachable == 0 and rats == _layout.cells_of("rat").size() and chests == 2 and escapes == 1 and nav.has_walls()
+	return _check("씬이 배치 PNG와 같음", ok, "PNG %d×%d칸, 읽기 문제 %s, 벽·바닥이 PNG를 다듬은 결과와 같음 %s (다듬어 바뀐 칸 %d), 2칸보다 좁은 바닥 %s, 도착 지점에서 닿지 않는 물건 %d, 쥐 %d (PNG %d), 상자 %d, 탈출 지점 %d, 길찾기 벽 있음 %s" % [
+		_layout.size.x, _layout.size.y, _layout.errors, same_layout, changed, narrow, unreachable, rats, _layout.cells_of("rat").size(), chests, escapes, nav.has_walls()])
 
 
 # --- 2. 쥐 굴 고리 ---
