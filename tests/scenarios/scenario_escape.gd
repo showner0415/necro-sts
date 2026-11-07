@@ -12,6 +12,7 @@ const HALF_FRAMES: int = 90
 const SCENE_TIMEOUT_FRAMES: int = 400
 const BASE_SCENE: String = "res://regions/base.tscn"
 const REGION_SCENE: String = "res://regions/test_region.tscn"
+const SHALLOW_CAVE_SCENE: String = "res://regions/shallow_cave.tscn"
 const RAT_SKULL_PATH: String = "res://data/skulls/rat_skull.tres"
 const BONE_PATH: String = "res://data/items/bone.tres"
 const START_BONES: int = 10
@@ -116,16 +117,17 @@ func _run() -> void:
 
 	# 4. 거점: 몬스터 없음, 출구 안내와 F
 	var monsters: int = get_nodes_in_group(&"monsters").size()
-	var exit: RegionExit = current_scene.find_children("*", "RegionExit", true, false).front()
+	# 거점의 기본 출구는 얕은 굴로 간다 (시험 지역·시험 통로 출구는 옆에 따로 있다).
+	var exit: RegionExit = current_scene.get_node("RegionExit")
 	necromancer.global_position = exit.global_position
 	await wait_frames(WAIT_FRAMES)
 	evidence = "몬스터 %d마리, 출구 안내 보임 %s ('%s'), 소환 중 %d마리, 네크로맨서 체력 %.0f / %.0f" % [
 		monsters, exit.is_prompt_visible(), exit.get_prompt_text(), necromancer.summoner.roster.get_count(), necromancer.health, necromancer.max_health]
-	if not _check("거점", monsters == 0 and exit.is_prompt_visible() and exit.get_prompt_text() == "[F] 시험 지역(으)로" and necromancer.summoner.roster.get_count() == 0, evidence):
+	if not _check("거점", monsters == 0 and exit.is_prompt_visible() and exit.get_prompt_text() == "[F] 얕은 굴(으)로" and necromancer.summoner.roster.get_count() == 0, evidence):
 		return
 	press_key(KEY_F, true)
 	press_key(KEY_F, false)
-	frames = await _wait_for_scene(REGION_SCENE)
+	frames = await _wait_for_scene(SHALLOW_CAVE_SCENE)
 	if not _check("F로 지역에 나감", frames > 0, "F를 누른 뒤 %d프레임 만에 %s, %s" % [frames, current_scene.scene_file_path, _describe_inventory()]):
 		return
 

@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="RegionData" format=3]
+
+[ext_resource type="Script" path="res://regions/region_data.gd" id="1_region"]
+
+[resource]
+script = ExtResource("1_region")
+id = &"shallow_cave"
+display_name = "얕은 굴"
+scene_path = "res://regions/shallow_cave.tscn"

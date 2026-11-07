@@ -19,6 +19,8 @@ extends SceneTree
 const RANDOM_SEED: int = 1
 ## 몬스터가 있는 시험 지역. 게임은 거점에서 시작하므로, 지역이 필요한 시나리오는 get_start_scene()에서 이것을 돌려준다.
 const TEST_REGION_SCENE: String = "res://regions/test_region.tscn"
+## 시작 씬을 불러오기까지 기다리는 최대 물리 프레임 수
+const SCENE_LOAD_TIMEOUT_FRAMES: int = 300
 
 
 ## 현재 단계에서 지난 물리 프레임 수. restart_step_timer()로 0이 된다.
@@ -27,6 +29,8 @@ var _scene_ready: bool = false
 ## 흉내 낸 마우스의 마지막 창 좌표 (이동량 계산용)
 var _last_mouse_window_position: Vector2 = Vector2.ZERO
 var _done: bool = false
+## 시작 씬을 기다린 프레임 수
+var _load_wait_frames: int = 0
 
 
 func _initialize() -> void:
@@ -44,6 +48,11 @@ func _physics_process(_delta: float) -> bool:
 		return false
 	if not _scene_ready:
 		if current_scene == null:
+			# 씬을 불러오지 못하면(씬 파일 오류 등) 끝없이 기다리지 않고 실패로 끝낸다.
+			_load_wait_frames += 1
+			if _load_wait_frames > SCENE_LOAD_TIMEOUT_FRAMES:
+				fail_step("준비", "%d프레임 안에 시작 씬(%s)을 불러오지 못했습니다" % [SCENE_LOAD_TIMEOUT_FRAMES, get_start_scene()])
+				finish(false)
 			return false
 		_scene_ready = true
 		_on_scene_ready()
