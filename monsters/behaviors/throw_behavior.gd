@@ -29,8 +29,9 @@ func update(delta: float) -> void:
 func act(body: CharacterBody2D, stats: CombatStats, target: Node2D, _delta: float) -> void:
 	var to_target: Vector2 = target.global_position - body.global_position
 	var distance: float = to_target.length()
-	if distance > stats.attack_range:
-		body.velocity = to_target.normalized() * stats.move_speed
+	# 던지는 거리 안이어도 벽이 가로막으면 던지지 않고 돌아서 다가간다.
+	if distance > stats.attack_range or not has_clear_line(body, target):
+		body.velocity = move_direction(body, target.global_position) * stats.move_speed
 		return
 	if distance < retreat_distance and distance > 0.0:
 		body.velocity = -to_target.normalized() * retreat_speed

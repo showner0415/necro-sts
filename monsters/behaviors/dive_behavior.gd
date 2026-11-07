@@ -232,9 +232,9 @@ func _approach(body: CharacterBody2D, stats: CombatStats, target: Node2D) -> voi
 	if target == null:
 		body.velocity = Vector2.ZERO
 		return
-	var to_target: Vector2 = target.global_position - body.global_position
-	if to_target.length() > dive_range:
-		body.velocity = to_target.normalized() * stats.move_speed
+	# 다가갈 때만 벽을 돌아간다. 예고·돌진·물러나기·돌기는 곧게 움직이고 벽에 닿으면 미끄러진다.
+	if body.global_position.distance_to(target.global_position) > dive_range:
+		body.velocity = move_direction(body, target.global_position) * stats.move_speed
 		return
 	_begin_windup(body)
 

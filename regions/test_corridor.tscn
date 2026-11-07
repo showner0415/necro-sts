@@ -1,0 +1,59 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://regions/region.gd" id="1_region"]
+[ext_resource type="Resource" path="res://data/regions/test_corridor.tres" id="2_data"]
+[ext_resource type="Resource" path="res://data/regions/base.tres" id="3_base"]
+[ext_resource type="Script" path="res://regions/placeholder_ground.gd" id="4_ground"]
+[ext_resource type="Script" path="res://regions/placeholder_walls.gd" id="5_walls"]
+[ext_resource type="Script" path="res://regions/navigation_grid.gd" id="6_nav"]
+[ext_resource type="PackedScene" path="res://regions/escape_point.tscn" id="7_escape"]
+[ext_resource type="PackedScene" path="res://necromancer/necromancer.tscn" id="8_necromancer"]
+[ext_resource type="PackedScene" path="res://monsters/monster.tscn" id="9_monster"]
+[ext_resource type="Resource" path="res://data/monsters/rat.tres" id="10_rat"]
+[ext_resource type="Resource" path="res://data/monsters/boar.tres" id="11_boar"]
+[ext_resource type="PackedScene" path="res://ui/hud.tscn" id="12_hud"]
+[ext_resource type="PackedScene" path="res://ui/inventory_screen.tscn" id="13_inventory"]
+
+[node name="TestCorridor" type="Node2D"]
+script = ExtResource("1_region")
+data = ExtResource("2_data")
+death_destination = ExtResource("3_base")
+
+[node name="Ground" type="Node2D" parent="."]
+script = ExtResource("4_ground")
+size_in_tiles = Vector2i(30, 18)
+
+[node name="Walls" type="Node2D" parent="."]
+position = Vector2(-480, -288)
+script = ExtResource("5_walls")
+layout = PackedStringArray("##############################", "#......#######################", "#....................#########", "#....................#########", "#......############..#########", "#......####......##..#########", "#......####......##..#########", "#############.#####..#########", "########.............#########", "########.............####....#", "########..###############....#", "########.....................#", "########...............##....#", "#########################....#", "#########################....#", "#########################....#", "#########################....#", "##############################")
+
+[node name="NavigationGrid" type="Node" parent="."]
+script = ExtResource("6_nav")
+bounds = Rect2(-480, -288, 960, 576)
+
+[node name="EscapePoint" parent="." instance=ExtResource("7_escape")]
+position = Vector2(384, 64)
+destination = ExtResource("3_base")
+
+[node name="Actors" type="Node2D" parent="."]
+y_sort_enabled = true
+
+[node name="Necromancer" parent="Actors" instance=ExtResource("8_necromancer")]
+position = Vector2(-352, -160)
+
+[node name="RatPocket" parent="Actors" instance=ExtResource("9_monster")]
+position = Vector2(-48, -112)
+data = ExtResource("10_rat")
+
+[node name="RatCorridor" parent="Actors" instance=ExtResource("9_monster")]
+position = Vector2(-16, 96)
+data = ExtResource("10_rat")
+
+[node name="Boar" parent="Actors" instance=ExtResource("9_monster")]
+position = Vector2(384, 176)
+data = ExtResource("11_boar")
+
+[node name="HUD" parent="." instance=ExtResource("12_hud")]
+
+[node name="InventoryScreen" parent="." instance=ExtResource("13_inventory")]

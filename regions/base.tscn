@@ -10,6 +10,7 @@
 [ext_resource type="PackedScene" path="res://ui/inventory_screen.tscn" id="8_inventory"]
 [ext_resource type="PackedScene" path="res://regions/storage_chest.tscn" id="9_chest"]
 [ext_resource type="PackedScene" path="res://ui/storage_screen.tscn" id="10_storage"]
+[ext_resource type="Resource" path="res://data/regions/test_corridor.tres" id="11_test_corridor"]
 
 [node name="Base" type="Node2D"]
 script = ExtResource("1_region")
@@ -25,6 +26,10 @@ color_b = Color(0.14901961, 0.36078432, 0.25882354, 1)
 [node name="RegionExit" parent="." instance=ExtResource("4_exit")]
 position = Vector2(0, -88)
 destination = ExtResource("5_test_region")
+
+[node name="CorridorExit" parent="." instance=ExtResource("4_exit")]
+position = Vector2(104, -88)
+destination = ExtResource("11_test_corridor")
 
 [node name="StorageChest" parent="." instance=ExtResource("9_chest")]
 position = Vector2(-120, -40)

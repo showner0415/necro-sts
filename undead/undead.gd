@@ -43,6 +43,8 @@ var _seen_necromancer_hits: Dictionary = {}
 ## 몬스터와 싸우는 방식 (원본 몬스터의 언데드용 행동 조각 복사본)
 var _behavior: MonsterBehavior
 var _knockback: Knockback = Knockback.new()
+## 벽을 돌아서 가는 방향을 정한다 (벽이 없으면 곧장)
+var _path_follower: PathFollower
 
 @onready var _collision: CollisionShape2D = $CollisionShape2D
 
@@ -59,6 +61,7 @@ func _ready() -> void:
 	_collision.shape = PlaceholderBody.make_shape(data)
 	_collision.rotation = PlaceholderBody.shape_rotation(data)
 	_collision.position = PlaceholderBody.center(data)
+	_path_follower = PathFollower.new(data.get_placeholder_half_size(), PlaceholderBody.center(data))
 	# 날아다니는 몸은 벽하고만 부딪히고, 다른 몸도 이 몸에 부딪히지 않는다 (탄은 이 층도 검사한다).
 	if data.flying:
 		collision_layer = flying_layer
@@ -111,6 +114,16 @@ func knock_back(offset: Vector2, duration: float) -> void:
 	_knockback.start(offset, duration)
 
 
+## 행동 조각과 따라다니기가 부른다: goal(발밑 좌표)로 가려면 움직일 방향. 벽이 가로막으면 돌아가는 방향이다.
+func get_move_direction(goal: Vector2) -> Vector2:
+	return _path_follower.get_direction(self, goal)
+
+
+## 행동 조각이 부른다: goal(발밑 좌표)까지 벽이 가로막지 않는지.
+func has_clear_line_to(goal: Vector2) -> bool:
+	return _path_follower.is_line_clear(self, goal)
+
+
 func _follow() -> void:
 	if not is_instance_valid(_master):
 		velocity = Vector2.ZERO
@@ -124,7 +137,7 @@ func _follow() -> void:
 	var speed: float = maxf(data.move_speed, follow_speed)
 	if distance > catch_up_distance:
 		speed = maxf(speed, catch_up_speed)
-	velocity = to_master.normalized() * speed
+	velocity = get_move_direction(_master.global_position) * speed
 
 
 ## 살아 있는 몬스터마다 이번 프레임 정보를 모아 UndeadTargeting에 넣고, 정해진 대상을 돌려준다.

@@ -2,7 +2,7 @@ class_name Aggro
 extends RefCounted
 ## 몬스터 타게팅 중 "감지 범위 밖에서 맞으면 공격한 대상을 쫓는" 규칙. 노드에 의존하지 않고 위치만 받는다.
 ## - IDLE: 평소. 감지 범위 안의 가장 가까운 대상을 노린다 (그 판단은 쓰는 쪽이 한다)
-## - CHASING: 감지 범위에 아무도 없을 때 맞았다. 공격자를 쫓는다
+## - CHASING: 감지 범위에 아무도 없을 때 맞았거나, 보던 대상을 놓쳤다(start_chase). 그 대상(attacker)을 쫓는다
 ##   감지 범위에 누가 들어오면 IDLE로 (그때부터 가장 가까운 대상)
 ##   공격자와 attacker_limit보다 멀어지거나, 맞기 시작한 자리(origin)에서 home_limit보다 멀어지면 RETURNING으로
 ## - RETURNING: 맞기 시작한 자리로 돌아간다. 다 돌아갈 때까지 감지·피격을 무시한다
@@ -36,6 +36,16 @@ func on_hit(source: Object, position: Vector2, someone_in_detect: bool) -> void:
 		origin = position
 	state = State.CHASING
 	attacker = source
+
+
+## 보던 대상을 놓쳤을 때 부른다 (벽 뒤로 숨었거나 감지 범위를 벗어남). 평소(IDLE)일 때만 그 대상을 쫓기 시작한다.
+## home은 싸움을 시작한 자리다 (처음 대상을 본 자리). 쫓는 한계와 포기하면 돌아갈 곳은 맞았을 때와 같다.
+func start_chase(target: Object, home: Vector2) -> void:
+	if target == null or state != State.IDLE:
+		return
+	state = State.CHASING
+	attacker = target
+	origin = home
 
 
 ## 물리 프레임마다 부른다. attacker_alive가 false면 공격자가 사라진 것으로 보고 돌아간다.

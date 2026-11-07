@@ -86,3 +86,23 @@ func test_start_return_goes_home_and_ignores_hits() -> void:
 	assert_eq(aggro.state, Aggro.State.RETURNING, "돌아가는 중에는 맞아도 대상을 바꾸지 않는다")
 	aggro.update(home + Vector2(1, 0), false, false, Vector2.ZERO)
 	assert_eq(aggro.state, Aggro.State.IDLE, "다 돌아오면 평소로")
+
+
+func test_start_chase_follows_lost_target_from_first_seen_spot() -> void:
+	var first_seen: Vector2 = Vector2(-20, 0)
+	aggro.start_chase(attacker, first_seen)
+	assert_eq(aggro.state, Aggro.State.CHASING, "보던 대상을 놓치면 쫓는다")
+	assert_eq(aggro.attacker, attacker)
+	assert_eq(aggro.origin, first_seen, "쫓는 한계의 시작 자리는 처음 대상을 본 자리")
+	aggro.update(first_seen + Vector2(aggro.home_limit + 1.0, 0), false, true, first_seen)
+	assert_eq(aggro.state, Aggro.State.RETURNING, "시작 자리에서 너무 멀어지면 포기하고 돌아간다")
+
+
+func test_start_chase_only_when_idle() -> void:
+	aggro.on_hit(attacker, START, false)
+	aggro.start_chase(other, START + Vector2(30, 0))
+	assert_eq(aggro.attacker, attacker, "이미 쫓는 중이면 바꾸지 않는다")
+	assert_eq(aggro.origin, START)
+	aggro.start_return(START)
+	aggro.start_chase(other, START)
+	assert_eq(aggro.state, Aggro.State.RETURNING, "돌아가는 중에는 쫓지 않는다")

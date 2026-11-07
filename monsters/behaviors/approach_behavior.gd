@@ -12,7 +12,7 @@ func update(delta: float) -> void:
 func act(body: CharacterBody2D, stats: CombatStats, target: Node2D, _delta: float) -> void:
 	var to_target: Vector2 = target.global_position - body.global_position
 	if to_target.length() > stats.attack_range:
-		body.velocity = to_target.normalized() * stats.move_speed
+		body.velocity = move_direction(body, target.global_position) * stats.move_speed
 		return
 	body.velocity = Vector2.ZERO
 	if _attack_timer == 0.0:

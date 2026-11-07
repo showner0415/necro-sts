@@ -43,6 +43,11 @@ var _wander_timer: float = 0.0
 ## 대상과 싸우는 방식 (data.behavior의 이 몬스터용 복사본)
 var _behavior: MonsterBehavior
 var _knockback: Knockback = Knockback.new()
+## 벽을 돌아서 가는 방향을 정한다 (벽이 없으면 곧장)
+var _path_follower: PathFollower
+## 평소에 감지해서 보던 대상과, 처음 그 대상을 본 자리 (놓치면 그 대상을 쫓는다)
+var _seen_target: Node2D
+var _seen_origin: Vector2
 ## 감지 범위 밖에서 맞았을 때 공격자를 쫓는 규칙
 var _aggro: Aggro
 
@@ -56,6 +61,7 @@ func _ready() -> void:
 	_collision.shape = PlaceholderBody.make_shape(data)
 	_collision.rotation = PlaceholderBody.shape_rotation(data)
 	_collision.position = PlaceholderBody.center(data)
+	_path_follower = PathFollower.new(data.get_placeholder_half_size(), PlaceholderBody.center(data))
 	# 날아다니는 몸은 벽하고만 부딪히고, 다른 몸도 이 몸에 부딪히지 않는다 (탄은 이 층도 검사한다).
 	if data.flying:
 		collision_layer = flying_layer
@@ -66,6 +72,7 @@ func _physics_process(delta: float) -> void:
 	_behavior.update(delta)
 	_necromancer_mark_left = maxf(_necromancer_mark_left - delta, 0.0)
 	var nearest: Node2D = _find_nearest_target()
+	_remember_seen_target(nearest)
 	# 쫓던 공격자가 사라졌을 수 있다 (해제된 언데드 등). 사라진 객체는 형변환하면 오류이므로 먼저 확인한다.
 	var attacker: Node2D = _aggro.attacker as Node2D if is_instance_valid(_aggro.attacker) else null
 	var attacker_alive: bool = is_instance_valid(attacker) and not attacker.is_queued_for_deletion()
@@ -83,7 +90,7 @@ func _physics_process(delta: float) -> void:
 	if _target != null or _behavior.is_busy():
 		_behavior.act(self, data.get_enemy_stats(), _target, delta)
 	elif _aggro.state == Aggro.State.RETURNING and _target == null:
-		velocity = global_position.direction_to(_aggro.origin) * data.move_speed
+		velocity = get_move_direction(_aggro.origin) * data.move_speed
 	else:
 		_wander(delta)
 	if _knockback.is_active():
@@ -97,6 +104,21 @@ func _physics_process(delta: float) -> void:
 ## 테스트·디버그용: 지금 노리는 대상 (없으면 null)
 func get_target() -> Node2D:
 	return _target
+
+
+## 행동 조각이 부른다: goal(발밑 좌표)로 가려면 움직일 방향. 벽이 가로막으면 돌아가는 방향이다.
+func get_move_direction(goal: Vector2) -> Vector2:
+	return _path_follower.get_direction(self, goal)
+
+
+## 행동 조각이 부른다: goal(발밑 좌표)까지 벽이 가로막지 않는지.
+func has_clear_line_to(goal: Vector2) -> bool:
+	return _path_follower.is_line_clear(self, goal)
+
+
+## 테스트·디버그용: 길찾기 (지금 따라가는 길)
+func get_path_follower() -> PathFollower:
+	return _path_follower
 
 
 ## 테스트·디버그용: 공격자 추격 상태 (Aggro.State)와 맞기 시작한 자리
@@ -212,7 +234,24 @@ func _draw() -> void:
 	PlaceholderBody.draw(self, data, _behavior.get_body_color(data.placeholder_color), PlaceholderBody.center(data))
 
 
-## 감지 범위 안의 네크로맨서·언데드 중 가장 가까운 것. 없으면 null.
+## 평소(IDLE)에 보던 대상을 기억했다가, 놓치면(벽 뒤로 숨거나 감지 범위를 벗어남) 공격자를 쫓을 때와 같은 한계까지 쫓는다.
+## 쫓는 한계의 "시작 자리"는 처음 대상을 본 자리다.
+func _remember_seen_target(nearest: Node2D) -> void:
+	if _aggro.state != Aggro.State.IDLE:
+		_seen_target = null
+		return
+	if nearest != null:
+		if _seen_target == null:
+			_seen_origin = global_position
+		_seen_target = nearest
+		return
+	# 사라진 객체는 형이 있는 인자로 넘기면 오류이므로 여기서 바로 확인한다.
+	if is_instance_valid(_seen_target) and not _seen_target.is_queued_for_deletion():
+		_aggro.start_chase(_seen_target, _seen_origin)
+	_seen_target = null
+
+
+## 감지 범위 안에서 보이는(벽이 가리지 않는) 네크로맨서·언데드 중 가장 가까운 것. 없으면 null.
 ## 몬스터는 둘을 똑같이 적으로 본다.
 func _find_nearest_target() -> Node2D:
 	var nearest: Node2D = null
@@ -224,7 +263,7 @@ func _find_nearest_target() -> Node2D:
 		if candidate == null or candidate.is_queued_for_deletion():
 			continue
 		var distance: float = global_position.distance_squared_to(candidate.global_position)
-		if distance <= nearest_distance:
+		if distance <= nearest_distance and _path_follower.can_see(self, candidate.global_position):
 			nearest = candidate
 			nearest_distance = distance
 	return nearest

@@ -81,3 +81,19 @@ func get_body_color(base: Color) -> Color:
 ## 쓰는 쪽의 _draw()에서 몸보다 먼저 부른다 (바닥에 그리는 예고 표시 등). indicator_color는 적·아군을 구별하는 색이다.
 func draw_overlay(_canvas: CanvasItem, _indicator_color: Color) -> void:
 	pass
+
+
+## body가 goal(발밑 좌표)로 가려면 움직일 방향. 쓰는 쪽(Monster, Undead)에 길찾기(get_move_direction)가 있으면 벽을 돌아가는 방향이고,
+## 없으면(단위 테스트의 몸 등) 곧장이다.
+func move_direction(body: CharacterBody2D, goal: Vector2) -> Vector2:
+	if body.has_method(&"get_move_direction"):
+		return body.call(&"get_move_direction", goal)
+	return body.global_position.direction_to(goal)
+
+
+## body에서 target까지 벽이 가로막지 않는지. 돌진·던지기를 시작하기 전에 본다 (벽 너머로 돌진하거나 던지지 않고 돌아서 다가가게).
+## 쓰는 쪽에 길찾기가 없으면 항상 true.
+func has_clear_line(body: CharacterBody2D, target: Node2D) -> bool:
+	if body.has_method(&"has_clear_line_to"):
+		return body.call(&"has_clear_line_to", target.global_position)
+	return true

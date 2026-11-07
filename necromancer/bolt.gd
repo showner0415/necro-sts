@@ -1,10 +1,13 @@
 class_name Bolt
 extends Area2D
-## 네크로맨서의 기본 공격 탄. 곧게 날아가다 몬스터(날아다니는 몬스터 포함)에 맞거나 사거리를 넘으면 사라진다.
+## 네크로맨서의 기본 공격 탄. 곧게 날아가다 몬스터(날아다니는 몬스터 포함)에 맞거나, 벽에 닿거나, 사거리를 넘으면 사라진다.
 ## 맞히면 hit_target으로 알린다 (밸런스 측정에서 명중률을 셀 때 쓴다).
 
 signal hit_target(body: Node2D)
 ## 속도·피해·사거리·크기는 쏘는 쪽(Necromancer)이 공격 데이터(AttackData)에서 정해서 넣는다.
+
+## 닿으면 사라지는 벽의 충돌층
+@export_flags_2d_physics var wall_mask: int = 1
 
 @export_group("임시 도형")
 @export var placeholder_color: Color = Color(0.17254902, 0.9098039, 0.9607843, 1)
@@ -33,6 +36,13 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	var step: float = speed * delta
+	# 이번에 움직일 선에 벽이 있으면 사라진다. 몬스터는 Area2D의 겹침(body_entered)으로 맞히지만,
+	# 벽(StaticBody2D)은 겹침으로 잡히지 않아서 선으로 따로 확인한다 (빠른 탄이 얇은 벽을 건너뛰지도 않는다).
+	var ray: PhysicsRayQueryParameters2D = PhysicsRayQueryParameters2D.create(global_position, global_position + direction * step, wall_mask)
+	# 트리 밖(단위 테스트에서 직접 부를 때)에는 물리 공간이 없어서 건너뛴다.
+	if is_inside_tree() and not get_world_2d().direct_space_state.intersect_ray(ray).is_empty():
+		queue_free()
+		return
 	position += direction * step
 	_traveled += step
 	if _traveled >= max_distance:

@@ -108,9 +108,9 @@ func _approach(body: CharacterBody2D, stats: CombatStats, target: Node2D) -> voi
 	if target == null:
 		body.velocity = Vector2.ZERO
 		return
-	var to_target: Vector2 = target.global_position - body.global_position
-	if to_target.length() > charge_range:
-		body.velocity = to_target.normalized() * stats.move_speed
+	# 돌진 거리 안이어도 벽이 가로막으면 돌진하지 않고 돌아서 다가간다.
+	if body.global_position.distance_to(target.global_position) > charge_range or not has_clear_line(body, target):
+		body.velocity = move_direction(body, target.global_position) * stats.move_speed
 		return
 	body.velocity = Vector2.ZERO
 	_state = State.WINDUP

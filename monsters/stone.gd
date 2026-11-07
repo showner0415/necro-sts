@@ -6,6 +6,9 @@ extends Area2D
 ## - max_distance를 다 날면 사라진다
 ## 속도·피해·사거리·적 그룹은 던지는 쪽(행동 조각 ThrowBehavior)이 정해서 넣는다.
 
+## 닿으면 멈추는 벽의 충돌층
+@export_flags_2d_physics var wall_mask: int = 1
+
 @export_group("임시 도형")
 ## 돌 색 (Endesga 32의 c28569)
 @export var placeholder_color: Color = Color(0.7607843, 0.52156866, 0.4117647, 1)
@@ -36,6 +39,12 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	var step: float = speed * delta
+	# 벽(StaticBody2D)은 Area2D의 겹침으로 잡히지 않아서, 이번에 움직일 선에 벽이 있는지 따로 확인한다.
+	var ray: PhysicsRayQueryParameters2D = PhysicsRayQueryParameters2D.create(global_position, global_position + direction * step, wall_mask)
+	# 트리 밖(단위 테스트에서 직접 부를 때)에는 물리 공간이 없어서 건너뛴다.
+	if is_inside_tree() and not get_world_2d().direct_space_state.intersect_ray(ray).is_empty():
+		queue_free()
+		return
 	position += direction * step
 	_traveled += step
 	if _traveled >= max_distance:
