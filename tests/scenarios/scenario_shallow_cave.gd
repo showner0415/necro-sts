@@ -1,10 +1,11 @@
 extends ScenarioTest
 ## 시나리오: 얕은 굴(앞쪽 절반) 그레이박스. 배치 PNG(art_src/maps/shallow_cave.png)와 만든 씬(regions/shallow_cave.tscn)을 같이 본다.
 ## 1. 씬이 PNG(를 다듬은 결과)와 같다 (PNG를 고치고 tools/map_from_png.gd를 다시 돌리지 않았으면 실패). 바닥은 최소 2칸, 모든 물건에 걸어서 닿음. 쥐·상자·탈출 지점 수
-## 2. 쥐가 사는 굴들이 고리로 이어져 있다 (입구 굴·쥐 둥지·물웅덩이 굴 사이에 돌아오는 길이 있다)
+## 2. 쥐가 사는 굴들이 고리로 이어져 있다 (입구 굴·쥐 둥지·물웅덩이 굴과 그 사이를 잇는 작은 굴 사이에 돌아오는 길이 있다)
 ## 3. 막다른 굴(상자가 있고 입구가 하나인 굴)이 있고, 입구가 하나다
 ## 4. 구간별 걷기 시간: 도착 지점 → 입구 굴, 입구 굴 → 갈림 굴 (걷기, 몬스터는 없앰). 문서 기준값(약 10초, 약 30초)과 함께 출력한다
-## 5. 지역을 나갔다 다시 들어오면 몬스터가 처음 상태로 다시 놓인다 (임시 규칙)
+## 5. 쥐 언데드 2마리를 데리고, 이어진 두 굴 사이를 모두 한 번씩 오간다 (순서는 PNG의 굴 연결에서 만든다). 굴에 닿을 때마다 2마리 모두 따라와 곁에 모인다 (휘어진 통로에서 걸리지 않음)
+## 6. 지역을 나갔다 다시 들어오면 몬스터가 처음 상태로 다시 놓인다 (임시 규칙)
 ## 굴 찾기: 입구 굴 = 탈출 지점이 있는 굴, 갈림 굴 = 입구 굴에서 굴 두 개 건너에 있는, 입구가 셋 이상인 굴.
 
 const MAP_PNG: String = "res://art_src/maps/shallow_cave.png"
@@ -22,6 +23,14 @@ const WALK_TIMEOUT_FRAMES: int = 60 * 90
 const SETTLE_FRAMES: int = 6
 const SCENE_TIMEOUT_FRAMES: int = 300
 const TILE: float = 32.0
+const RAT_SKULL_PATH: String = "res://data/skulls/rat_skull.tres"
+const BONE_PATH: String = "res://data/items/bone.tres"
+const BONES: int = 20
+## 굴에 닿은 뒤 언데드가 모여야 하는 시간 (프레임)과 거리 (픽셀). 시험 통로 시나리오(scenario_pathfinding.gd)와 같다
+const GATHER_FRAMES: int = 300
+const GATHER_DISTANCE: float = 40.0
+## 오래 걷는 동안 쥐 2마리의 유지비로 마나가 바닥나 해제되지 않게 올려 두는 자연 회복 (초당)
+const TEST_MANA_REGEN: float = 10.0
 
 var _layout: MapLayout
 
@@ -65,6 +74,8 @@ func _run() -> void:
 	if not _dead_end():
 		return
 	if not await _walk_times(entrance):
+		return
+	if not await _undead_follow():
 		return
 	if not await _monsters_reset():
 		return
@@ -111,6 +122,15 @@ func _ring(entrance: int) -> bool:
 	for room: int in rat_rooms:
 		if room != entrance and _layout.rooms[entrance].neighbors.has(room):
 			ring.append(room)
+	# 그 쥐 굴들 사이를 잇는 작은 굴(입구 둘, 고리 안의 두 굴과 이어짐)도 고리에 든다
+	var linked: Array[int] = ring.duplicate()
+	for i: int in _layout.rooms.size():
+		var touching: int = 0
+		for room: int in linked:
+			if _layout.rooms[i].neighbors.has(room):
+				touching += 1
+		if not ring.has(i) and _layout.rooms[i].entrances == 2 and touching >= 2:
+			ring.append(i)
 	var ok: bool = ring.size() >= 3 and _layout.has_cycle(ring)
 	return _check("쥐 굴들이 고리로 이어짐", ok, "쥐가 사는 굴 %s, 입구 굴(%d)과 이어진 쥐 굴까지 %s 사이에 고리 %s / %s" % [
 		rat_rooms, entrance, ring, _layout.has_cycle(ring), " | ".join(_layout.describe_rooms())])
@@ -179,7 +199,69 @@ func _walk_to(necromancer: Necromancer, goal: Vector2) -> float:
 	return frames / float(Engine.physics_ticks_per_second)
 
 
-# --- 5. 다시 들어오면 몬스터가 다시 놓임 ---
+# --- 5. 언데드 2마리가 통로를 따라옴 ---
+
+func _undead_follow() -> bool:
+	var necromancer: Necromancer = find_necromancer()
+	necromancer.mana.regen_per_second = TEST_MANA_REGEN
+	var hotbar: Hotbar = root.get_node("GameState").hotbar
+	necromancer.inventory.try_add(ItemStack.of_item(load(BONE_PATH), BONES))
+	for i: int in 2:
+		var skull: Skull = Skull.create(load(RAT_SKULL_PATH))
+		necromancer.inventory.try_add(ItemStack.of_skull(skull))
+		hotbar.assign(i, skull)
+		hotbar.select(i)
+		necromancer.summoner.toggle_selected()
+	await wait_frames(SETTLE_FRAMES)
+	var undead: Array[Node] = get_nodes_in_group(&"undead")
+	if not _check("쥐 언데드 2마리 소환", undead.size() == 2, "언데드 %d마리" % undead.size()):
+		return false
+	var route: Array[int] = _follow_route(_layout.room_at(Vector2i((necromancer.global_position / TILE).floor())))
+	if not _check("굴 사이를 모두 오가는 순서", route.size() >= 2, "출발 굴 %d, 도착할 굴 %s" % [_layout.room_at(Vector2i((necromancer.global_position / TILE).floor())), route]):
+		return false
+	var legs: PackedStringArray = []
+	var worst_gather: int = 0
+	for room: int in route:
+		var center: Vector2 = _layout.rooms[room].center.round()
+		var walked: float = await _walk_to(necromancer, _room_center(room))
+		if walked < 0.0:
+			return _check("언데드 2마리가 통로를 따라옴", false, "굴 %d(칸 %s)에 닿지 못함 (지난 구간 %s)" % [room, center, ", ".join(legs)])
+		var gathered: int = -1
+		for frame: int in GATHER_FRAMES:
+			if get_nodes_in_group(&"undead").all(func(u: Node) -> bool: return (u as Node2D).global_position.distance_to(necromancer.global_position) <= GATHER_DISTANCE):
+				gathered = frame
+				break
+			await wait_frames(1)
+		var count: int = get_nodes_in_group(&"undead").size()
+		if gathered < 0 or count != 2:
+			var distances: PackedStringArray = []
+			for u: Node in get_nodes_in_group(&"undead"):
+				distances.append("%.0f (칸 %s)" % [(u as Node2D).global_position.distance_to(necromancer.global_position), ((u as Node2D).global_position / TILE).snapped(Vector2(0.1, 0.1))])
+			return _check("언데드 2마리가 통로를 따라옴", false, "칸 %s에서 %d프레임 안에 모이지 않음: 언데드 %d마리, 거리 %s (지난 구간 %s)" % [center, GATHER_FRAMES, count, ", ".join(distances), ", ".join(legs)])
+		worst_gather = maxi(worst_gather, gathered)
+		legs.append("굴 %d %.1f초/%d프레임" % [room, walked, gathered])
+	return _check("언데드 2마리가 통로를 따라옴", true, "굴 사이 통로 %d개를 모두 오감 (%d구간), 굴마다 (걷기 / 멈춘 뒤 모두 %.0f 안에 모이기까지): %s, 가장 늦게 모인 것 %d프레임" % [route.size() / 2, route.size(), GATHER_DISTANCE, ", ".join(legs), worst_gather])
+
+
+## start에서 이어진 굴로 갔다가 돌아오기를 되풀이해, 이어진 두 굴 사이를 모두 한 번씩 오가는 굴 순서 (start는 빼고 도착하는 굴들)
+func _follow_route(start: int) -> Array[int]:
+	var route: Array[int] = []
+	_visit_links(start, route, {})
+	return route
+
+
+func _visit_links(room: int, route: Array[int], used: Dictionary) -> void:
+	for next: int in _layout.rooms[room].neighbors:
+		var key: Vector2i = Vector2i(mini(room, next), maxi(room, next))
+		if used.has(key):
+			continue
+		used[key] = true
+		route.append(next)
+		_visit_links(next, route, used)
+		route.append(room)
+
+
+# --- 6. 다시 들어오면 몬스터가 다시 놓임 ---
 
 func _monsters_reset() -> bool:
 	current_scene.call(&"travel_to", load(BASE_REGION))
