@@ -54,6 +54,14 @@ func set_solid(cell: Vector2i, solid: bool = true) -> void:
 	_solid_count += 1 if solid else -1
 
 
+## row 줄의 from 칸부터 to 칸 앞까지를 한 번에 막는다. 막힌 칸이 없던 새 격자에만 쓴다 (칸마다 set_solid를 부르는 것보다 훨씬 빠르다).
+func fill_solid_run(row: int, from: int, to: int) -> void:
+	if to <= from:
+		return
+	_astar.fill_solid_region(Rect2i(from, row, to - from, 1), true)
+	_solid_count += to - from
+
+
 func is_solid(cell: Vector2i) -> bool:
 	return _astar.is_point_solid(cell)
 

@@ -125,7 +125,8 @@ func _build(layout: MapLayout, rows: PackedStringArray, region_path: String, roo
 		walls.append('"%s": %s' % [c, _color(WALL_COLORS[c])])
 	nodes.append('[node name="Walls" type="Node2D" parent="."]\nscript = %s\nlayout = PackedStringArray(%s)\nwall_chars = "%s"\nwall_colors = Dictionary[String, Color]({%s})\nfloor_colors = Dictionary[String, PackedColorArray]({%s})\n' % [
 		_id("res://regions/placeholder_walls.gd", "Script"), ", ".join(quoted), MapLayout.WALL_CHARS, ", ".join(walls), ", ".join(floors)])
-	nodes.append('[node name="NavigationGrid" type="Node" parent="."]\nscript = %s\nbounds = Rect2(0, 0, %d, %d)\ncell_size = %s\n' % [
+	# 벽이 모두 타일이라, 막힌 칸을 물리 질의 대신 벽 타일에서 바로 계산하게 한다.
+	nodes.append('[node name="NavigationGrid" type="Node" parent="."]\nscript = %s\nbounds = Rect2(0, 0, %d, %d)\ncell_size = %s\nwall_tiles = NodePath("../Walls")\n' % [
 		_id("res://regions/navigation_grid.gd", "Script"), layout.size.x * TILE_SIZE, layout.size.y * TILE_SIZE, NAV_CELL_SIZE])
 
 	var escapes: Array[Vector2i] = layout.cells_of("escape")

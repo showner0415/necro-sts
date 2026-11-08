@@ -35,6 +35,7 @@ floor_colors = Dictionary[String, PackedColorArray]({".": PackedColorArray(0.227
 script = ExtResource("5_navigation_grid")
 bounds = Rect2(0, 0, 7680, 3712)
 cell_size = 16.0
+wall_tiles = NodePath("../Walls")
 
 [node name="EscapePoint1" parent="." instance=ExtResource("6_escape_point")]
 position = Vector2(5712.0, 1712.0)

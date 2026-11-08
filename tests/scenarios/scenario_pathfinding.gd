@@ -1,6 +1,6 @@
 extends ScenarioTest
 ## 시나리오: 길찾기. 시험 통로(regions/test_corridor.tscn)에서 시작한다.
-## 1. 통로의 벽으로 막힌 칸이 정해짐 (멧돼지 크기도 좁은 길목을 지나갈 수 있음)
+## 1. 통로의 벽으로 막힌 칸이 정해짐 (멧돼지 크기도 좁은 길목을 지나갈 수 있음). 벽 타일에서 바로 계산한 막힌 칸이 물리 질의로 잰 것과 같음
 ## 2. 쥐 언데드 2마리를 데리고 모퉁이 5번 꺾이는 통로와 좁은 길목을 지나가면, 2마리 모두 따라와 네크로맨서 곁에 모임. 멈춘 뒤에는 언데드끼리 떨어져 선다
 ## 3. 막다른 굴의 쥐는 감지 거리 안이어도 벽 너머 네크로맨서를 감지하지 못함
 ## 4. 쥐가 보던 네크로맨서가 벽 뒤로 숨으면, 놓친 대상을 쫓아 꺾인 길로 돌아서 옴
@@ -13,6 +13,7 @@ extends ScenarioTest
 
 const CORRIDOR_SCENE: String = "res://regions/test_corridor.tscn"
 const MONSTER_SCENE: String = "res://monsters/monster.tscn"
+const NAV_GRID_CHECK = preload("res://tests/nav_grid_check.gd")
 const RAT_PATH: String = "res://data/monsters/rat.tres"
 const BOAR_PATH: String = "res://data/monsters/boar.tres"
 const RAT_SKULL_PATH: String = "res://data/skulls/rat_skull.tres"
@@ -159,6 +160,10 @@ func _grid_ready() -> bool:
 	var floor_cell: Vector2i = rat_grid.world_to_cell(_tile(Vector2(14, 3)))
 	# 좁은 길목(한 칸)의 가운데. 몸 가운데는 발밑보다 위에 있지만, 칸 줄 가운데에서 재면 된다.
 	var choke_cell: Vector2i = boar_grid.world_to_cell(_tile(Vector2(24, 11.5)))
+	# 막힌 칸은 벽 타일에서 바로 계산한다. 물리 질의로 잰 것과 같아야 한다 (칸 8px이라 몸이 타일 경계에 딱 닿는 경우가 있다).
+	var same: Dictionary = NAV_GRID_CHECK.compare(_nav, _walls as PlaceholderWalls, _necromancer.body_radius)
+	if not _check("타일로 잰 막힌 칸이 물리 질의와 같음", same.ok and not _nav.wall_tiles.is_empty(), "wall_tiles %s, %s" % [_nav.wall_tiles, ", ".join(same.lines)]):
+		return false
 	return _check("통로의 막힌 칸", _nav.has_walls() and rat_grid.is_solid(wall_cell) and not rat_grid.is_solid(floor_cell) and not boar_grid.is_solid(choke_cell),
 			"벽 있음 %s, 쥐: 벽 칸 막힘 %s·통로 칸 막힘 %s, 멧돼지: 좁은 길목 칸 막힘 %s" % [_nav.has_walls(), rat_grid.is_solid(wall_cell), rat_grid.is_solid(floor_cell), boar_grid.is_solid(choke_cell)])
 

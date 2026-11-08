@@ -1,6 +1,7 @@
 extends ScenarioTest
 ## 시나리오: 얕은 굴 그레이박스. 배치 PNG(art_src/maps/shallow_cave.png)와 만든 씬(regions/shallow_cave.tscn)을 같이 본다.
 ## 1. 씬이 PNG(를 다듬은 결과)와 같다 (PNG를 고치고 tools/map_from_png.gd를 다시 돌리지 않았으면 실패). 바닥은 최소 2칸, 모든 물건에 걸어서 닿음. 몬스터·상자·탈출 지점 수
+## 1-1. 길찾기 격자: 벽 타일에서 바로 계산한 막힌 칸이 물리 질의로 잰 것과 같다 (두 방법의 시간 출력)
 ## 2. 굴 역할을 찾고, 굴마다 입구 수와 이어진 굴이 설계 문서(docs/maps/shallow_cave_design.md 배치도)와 같다. 2칸 길목은 "좁은 길목 8곳" 표의 통로에만 있다
 ## 3. 쥐가 사는 굴들이 고리로 이어져 있다 (입구 굴·쥐 둥지·물웅덩이 굴과 그 사이를 잇는 작은 굴 사이에 돌아오는 길이 있다)
 ## 4. 상자가 있고 굴 하나에만 이어진 굴(막다른 굴, 둥지 뒷굴)은 입구가 하나다
@@ -84,6 +85,7 @@ const BAT_DETECT_DEPTH: float = 3.0
 ## 5-1. 몰래 가는 길은 박쥐 감지 범위보다 이만큼(픽셀) 더 떨어져 지나야 한다. 박쥐는 싸우지 않을 때 배회하므로(초당 15px), 둥지에 닿기까지 옮겨 간 만큼의 여유
 const BAT_SNEAK_MARGIN: float = 96.0
 const BAT_PATHS = preload("res://tests/bat_nest_paths.gd")
+const NAV_GRID_CHECK = preload("res://tests/nav_grid_check.gd")
 ## 5-2. 멧돼지가 화면 가장자리에서 이만큼(픽셀) 안쪽에 있어야 보인다고 본다
 const BOAR_VIEW_MARGIN: float = 16.0
 const BOAR_PATH: String = "res://data/monsters/boar.tres"
@@ -137,6 +139,8 @@ func _run() -> void:
 	_layout = MapLayout.from_file(MAP_PNG)
 	await wait_frames(SETTLE_FRAMES)
 	if not await _matches_png():
+		return
+	if not _tile_grid_matches():
 		return
 	if not _find_roles():
 		return
@@ -397,6 +401,14 @@ func _visible_world_rect() -> Rect2:
 	var center: Vector2 = inverse * (viewport.get_visible_rect().size * 0.5)
 	var size: Vector2 = inverse.basis_xform(Vector2(ProjectSettings.get_setting("display/window/size/viewport_width"), ProjectSettings.get_setting("display/window/size/viewport_height")))
 	return Rect2(center - size * 0.5, size)
+
+
+## 1-1. 길찾기 격자: 막힌 칸을 벽 타일에서 바로 계산하고(빠름), 그 결과가 물리 질의로 잰 것과 같다. 두 방법에 걸린 시간을 출력한다.
+func _tile_grid_matches() -> bool:
+	var nav: NavigationGrid = current_scene.get_node("NavigationGrid")
+	var same: Dictionary = NAV_GRID_CHECK.compare(nav, current_scene.get_node("Walls") as PlaceholderWalls, find_necromancer().body_radius)
+	return _check("길찾기 격자: 타일로 잰 막힌 칸이 물리 질의와 같음", same.ok and not nav.wall_tiles.is_empty(), "wall_tiles %s, 몸 크기 %d가지 합계 타일 %dms / 물리 %dms: %s" % [
+		nav.wall_tiles, same.lines.size(), same.tile_ms, same.physics_ms, ", ".join(same.lines)])
 
 
 ## start에서 4방향으로 걸어 닿는 바닥 칸마다 걸음 수

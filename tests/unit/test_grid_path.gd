@@ -69,3 +69,13 @@ func test_unreachable_goal_gives_partial_path() -> void:
 	var path: PackedVector2Array = grid.find_path(grid.cell_to_world(Vector2i(1, 1)), goal)
 	assert_true(path.size() > 0, "닿을 수 없어도 가까운 곳까지의 길이 있다")
 	assert_ne(path[path.size() - 1], goal, "목표 칸까지는 가지 못한다")
+
+
+func test_fill_solid_run_blocks_cells_in_row() -> void:
+	grid.fill_solid_run(3, 2, 6)
+	for x: int in 10:
+		assert_eq(grid.is_solid(Vector2i(x, 3)), x >= 2 and x < 6, "줄 3의 칸 %d" % x)
+	assert_false(grid.is_solid(Vector2i(2, 2)), "다른 줄은 그대로")
+	assert_true(grid.has_solid(), "막힌 칸이 생김")
+	grid.fill_solid_run(4, 5, 5)
+	assert_false(grid.is_solid(Vector2i(5, 4)), "빈 구간은 아무것도 막지 않음")

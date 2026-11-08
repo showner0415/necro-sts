@@ -31,6 +31,7 @@ layout = PackedStringArray("##############################", "#......###########
 [node name="NavigationGrid" type="Node" parent="."]
 script = ExtResource("6_nav")
 bounds = Rect2(-480, -288, 960, 576)
+wall_tiles = NodePath("../Walls")
 
 [node name="EscapePoint" parent="." instance=ExtResource("7_escape")]
 position = Vector2(384, 64)
