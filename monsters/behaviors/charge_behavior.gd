@@ -3,7 +3,7 @@ extends MonsterBehavior
 ## 행동 조각 "돌진하기". 돌진 거리 밖이면 대상에게 다가가기만 하고(공격하지 않음), 안이면 예고 → 돌진 → 멈칫을 반복한다.
 ## - 예고: 제자리에 멈춰 깜빡이고 바닥에 돌진 방향 선을 그린다. 선은 대상을 따라 돌다가 끝나기 lock_time초 전에 고정된다
 ## - 돌진: 고정된 방향으로, 돌진을 시작할 때 노린 대상이 있던 자리를 지나 overshoot_distance만큼 더 달린다 (최대 charge_distance).
-##   벽(world_collision_mask)에 부딪히면 그 자리에서 끝난다
+##   벽(world_collision_mask)에 부딪히면 그 자리에서 끝난다. 돌진 방향으로 벽까지 min_charge_room도 못 가면 예고·돌진을 시작하지 않고 다가가기를 계속한다
 ##   돌진하는 동안 몸끼리는 부딪히지 않고 지나간다 (자기 충돌층을 비워서 상대도 이 몸에 밀리지 않는다). 닿은 상대마다 한 번만 피해(stats.contact_damage)를 주고 밀쳐낸다
 ## - 멈칫: recover_time초 동안 멈춘다 (때릴 기회)
 ## 노리는 대상은 다가가는 중에만 바뀐다. 예고를 시작할 때의 대상을 멈칫이 끝날 때까지 유지한다.
@@ -23,6 +23,9 @@ enum State { APPROACH, WINDUP, CHARGE, RECOVER }
 @export var charge_distance: float = 120.0
 ## 노린 대상이 있던 자리를 지나 더 달리는 거리 (픽셀). 언데드를 노린 돌진이 그 뒤의 네크로맨서까지 오지 않게 한다.
 @export var overshoot_distance: float = 40.0
+## 돌진 방향으로 벽(world_collision_mask)에 닿기까지 이 거리(픽셀)도 못 가면 돌진하지 않는다.
+## 예고를 시작할 때와 돌진을 시작할 때 실제 몸 모양으로 잰다. 길목에 끼여 제자리 돌진으로 붙어 있는 상대를 치지 않게 한다.
+@export var min_charge_room: float = 64.0
 ## 돌진이 끝난 뒤 멈춰 있는 시간 (초)
 @export var recover_time: float = 1.2
 ## 상대의 발밑이 이 거리 안에 들어오면 돌진에 맞는다 (픽셀)
@@ -109,7 +112,9 @@ func _approach(body: CharacterBody2D, stats: CombatStats, target: Node2D) -> voi
 		body.velocity = Vector2.ZERO
 		return
 	# 돌진 거리 안이어도 벽이 가로막으면 돌진하지 않고 돌아서 다가간다.
-	if body.global_position.distance_to(target.global_position) > charge_range or not has_clear_line(body, target):
+	# 벽에 막혀 돌진할 거리가 너무 짧아도 돌진하지 않고 다가가기를 계속한다.
+	if body.global_position.distance_to(target.global_position) > charge_range or not has_clear_line(body, target) \
+			or get_room(body, body.global_position.direction_to(target.global_position)) < min_charge_room:
 		body.velocity = move_direction(body, target.global_position) * stats.move_speed
 		return
 	body.velocity = Vector2.ZERO
@@ -126,6 +131,11 @@ func _windup(body: CharacterBody2D, delta: float) -> void:
 		_aim_at(body, _locked_target)
 	_timer += delta
 	if _timer >= windup_time:
+		# 고정된 방향이 벽에 막혀 거리가 너무 짧으면 돌진하지 않고 다시 다가간다 (멈칫도 없다).
+		if get_room(body, _direction) < min_charge_room:
+			_state = State.APPROACH
+			_locked_target = null
+			return
 		_state = State.CHARGE
 		_charge_start = body.global_position
 		_charge_length = get_charge_length(body.global_position)
@@ -155,6 +165,22 @@ func get_charge_length(from: Vector2) -> float:
 	if not is_instance_valid(_locked_target):
 		return charge_distance
 	return minf(from.distance_to(_locked_target.global_position) + overshoot_distance, charge_distance)
+
+
+## body가 direction으로 곧장 갈 때 벽(world_collision_mask)에 닿기 전까지 갈 수 있는 거리 (최대 charge_distance).
+## 몸의 실제 충돌 모양(자식 CollisionShape2D)으로 잰다. 트리 밖이거나 모양이 없으면 charge_distance.
+func get_room(body: CharacterBody2D, direction: Vector2) -> float:
+	var shape_node: CollisionShape2D = body.get_node_or_null(^"CollisionShape2D") as CollisionShape2D
+	if not body.is_inside_tree() or shape_node == null or shape_node.shape == null or direction == Vector2.ZERO:
+		return charge_distance
+	var params: PhysicsShapeQueryParameters2D = PhysicsShapeQueryParameters2D.new()
+	params.shape = shape_node.shape
+	params.transform = shape_node.global_transform
+	params.motion = direction.normalized() * charge_distance
+	params.collision_mask = world_collision_mask
+	params.exclude = [body.get_rid()]
+	var result: PackedFloat32Array = body.get_world_2d().direct_space_state.cast_motion(params)
+	return result[0] * charge_distance if result.size() > 0 else charge_distance
 
 
 func _end_charge(body: CharacterBody2D) -> void:

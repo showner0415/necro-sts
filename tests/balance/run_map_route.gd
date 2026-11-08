@@ -10,6 +10,7 @@ extends ScenarioTest
 ## 전부 (헤드리스, 빠르게):
 ##   bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_map_route.gd
 ## 일부만: -- --routes=bat --skills=normal --undead=0 --runs=3
+## 물러나기도 재려면: --retreat=0,1 (1: 언데드를 모두 잃거나 체력이 절반 이하면 싸움을 그만두고 합류 굴의 탈출 B로 물러난다)
 ## 창으로 보기 (실제 속도, 한 판):
 ##   bash tools/godot.sh --path . -s tests/balance/run_map_route.gd -- --routes=boar --skills=normal --undead=2 --runs=1
 
@@ -24,6 +25,8 @@ const BAT_PATHS = preload("res://tests/bat_nest_paths.gd")
 const NEST_WAYPOINT_EVERY: int = 3
 ## 몰래 가는 길이 박쥐 감지 범위에서 더 떨어져 지나는 여유 (픽셀). scenario_shallow_cave.gd의 BAT_SNEAK_MARGIN과 같다
 const NEST_SNEAK_MARGIN: float = 96.0
+## 물러나기 조건: 체력이 최대의 이 비율 이하
+const RETREAT_HEALTH_RATIO: float = 0.5
 const TILE: float = 32.0
 ## 길: 이름, 출발 굴, 지나갈 굴들, 몬스터를 남길 굴들 (모두 굴 역할 이름, _find_roles).
 ## via_monsters가 있으면 굴 대신 남긴 몬스터 중 그 종류가 처음 놓인 자리를, 가까운 것부터 차례로 찾아간다 (일부러 싸우러 갈 때)
@@ -46,6 +49,11 @@ const SETTLE_FRAMES: int = 6
 var _routes: Array[StringName] = [&"bat", &"bat_direct", &"bat_sneak", &"boar", &"boar_hunt"]
 var _skills: Array[StringName] = [&"skilled", &"normal", &"novice"]
 var _undead_counts: Array[int] = [0, 2]
+## 0: 끝까지 싸우기, 1: 언데드를 모두 잃거나 체력이 RETREAT_HEALTH_RATIO 이하면 합류 굴의 탈출 B로 물러나기
+var _retreats: Array[int] = [0]
+## 잴 지역 씬과 그 배치 PNG (다른 판의 맵과 비교할 때 --scene=, --png=로 바꾼다)
+var _scene: String = CAVE_SCENE
+var _png: String = MAP_PNG
 var _runs: int = DEFAULT_RUNS
 var _timeout: float = DEFAULT_TIMEOUT
 var _layout: MapLayout
@@ -53,12 +61,12 @@ var _roles: Dictionary = {}
 
 
 func get_start_scene() -> String:
-	return CAVE_SCENE
+	_parse_args()
+	return _scene
 
 
 func _on_scene_ready() -> void:
-	_parse_args()
-	_layout = MapLayout.from_file(MAP_PNG)
+	_layout = MapLayout.from_file(_png)
 	_find_roles()
 	_run_all()
 
@@ -78,6 +86,12 @@ func _parse_args() -> void:
 				_undead_counts.assign(Array(values).map(func(v: String) -> int: return int(v)))
 			"runs":
 				_runs = int(parts[1])
+			"retreat":
+				_retreats.assign(Array(values).map(func(v: String) -> int: return int(v)))
+			"scene":
+				_scene = parts[1]
+			"png":
+				_png = parts[1]
 			"timeout":
 				_timeout = float(parts[1])
 
@@ -102,22 +116,23 @@ func _find_roles() -> void:
 
 func _run_all() -> void:
 	var lines: PackedStringArray = []
-	lines.append("| 길 | 조건 | 실력 | 판 | 죽음 | 지나간 시간 (살아남은 판) | 받은 피해 평균 / 최대 | 잡은 수 / 남긴 몬스터 | 언데드 죽음 | 시간 초과 | 명중률 |")
-	lines.append("|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|")
+	lines.append("| 길 | 조건 | 물러나기 | 실력 | 판 | 죽음 | 물러나 탈출 | 지나간 시간 (살아남은 판) | 받은 피해 평균 / 최대 | 잡은 수 / 남긴 몬스터 | 언데드 죽음 | 언데드가 같은 프레임에 함께 죽은 판 / 언데드가 죽은 판 | 시간 초과 | 명중률 |")
+	lines.append("|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
 	for route_id: StringName in _routes:
 		for undead_count: int in _undead_counts:
-			for skill_id: StringName in _skills:
-				var results: Array[Dictionary] = []
-				for run: int in _runs:
-					results.append(await _pass(route_id, undead_count, skill_id, run))
-				lines.append(_row(route_id, undead_count, skill_id, results))
-				print(lines[-1])
+			for retreat: int in _retreats:
+				for skill_id: StringName in _skills:
+					var results: Array[Dictionary] = []
+					for run: int in _runs:
+						results.append(await _pass(route_id, undead_count, skill_id, run, retreat == 1))
+					lines.append(_row(route_id, undead_count, retreat == 1, skill_id, results))
+					print(lines[-1])
 	print("")
 	print("\n".join(lines))
 	finish(true)
 
 
-func _pass(route_id: StringName, undead_count: int, skill_id: StringName, run: int) -> Dictionary:
+func _pass(route_id: StringName, undead_count: int, skill_id: StringName, run: int, retreat: bool) -> Dictionary:
 	await _reload_scene()
 	seed(BASE_SEED + run)
 	var route: Dictionary = ROUTES[route_id]
@@ -164,7 +179,11 @@ func _pass(route_id: StringName, undead_count: int, skill_id: StringName, run: i
 			from = spots.pop_front()
 			goals.append(from)
 	var follower: PathFollower = PathFollower.new(Vector2(necromancer.body_radius, necromancer.body_radius), Vector2(0, -necromancer.body_radius))
-	var result: Dictionary = {"died": false, "timeout": false}
+	var result: Dictionary = {"died": false, "timeout": false, "escaped": false}
+	var escape_point: Vector2 = Vector2.ZERO
+	for cell: Vector2i in _layout.cells_of("escape"):
+		if _layout.room_at(cell) == _roles.junction:
+			escape_point = (Vector2(cell) + Vector2(0.5, 0.5)) * TILE
 	var max_health: float = necromancer.max_health
 	necromancer.died.connect(func() -> void: result["died"] = true)
 	var time: float = 0.0
@@ -177,15 +196,26 @@ func _pass(route_id: StringName, undead_count: int, skill_id: StringName, run: i
 			if monster.health <= 0.0:
 				killed_set[monster.get_instance_id()] = true)
 	var fighting: bool = false
+	## 탈출하면 네크로맨서가 씬과 함께 사라지므로, 마지막으로 본 체력을 남겨 둔다
+	var last_health: float = max_health
 	while true:
 		await physics_frame
 		time += delta
-		if result["died"] or not is_instance_valid(necromancer):
-			result["died"] = true
+		if result["died"]:
+			break
+		# 죽지 않았는데 지역 씬이 바뀌었으면 탈출 B로 거점에 간 것이다.
+		if not is_instance_valid(necromancer) or current_scene == null or current_scene.scene_file_path != _scene:
+			result["escaped"] = true
 			break
 		if time >= _timeout:
 			result["timeout"] = true
 			break
+		last_health = necromancer.health
+		if retreat and not bot.retreating and (necromancer.health <= max_health * RETREAT_HEALTH_RATIO or bot.lost_all_undead()):
+			bot.retreat_to(escape_point)
+		if bot.retreating:
+			bot.tick(delta)
+			continue
 		var engaged: bool = false
 		for monster: Variant in kept:
 			if is_instance_valid(monster) and not (monster as Monster).is_queued_for_deletion() and (monster as Monster).health > 0.0 and (monster as Monster).get_target() != null:
@@ -204,10 +234,17 @@ func _pass(route_id: StringName, undead_count: int, skill_id: StringName, run: i
 			press_moves(Vector2.ZERO)
 			continue
 		press_moves(follower.get_direction(necromancer, goals[goal_index]))
-	bot.release_all()
+	if not result["escaped"]:
+		bot.release_all()
 	bot.finish_tracking(result["died"])
 	result["time"] = time
-	result["damage"] = max_health if result["died"] else max_health - necromancer.health
+	result["damage"] = max_health if result["died"] else (max_health - necromancer.health if is_instance_valid(necromancer) else max_health - last_health)
+	# 언데드 둘 이상이 같은 물리 프레임에 죽은 판정이 되었는지
+	var frames: Dictionary = {}
+	result["undead_same_frame"] = false
+	for frame: int in bot.undead_death_frames:
+		result["undead_same_frame"] = result["undead_same_frame"] or frames.has(frame)
+		frames[frame] = true
 	result["killed"] = killed_set.size()
 	result["kept"] = kept.size()
 	result["shots"] = bot.shots
@@ -239,13 +276,16 @@ func _reload_scene() -> void:
 	await physics_frame
 	root.get_node("GameState").call(&"reset_after_death")
 	var old_scene: Node = current_scene
-	change_scene_to_file(CAVE_SCENE)
+	change_scene_to_file(_scene)
 	while current_scene == old_scene or current_scene == null or not current_scene.is_node_ready():
 		await physics_frame
 
 
-func _row(route_id: StringName, undead_count: int, skill_id: StringName, results: Array[Dictionary]) -> String:
+func _row(route_id: StringName, undead_count: int, retreat: bool, skill_id: StringName, results: Array[Dictionary]) -> String:
 	var died: int = results.filter(func(r: Dictionary) -> bool: return r["died"]).size()
+	var escaped: int = results.filter(func(r: Dictionary) -> bool: return r["escaped"]).size()
+	var same_frame: int = results.filter(func(r: Dictionary) -> bool: return r["undead_same_frame"]).size()
+	var undead_lost_runs: int = results.filter(func(r: Dictionary) -> bool: return r["undead_died"] > 0).size()
 	var timeouts: int = results.filter(func(r: Dictionary) -> bool: return r["timeout"]).size()
 	var alive: Array = results.filter(func(r: Dictionary) -> bool: return not r["died"] and not r["timeout"])
 	var times: Array = alive.map(func(r: Dictionary) -> float: return r["time"])
@@ -261,10 +301,10 @@ func _row(route_id: StringName, undead_count: int, skill_id: StringName, results
 		killed += r["killed"]
 		kept += r["kept"]
 		undead_died += r["undead_died"]
-	return "| %s | %s | %s | %d | %.0f%% | %s | %.1f / %.1f | %.1f / %d | %.1f | %d | %s |" % [
-		ROUTES[route_id]["name"], "혼자" if undead_count == 0 else "쥐 언데드 %d" % undead_count, PlayerBot.SKILLS[skill_id]["name"], results.size(),
-		100.0 * died / results.size(), "%.1f초" % _mean(times) if not times.is_empty() else "-", _mean(damages), damages.max(),
-		float(killed) / results.size(), kept / results.size(), float(undead_died) / results.size(), timeouts, "%.0f%%" % (100.0 * hits / shots) if shots > 0 else "-"]
+	return "| %s | %s | %s | %s | %d | %.0f%% | %.0f%% | %s | %.1f / %.1f | %.1f / %d | %.1f | %d / %d | %d | %s |" % [
+		ROUTES[route_id]["name"], "혼자" if undead_count == 0 else "쥐 언데드 %d" % undead_count, "물러나기" if retreat else "끝까지", PlayerBot.SKILLS[skill_id]["name"], results.size(),
+		100.0 * died / results.size(), 100.0 * escaped / results.size(), "%.1f초" % _mean(times) if not times.is_empty() else "-", _mean(damages), damages.max(),
+		float(killed) / results.size(), kept / results.size(), float(undead_died) / results.size(), same_frame, undead_lost_runs, timeouts, "%.0f%%" % (100.0 * hits / shots) if shots > 0 else "-"]
 
 
 func _mean(values: Array) -> float:

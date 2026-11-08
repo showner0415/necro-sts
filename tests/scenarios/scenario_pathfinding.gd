@@ -1,11 +1,12 @@
 extends ScenarioTest
 ## 시나리오: 길찾기. 시험 통로(regions/test_corridor.tscn)에서 시작한다.
 ## 1. 통로의 벽으로 막힌 칸이 정해짐 (멧돼지 크기도 좁은 길목을 지나갈 수 있음)
-## 2. 쥐 언데드 2마리를 데리고 모퉁이 5번 꺾이는 통로와 좁은 길목을 지나가면, 2마리 모두 따라와 네크로맨서 곁에 모임
+## 2. 쥐 언데드 2마리를 데리고 모퉁이 5번 꺾이는 통로와 좁은 길목을 지나가면, 2마리 모두 따라와 네크로맨서 곁에 모임. 멈춘 뒤에는 언데드끼리 떨어져 선다
 ## 3. 막다른 굴의 쥐는 감지 거리 안이어도 벽 너머 네크로맨서를 감지하지 못함
 ## 4. 쥐가 보던 네크로맨서가 벽 뒤로 숨으면, 놓친 대상을 쫓아 꺾인 길로 돌아서 옴
 ## 5. 멧돼지가 보던 네크로맨서가 벽 뒤(돌진 거리 안)로 숨으면, 예고하지 않고 돌아서 오고 벽이 없어진 뒤에 예고함
 ## 6. 멧돼지 돌진이 벽에 막혀 그 자리에서 끝남
+## 6-1. 벽 바로 앞의 네크로맨서에게 가까이 붙은 멧돼지는, 돌진 방향으로 벽까지 거리가 min_charge_room보다 짧아 예고·돌진하지 않음
 ## 7. 벽 너머 쥐에게 쏜 탄이 벽에 막혀 사라짐
 ## 8. 막다른 굴에서 위 통로의 네크로맨서에게 던진 투석병의 돌이 벽에 막혀 사라짐
 ## 씬에 놓인 몬스터는 처음에 모두 없애고, 단계마다 필요한 몬스터를 새로 놓는다.
@@ -22,7 +23,7 @@ const TEST_HEALTH: float = 1000.0
 const SETTLE_FRAMES: int = 6
 ## 통로 칸 좌표 → 월드 좌표: 벽(Walls)의 왼쪽 위 + 칸 좌표 × 32. 칸 좌표는 소수도 된다 (2칸 너비 통로의 가운데는 정수).
 const TILE: float = 32.0
-## 2. 네크로맨서가 걸어갈 길 (칸 좌표): 시작 굴 → 오른쪽 → 아래 → 왼쪽 → 아래 → 오른쪽 → 좁은 길목 → 끝 굴
+## 2. 네크로맨서가 걸어갈 길 (칸 좌표): 시작 굴 → 오른쪽 → 아래 → 왼쪽 → 아래 → 오른쪽 → 좁은 길목 → 끝 굴 멈춘 뒤에는 언데드끼리 떨어져 선다
 const ROUTE: Array[Vector2] = [Vector2(8, 3), Vector2(20, 3), Vector2(20, 9), Vector2(9, 9), Vector2(9, 12), Vector2(22, 11.5), Vector2(25.5, 11.5), Vector2(27, 13)]
 ## 길의 한 점에 이만큼 가까워지면 다음 점으로 간다 (픽셀)
 const ROUTE_ARRIVE: float = 4.0
@@ -31,6 +32,8 @@ const ROUTE_LEG_FRAMES: int = 600
 ## 네크로맨서가 멈춘 뒤 언데드가 모여야 하는 시간 (프레임)과 거리 (픽셀)
 const GATHER_FRAMES: int = 300
 const GATHER_DISTANCE: float = 40.0
+## 모인 뒤 언데드끼리 비켜 서기를 기다리는 프레임
+const SPACING_SETTLE_FRAMES: int = 90
 ## 3·7. 막다른 굴(벽 바로 아래)의 쥐와 그 위 통로의 네크로맨서 (감지 거리 80 안, 사이에 벽 한 칸), 막다른 굴 위 벽의 아랫면 (칸 줄)
 const POCKET_RAT_TILE: Vector2 = Vector2(14, 5.5)
 const POCKET_NECRO_TILE: Vector2 = Vector2(14, 3.5)
@@ -69,6 +72,9 @@ const CHARGE_WALL_ROW: float = 17.0
 const CHARGE_TIMEOUT_FRAMES: int = 900
 ## 벽에 막혔다고 보려면 정한 거리보다 이만큼은 덜 달려야 한다 (픽셀)
 const CHARGE_SHORT_MARGIN: float = 8.0
+## 6-1. 벽 바로 앞의 네크로맨서 바로 위(돌진 방향으로 벽까지 짧음)에 멧돼지를 두고 지켜보는 프레임
+const CRAMPED_BOAR_TILE: Vector2 = Vector2(26.5, 15.3)
+const CRAMPED_WATCH_FRAMES: int = 180
 
 var _necromancer: Necromancer
 var _walls: Node2D
@@ -132,6 +138,8 @@ func _run() -> void:
 	if not await _boar_goes_around():
 		return
 	if not await _charge_stops_at_wall():
+		return
+	if not await _no_cramped_charge():
 		return
 	if not await _bolt_stops_at_wall():
 		return
@@ -198,6 +206,14 @@ func _undead_follow() -> bool:
 	var ok: bool = gathered_frames >= 0
 	if not _check("언데드 2마리가 통로를 따라옴", ok,
 			"네크로맨서 걷기 %.1f초 (모퉁이 5번, 좁은 길목 1곳), 멈춘 뒤 %d프레임에 모두 %.0f 안 (거리 %s), 걷는 동안 가장 멀어진 거리 %.0f / %.0f" % [walk_seconds, gathered_frames, GATHER_DISTANCE, ", ".join(distances), max_gap[0], max_gap[1]]):
+		return false
+	# 멈춘 뒤 언데드끼리는 비켜 서서 떨어진다 (멧돼지 돌진 한 번에 둘 다 맞지 않게). 비키는 힘이 spacing_deadband보다 작아지면 멈추므로 그만큼은 덜 떨어질 수 있다.
+	await wait_frames(SPACING_SETTLE_FRAMES)
+	var apart: float = undead[0].global_position.distance_to(undead[1].global_position)
+	var need: float = undead[0].spacing_distance * (1.0 - undead[0].spacing_deadband)
+	var near: bool = undead.all(func(u: Undead) -> bool: return u.global_position.distance_to(_necromancer.global_position) <= GATHER_DISTANCE)
+	if not _check("멈춘 뒤 언데드끼리 떨어져 섬", apart >= need and near, "%d프레임 뒤 언데드 사이 %.0f (%.0f 이상이어야 함, 간격 %.0f), 모두 네크로맨서 %.0f 안 %s" % [
+			SPACING_SETTLE_FRAMES, apart, need, undead[0].spacing_distance, GATHER_DISTANCE, near]):
 		return false
 	# 다음 단계에서 언데드가 몬스터와 싸우지 않게 해제한다.
 	for i: int in 2:
@@ -325,6 +341,30 @@ func _charge_stops_at_wall() -> bool:
 		charge.get_direction().snapped(Vector2(0.01, 0.01)), planned, traveled, boar.global_position.y, wall_top, charge.get_state(), ChargeBehavior.State.RECOVER]
 	boar.queue_free()
 	return _check("멧돼지 돌진이 벽에 막힘", ok, evidence)
+
+
+# --- 6-1. 벽에 막혀 짧은 돌진은 하지 않음 ---
+
+func _no_cramped_charge() -> bool:
+	_necromancer.global_position = _tile(CHARGE_NECRO_TILE)
+	var boar: Monster = _spawn(BOAR_PATH, CRAMPED_BOAR_TILE)
+	await wait_frames(2)
+	var charge: ChargeBehavior = boar.get_behavior() as ChargeBehavior
+	var targeted: bool = false
+	var windups: int = 0
+	var max_room: float = 0.0
+	for frame: int in CRAMPED_WATCH_FRAMES:
+		await wait_frames(1)
+		targeted = targeted or boar.get_target() == _necromancer
+		if charge.get_state() != ChargeBehavior.State.APPROACH:
+			windups += 1
+		max_room = maxf(max_room, charge.get_room(boar, boar.global_position.direction_to(_necromancer.global_position)))
+	var distance: float = boar.global_position.distance_to(_necromancer.global_position)
+	boar.queue_free()
+	# 대상은 정했고 돌진 거리 안인데도, 벽까지 거리가 짧아 한 번도 예고하지 않아야 한다.
+	var ok: bool = targeted and distance <= charge.charge_range and windups == 0 and max_room < charge.min_charge_room
+	return _check("벽에 막혀 짧은 돌진은 하지 않음", ok, "%d프레임 동안 네크로맨서를 노림 %s, 거리 %.0f (돌진 거리 %.0f 안), 네크로맨서 쪽으로 벽까지 가장 길 때 %.0f (기준 %.0f), 예고·돌진한 프레임 %d" % [
+		CRAMPED_WATCH_FRAMES, targeted, distance, charge.charge_range, max_room, charge.min_charge_room, windups])
 
 
 # --- 7. 탄이 벽에 막힘 ---

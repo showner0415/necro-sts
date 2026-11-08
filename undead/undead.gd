@@ -1,7 +1,7 @@
 class_name Undead
 extends CharacterBody2D
 ## 머리뼈 하나로 소환한 언데드 한 마리. 능력치는 원본 몬스터 데이터의 "언데드" 값을 따른다.
-## - 적이 없으면 네크로맨서와 follow_distance 안에 있도록 따라다닌다. 따라갈 때는 적어도 네크로맨서가 걷는 속도(follow_speed),
+## - 적이 없으면 네크로맨서와 follow_distance 안에 있도록 따라다닌다. 따라가는 동안 다른 언데드와 spacing_distance 안이면 서로 비켜 선다. 따라갈 때는 적어도 네크로맨서가 걷는 속도(follow_speed),
 ##   catch_up_distance보다 멀면 네크로맨서가 뛰는 속도(catch_up_speed)로 따라간다. 싸울 때는 원래 몬스터의 속도다
 ## - 이유 없이 먼저 공격하지 않는다. 싸울 몬스터는 UndeadTargeting 규칙으로 정한다: 네크로맨서를 노리는 몬스터가 네크로맨서의 공격 반경
 ##   (master_attack_radius) 안에 들어오거나, 네크로맨서가 몬스터를 맞히거나, 이 언데드를 노리는 몬스터가 언데드의 공격 반경 안에 들어오면
@@ -15,6 +15,11 @@ signal damage_received(skull: Skull, amount: float)
 
 ## 네크로맨서에게서 이 거리 안이면 따라가지 않고 멈춘다 (픽셀, 임시값)
 @export var follow_distance: float = 28.0
+## 따라갈 때(싸우지 않을 때) 다른 언데드와 이 거리 안이면 서로 비켜 선다 (픽셀, 임시값).
+## 멧돼지 돌진 한 번에 둘 다 맞지 않게 하려는 것이다 (돌진은 노린 자리를 40px 지나고 맞는 범위가 20px)
+@export var spacing_distance: float = 64.0
+## 비켜 서는 힘(0~1)이 이보다 작으면 무시하고 멈춘다 (멈춰 있을 때 조금씩 떨리지 않게)
+@export var spacing_deadband: float = 0.05
 ## 네크로맨서에게서 이 거리보다 먼 몬스터는 쫓지 않는다 (픽셀, 임시값. 네크로맨서의 공격 반경과 같게 둔다)
 @export var leash_distance: float = 160.0
 ## 따라가는 중에 네크로맨서에게서 이 거리보다 멀면 catch_up_speed로 빨라진다 (픽셀, 임시값)
@@ -130,14 +135,35 @@ func _follow() -> void:
 		return
 	var to_master: Vector2 = _master.global_position - global_position
 	var distance: float = to_master.length()
-	if distance <= follow_distance:
-		velocity = Vector2.ZERO
-		return
 	# 싸울 때는 원래 속도이고, 따라갈 때는 적어도 걷는 네크로맨서만큼, 멀리 떨어지면 뛰는 네크로맨서만큼 빠르다.
 	var speed: float = maxf(data.move_speed, follow_speed)
 	if distance > catch_up_distance:
 		speed = maxf(speed, catch_up_speed)
-	velocity = get_move_direction(_master.global_position) * speed
+	var apart: Vector2 = _spacing_push()
+	# 멈추는 거리는 두 마리가 네크로맨서 양쪽에 서면 spacing_distance보다 넉넉히 떨어질 수 있게 잡는다 (딱 맞추면 정확히 반대편에 서야만 떨어진다).
+	if distance <= maxf(follow_distance, spacing_distance * 0.6):
+		velocity = apart * speed if apart.length() >= spacing_deadband else Vector2.ZERO
+		return
+	velocity = (get_move_direction(_master.global_position) + apart).limit_length(1.0) * speed
+
+
+## 따라가는 동안 다른 언데드에게서 비켜 서는 방향과 세기 (가까울수록 세다, 길이 최대 1)
+func _spacing_push() -> Vector2:
+	var push: Vector2 = Vector2.ZERO
+	for node: Node in get_tree().get_nodes_in_group(&"undead"):
+		var other: Node2D = node as Node2D
+		if other == self or other == null or other.is_queued_for_deletion():
+			continue
+		var away: Vector2 = global_position - other.global_position
+		var gap: float = away.length()
+		if gap >= spacing_distance:
+			continue
+		# 같은 자리에 겹쳐 있으면 정해진 쪽으로 비킨다 (인스턴스 번호로 서로 반대쪽).
+		if gap == 0.0:
+			away = Vector2.RIGHT if get_instance_id() > other.get_instance_id() else Vector2.LEFT
+		# 제곱근으로 해서 거의 다 떨어졌을 때도 너무 느려지지 않게 한다.
+		push += away.normalized() * sqrt((spacing_distance - gap) / spacing_distance)
+	return push.limit_length(1.0)
 
 
 ## 살아 있는 몬스터마다 이번 프레임 정보를 모아 UndeadTargeting에 넣고, 정해진 대상을 돌려준다.

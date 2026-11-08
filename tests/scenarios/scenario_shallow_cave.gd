@@ -7,8 +7,9 @@ extends ScenarioTest
 ## 5. 전망 바위의 전망 자리(tools/screenshot_setups/view_rock.gd)에 서면 박쥐가 모두 화면 안에 보이고, 박쥐 둥지까지 바로 가는 길은 없다 (벽을 돌아가야 한다)
 ## 5-1. 박쥐 길 (tests/bat_nest_paths.gd, 박쥐의 처음 자리 기준): 갈림 굴 쪽 입구에서 합류 굴 쪽 출구까지 가장 짧은 길(기본 길)은
 ##    박쥐에게 감지되고, 감지되는 곳은 입구에서 BAT_DETECT_DEPTH칸 이상 들어선 뒤다. 감지 범위보다 BAT_SNEAK_MARGIN 더 떨어져 지나는 길(몰래 가는 길)이 있다. 두 길의 길이·걷는 시간을 출력한다
+## 5-2. 빛 드는 굴의 합류 굴 쪽 입구에 서면 가장 가까운 멧돼지(처음 자리)가 화면 안에 보이고, 입구 칸은 모두 멧돼지 감지 거리 밖이다
 ## 6. 다듬은 뒤에도 박쥐 둥지가 유일한 넓은 방이다: 박쥐가 도는 반경(+ 몸)의 원이 벽에 닿지 않는 자리가 가장 많고, 가장 큰 원도 가장 크다
-## 7. 멧돼지가 사는 굴마다 돌진(돌진 최대 거리 + 지나치는 거리)보다 긴 곧고 트인 길(3칸 폭)이 있다
+## 7. 멧돼지가 사는 굴마다 돌진(돌진 최대 거리 + 지나치는 거리)보다 긴 곧고 트인 길(3칸 폭)이 있고, 가장 긴 것도 BOAR_LANE_MAX칸을 넘지 않는다 (바위가 긴 직선을 끊어 돌진을 피할 곳이 있게)
 ## 8. 구간별 걷기 시간 (걷기, 몬스터는 없앰): 도착 지점 → 입구 굴, 입구 굴 → 갈림 굴, 갈림 굴 → 합류 굴(박쥐 길, 거미 길),
 ##    합류 굴 → 동굴 입구, 도착 지점 → 동굴 입구 전체. 문서 기준값과 함께 출력한다
 ## 9. 쥐 언데드 2마리를 데리고, 이어진 두 굴 사이를 모두 한 번씩 오간다 (순서는 PNG의 굴 연결에서 만든다). 굴에 닿을 때마다 2마리 모두 따라와 곁에 모인다 (휘어진 통로에서 걸리지 않음)
@@ -83,6 +84,11 @@ const BAT_DETECT_DEPTH: float = 3.0
 ## 5-1. 몰래 가는 길은 박쥐 감지 범위보다 이만큼(픽셀) 더 떨어져 지나야 한다. 박쥐는 싸우지 않을 때 배회하므로(초당 15px), 둥지에 닿기까지 옮겨 간 만큼의 여유
 const BAT_SNEAK_MARGIN: float = 96.0
 const BAT_PATHS = preload("res://tests/bat_nest_paths.gd")
+## 5-2. 멧돼지가 화면 가장자리에서 이만큼(픽셀) 안쪽에 있어야 보인다고 본다
+const BOAR_VIEW_MARGIN: float = 16.0
+const BOAR_PATH: String = "res://data/monsters/boar.tres"
+## 7. 멧돼지 굴의 가장 긴 3칸 폭 곧은 길이 이보다 길면 안 된다 (칸, 제안값)
+const BOAR_LANE_MAX: float = 13.0
 ## 11. 탈출 지점에 선 뒤 거점에 가기를 기다리는 최대 프레임 (탈출 3초 + 여유)
 const ESCAPE_WAIT_FRAMES: int = 60 * 5
 ## 8방향 (곧은 길 찾기)
@@ -143,6 +149,8 @@ func _run() -> void:
 	if not await _view_rock():
 		return
 	if not _bat_path():
+		return
+	if not _boar_seen_first():
 		return
 	if not _wide_bat_nest():
 		return
@@ -424,6 +432,31 @@ func _bat_path() -> bool:
 		result.first_detect, BAT_DETECT_DEPTH, BAT_SNEAK_MARGIN, result.sneak_length, _seconds(result.sneak_length * TILE / speed), (result.sneak_length - result.default_length) * TILE / speed, speed])
 
 
+# --- 5-2. 빛 드는 굴의 멧돼지를 입구에서 먼저 본다 ---
+
+func _boar_seen_first() -> bool:
+	var entrance: Array[Vector2i] = BAT_PATHS.doorway(_layout, _roles.light_room, _roles.junction)
+	var middle: Vector2 = Vector2.ZERO
+	for cell: Vector2i in entrance:
+		middle += _cell_center(cell)
+	middle /= maxf(entrance.size(), 1)
+	var boars: Array[Vector2i] = _layout.cells_of("boar").filter(func(cell: Vector2i) -> bool: return _layout.room_at(cell) == _roles.light_room)
+	boars.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return _cell_center(a).distance_to(middle) < _cell_center(b).distance_to(middle))
+	if entrance.is_empty() or boars.is_empty():
+		return _check("빛 드는 굴 멧돼지를 입구에서 먼저 봄", false, "입구 칸 %s, 멧돼지 %s" % [entrance, boars])
+	var boar: Vector2 = _cell_center(boars[0])
+	var half: Vector2 = Vector2(ProjectSettings.get_setting("display/window/size/viewport_width"), ProjectSettings.get_setting("display/window/size/viewport_height")) * 0.5 - Vector2(BOAR_VIEW_MARGIN, BOAR_VIEW_MARGIN)
+	var offset: Vector2 = (boar - middle).abs()
+	var visible: bool = offset.x <= half.x and offset.y <= half.y
+	var detect_range: float = (load(BOAR_PATH) as MonsterData).detect_range
+	var nearest: float = INF
+	for cell: Vector2i in entrance:
+		nearest = minf(nearest, _cell_center(cell).distance_to(boar))
+	var ok: bool = visible and nearest > detect_range
+	return _check("빛 드는 굴 멧돼지를 입구에서 먼저 봄", ok, "멧돼지 처음 자리 칸 %s, 입구 칸 %s 가운데에서 떨어진 정도 %s px (화면 반 %s - 여유 %.0f 안이어야 보임: %s), 입구 칸에서 가장 가까운 거리 %.0f (감지 %.0f보다 멀어야 함, %.1f칸 더 들어가야 걸림)" % [
+		boars[0], entrance, offset.round(), half + Vector2(BOAR_VIEW_MARGIN, BOAR_VIEW_MARGIN), BOAR_VIEW_MARGIN, visible, nearest, detect_range, (nearest - detect_range) / TILE])
+
+
 # --- 6. 박쥐 둥지가 유일한 넓은 방 ---
 
 func _wide_bat_nest() -> bool:
@@ -486,10 +519,10 @@ func _boar_lanes() -> bool:
 					continue
 				for direction: Vector2i in DIRECTIONS_8:
 					best = maxf(best, _lane_length(smoothed, Vector2i(x, y), direction))
-		ok = ok and best >= need
+		ok = ok and best >= need and best <= BOAR_LANE_MAX
 		results.append("굴 %d 가장 긴 곧은 길 %.1f칸" % [room, best])
-	return _check("멧돼지 굴에 곧고 트인 길", ok and not results.is_empty(), "3칸 폭(가운데 칸 둘레 3×3이 바닥)으로 곧게 이어지는 길, 돌진 최대 %.0f + 지나치는 %.0f px = %.1f칸 이상이어야 함: %s" % [
-		charge.charge_distance, charge.overshoot_distance, need, ", ".join(results)])
+	return _check("멧돼지 굴에 곧고 트인 길", ok and not results.is_empty(), "3칸 폭(가운데 칸 둘레 3×3이 바닥)으로 곧게 이어지는 길, 돌진 최대 %.0f + 지나치는 %.0f px = %.1f칸 이상, %.0f칸 이하여야 함: %s" % [
+		charge.charge_distance, charge.overshoot_distance, need, BOAR_LANE_MAX, ", ".join(results)])
 
 
 ## start에서 direction으로, 칸 둘레 3×3이 모두 바닥인 칸이 이어지는 길이 (칸, 대각선은 √2배)

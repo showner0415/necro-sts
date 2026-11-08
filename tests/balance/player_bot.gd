@@ -13,6 +13,7 @@ extends RefCounted
 ## - 줄 피하기: 몬스터가 예고 중일 때, 그 몬스터와 언데드를 잇는 줄 위(언데드 뒤쪽)에 있으면 옆으로 비킨다 (물러나지는 않는다).
 ##   언데드를 노린 공격이 뒤로 이어지지 않게. 사람도 예고 선이 보일 때 비키므로 예고 중에만 한다
 ## - 언데드: 핫바의 머리뼈가 소환 중이 아니고 마나가 넉넉하면 숫자키 → G로 다시 소환한다
+## - 물러나기(retreat_to): 쏘지 않고 탈출 지점으로 길찾기로 가며, 뛸 수 있으면 뛰고 예고된 공격만 구르기로 피한다
 ## 실력은 반응 시간, 조준 오차, 회피 성공률 세 값으로 정한다 (SKILLS, 임시값).
 
 ## 실력 단계: [이름, 반응 시간(초), 조준 오차(도, 표준편차), 회피 성공률]
@@ -24,6 +25,8 @@ const SKILLS: Dictionary = {
 
 ## 핫바 칸을 고르는 숫자키 (칸 순서대로)
 const HOTBAR_KEYS: Array[Key] = [KEY_1, KEY_2]
+## 물러날 때 탈출 지점에서 이 거리 안이면 멈춰 선다 (탈출 지점 반지름보다 작게, 픽셀)
+const RETREAT_ARRIVE: float = 6.0
 
 ## 근접 몬스터와 유지하려는 거리 (픽셀)
 var keep_distance: float = 100.0
@@ -83,6 +86,12 @@ var mana_min: float = INF
 ## 측정: 언데드가 죽은 판정으로 사라진 수, 그 밖의 이유(마나 0 등)로 해제된 수
 var undead_died: int = 0
 var undead_released: int = 0
+## 측정: 언데드가 죽은 판정으로 사라진 물리 프레임 번호들 (같은 프레임에 함께 죽었는지 본다)
+var undead_death_frames: Array[int] = []
+## 물러나는 중이면 이 자리(탈출 지점)로 간다. 쏘지 않고, 뛸 수 있으면 뛰고, 예고된 공격은 구르기로 피한다 (retreat_to로 켠다)
+var retreating: bool = false
+var _retreat_point: Vector2 = Vector2.ZERO
+var _retreat_follower: PathFollower
 
 ## 진행 중인 무리 동시 공격: 일부러 놓치는지, 시작할 때 체력, 예고가 안 보인 지 얼마나 됐는지
 var _group_active: bool = false
@@ -100,6 +109,7 @@ func _init(test: ScenarioTest, necromancer: Necromancer, skill_id: StringName) -
 	_necromancer.summoner.roster.unsummoned.connect(func(_skull: Skull, died: bool) -> void:
 		if died:
 			undead_died += 1
+			undead_death_frames.append(Engine.get_physics_frames())
 		else:
 			undead_released += 1)
 
@@ -109,12 +119,47 @@ func set_undead_skulls(skulls: Array[Skull]) -> void:
 	_undead_skulls = skulls
 
 
+## 언데드를 모두 잃었는지: 소환할 머리뼈가 있었고, 모두 소환 중이 아니며 다시 소환할 수도 없다 (체력 0 또는 내구도 0)
+func lost_all_undead() -> bool:
+	if _undead_skulls.is_empty():
+		return false
+	var roster: UndeadRoster = _necromancer.summoner.roster
+	for skull: Skull in _undead_skulls:
+		if roster.is_summoned(skull) or not ((skull.awakened and skull.health <= 0.0) or skull.is_broken()):
+			return false
+	return true
+
+
+## 지금부터 point(탈출 지점)로 물러난다. 몬스터가 있어도 싸우지 않고 그쪽으로 간다 (벽은 길찾기로 돌아간다).
+func retreat_to(point: Vector2) -> void:
+	retreating = true
+	_retreat_point = point
+	_retreat_follower = PathFollower.new(Vector2(_necromancer.body_radius, _necromancer.body_radius), Vector2(0, -_necromancer.body_radius))
+
+
+## 물러나는 중 한 프레임: 쏘지 않고 탈출 지점으로 가며, 예고된 공격은 구르기로 피한다 (다가오는 몬스터를 피해 뛰기도 한다).
+func _retreat_tick(monsters: Array[Monster]) -> void:
+	_test.press_mouse(false)
+	if not monsters.is_empty() and _try_dodge(monsters):
+		return
+	if _necromancer.is_rolling():
+		return
+	var direction: Vector2 = Vector2.ZERO
+	if _necromancer.global_position.distance_to(_retreat_point) > RETREAT_ARRIVE:
+		direction = _retreat_follower.get_direction(_necromancer, _retreat_point)
+	_test.press_moves(direction)
+	_set_running(direction != Vector2.ZERO and _necromancer.stamina.can_run())
+
+
 ## 물리 프레임마다 부른다.
 func tick(delta: float) -> void:
 	_time += delta
 	_summon_cooldown = maxf(_summon_cooldown - delta, 0.0)
 	_press_queued_key()
 	var monsters: Array[Monster] = _alive_monsters()
+	if retreating:
+		_retreat_tick(monsters)
+		return
 	if monsters.is_empty():
 		release_all()
 		return

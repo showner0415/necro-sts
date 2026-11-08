@@ -23,8 +23,8 @@ static func measure(rows: PackedStringArray, objects: Array[Dictionary], nav: Na
 	for cell: Vector2i in layout.cells_of("bat"):
 		bats.append(_center(cell))
 	var nest: int = layout.room_at(layout.cells_of("bat")[0])
-	var entrance: Array[Vector2i] = _doorway(layout, nest, layout.room_at(from_cell))
-	var exit: Array[Vector2i] = _doorway(layout, nest, layout.room_at(to_cell))
+	var entrance: Array[Vector2i] = doorway(layout, nest, layout.room_at(from_cell))
+	var exit: Array[Vector2i] = doorway(layout, nest, layout.room_at(to_cell))
 	var detected: Dictionary = _seen_cells(layout, nest, nav, bats, detect_range)
 	var watched: Dictionary = _seen_cells(layout, nest, nav, bats, detect_range + sneak_margin)
 	var result: Dictionary = {"detected": detected, "watched": watched, "entrance": entrance, "exit": exit}
@@ -81,8 +81,8 @@ static func _center(cell: Vector2i) -> Vector2:
 	return (Vector2(cell) + Vector2(0.5, 0.5)) * TILE
 
 
-## 굴 a와 굴 b를 잇는 통로에 닿은, 굴 a의 칸들
-static func _doorway(layout: MapLayout, a: int, b: int) -> Array[Vector2i]:
+## 굴 a와 굴 b를 잇는 통로에 닿은, 굴 a의 칸들 (MapLayout의 굴 번호). 박쥐 둥지 말고 다른 굴의 입구를 찾을 때도 쓴다
+static func doorway(layout: MapLayout, a: int, b: int) -> Array[Vector2i]:
 	# 통로 덩어리마다 닿은 굴들
 	var touches: Dictionary = {}
 	for y: int in layout.size.y:

@@ -10,6 +10,7 @@ lock_time = 0.2
 charge_speed = 280.0
 charge_distance = 170.0
 overshoot_distance = 40.0
+min_charge_room = 64.0
 recover_time = 1.2
 hit_radius = 20.0
 knockback_distance = 24.0
