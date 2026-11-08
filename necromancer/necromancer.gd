@@ -127,7 +127,7 @@ func _physics_process(delta: float) -> void:
 	if _knockback.is_active():
 		velocity = _knockback.get_velocity()
 	move_and_slide()
-	_update_sprite(delta, rolling)
+	_update_sprite()
 	_knockback.update(delta)
 	stamina.process(delta, is_running, rolling)
 	if rolling:
@@ -221,20 +221,20 @@ func get_body_center() -> Vector2:
 	return global_position + Vector2(0, -body_radius)
 
 
-## 탄이 나가는 곳: 지금 바라보는 방향의 그림에서 지팡이 보석 자리 (방향마다 다르다, FacingSprite).
+## 탄이 나가는 곳: 몸 가운데 (그림의 지팡이 자리가 아니다. 걷기 프레임마다 지팡이가 움직여서)
 func get_shot_origin() -> Vector2:
-	return global_position + _sprite.get_muzzle_offset()
+	return get_body_center()
 
 
-## 마우스 쪽을 바라보고, 걷거나 뛰는 동안만 들썩인다 (구르기·밀려나기 중에는 들썩이지 않는다).
-func _update_sprite(delta: float, rolling: bool) -> void:
+## 마우스 쪽을 바라보고, 움직이는 동안(걷기·뛰기·구르기) 걷기 애니메이션을 이동 속도에 맞춰 재생한다.
+## 밀려나는 동안은 걷는 것이 아니므로 정지 그림이다.
+func _update_sprite() -> void:
 	_sprite.face(get_global_mouse_position() - get_body_center())
-	var walking: bool = not rolling and not _knockback.is_active()
-	_sprite.update_bob(delta, get_real_velocity().length() / move_speed if walking else 0.0)
+	_sprite.update_motion(Vector2.ZERO if _knockback.is_active() else get_real_velocity(), move_speed)
 
 
 func _shoot() -> void:
-	# 지팡이 보석에서 마우스 쪽으로 쏜다. 바라보는 방향은 이번 프레임에 _update_sprite에서 정했다.
+	# 몸 가운데에서 마우스 쪽으로 쏜다.
 	var origin: Vector2 = get_shot_origin()
 	var direction: Vector2 = origin.direction_to(get_global_mouse_position())
 	if direction == Vector2.ZERO:

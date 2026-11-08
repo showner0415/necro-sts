@@ -1,6 +1,6 @@
 extends SceneTree
 ## 방향별 그림에서 정한 색의 픽셀이 이어진 가장 큰 덩어리의 가운데를 잰다 (예: 네크로맨서 지팡이 보석 = 탄이 나가는 자리).
-## 결과는 기준점에서의 오프셋(정수로 반올림)이고, FacingSprite.direction_muzzles에 넣을 줄도 출력한다.
+## 결과는 기준점에서의 오프셋(정수로 반올림)이다. 마지막 줄의 direction_muzzles는 예전에 탄 자리를 그림의 지팡이 보석으로 둘 때 쓰던 형식이다 (지금 탄은 몸 가운데에서 나간다, 2026-11-08).
 ## 덩어리가 없는 방향(그림에서 가려짐)은 "없음"으로 출력하므로 직접 정한다.
 ##
 ## bash tools/godot.sh --headless --path . -s tools/measure_sprite_point.gd -- --prefix=res://assets/necromancer/necromancer_ --colors=2ce8f5,0099db --origin=16,28

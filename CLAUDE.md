@@ -160,3 +160,4 @@ res://
 - 에셋은 생성 스크립트나 원본 파일에서 다시 만들 수 있어야 한다. 조정은 손으로 픽셀이나 정점을 고치지 말고 생성 파라미터를 바꿔서 재생성한다.
 - 모든 에셋은 `assets/ASSETS.md`에 기록한다.
 - 상태가 **확정**인 에셋은 사용자에게 묻지 않고 덮어쓰지 않는다.
+- 네크로맨서 애니메이션은 PixelLab ZIP(`art_src/necromancer/`)에서 `tools/asset_gen/necromancer_anim.gd`로 꺼낸다 (프레임 PNG와 SpriteFrames `.tres`를 만든다. 돌린 뒤 `--import`). `.tres`는 손으로 고치지 않는다. 방향·프레임 확인 스크린샷: `bash tools/godot.sh --path . -s tools/screenshot.gd -- --seconds=1 --scene=res://regions/test_region.tscn --setup=res://tools/screenshot_setups/necromancer_walk.gd --out=<scratchpad 경로>/walk.png`

@@ -1,6 +1,6 @@
 extends RefCounted
 ## 스크린샷 준비: 네크로맨서 씬(necromancer.tscn)을 8개 더 띄워 8방향을 한 줄로 보여 준다 (동부터 화면 시계 방향).
-## 각자의 탄이 나가는 자리(get_shot_origin)에 노란 점을 찍는다. 몬스터는 모두 치운다.
+## 각자의 탄이 나가는 자리(get_shot_origin, 지금은 몸 가운데)에 노란 점을 찍는다. 몬스터는 모두 치운다.
 ## 복사본은 움직이지 않고(process 꺼짐), 몬스터가 노리지 않게 necromancer 그룹에서 뺀다.
 ## bash tools/godot.sh --path . -s tools/screenshot.gd -- --seconds=1 --scene=res://regions/test_region.tscn --setup=res://tools/screenshot_setups/necromancer_8_directions.gd --out=<경로>
 

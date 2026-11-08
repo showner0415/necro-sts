@@ -1,0 +1,373 @@
+[gd_resource type="SpriteFrames" format=3]
+
+[ext_resource type="Texture2D" path="res://assets/necromancer/necromancer_east.png" id="1"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/necromancer_south_east.png" id="2"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/necromancer_south.png" id="3"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/necromancer_south_west.png" id="4"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/necromancer_west.png" id="5"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/necromancer_north_west.png" id="6"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/necromancer_north.png" id="7"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/necromancer_north_east.png" id="8"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/east/frame_000.png" id="9"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/east/frame_001.png" id="10"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/east/frame_002.png" id="11"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/east/frame_003.png" id="12"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/east/frame_004.png" id="13"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/east/frame_005.png" id="14"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/east/frame_006.png" id="15"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/east/frame_007.png" id="16"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/south_east/frame_000.png" id="17"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/south_east/frame_001.png" id="18"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/south_east/frame_002.png" id="19"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/south_east/frame_003.png" id="20"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/south_east/frame_004.png" id="21"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/south_east/frame_005.png" id="22"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/south_east/frame_006.png" id="23"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/south_east/frame_007.png" id="24"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/south/frame_000.png" id="25"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/south/frame_001.png" id="26"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/south/frame_002.png" id="27"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/south/frame_003.png" id="28"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/south/frame_004.png" id="29"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/south/frame_005.png" id="30"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/south/frame_006.png" id="31"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/south/frame_007.png" id="32"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/south_west/frame_000.png" id="33"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/south_west/frame_001.png" id="34"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/south_west/frame_002.png" id="35"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/south_west/frame_003.png" id="36"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/south_west/frame_004.png" id="37"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/south_west/frame_005.png" id="38"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/south_west/frame_006.png" id="39"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/south_west/frame_007.png" id="40"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/west/frame_000.png" id="41"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/west/frame_001.png" id="42"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/west/frame_002.png" id="43"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/west/frame_003.png" id="44"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/west/frame_004.png" id="45"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/west/frame_005.png" id="46"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/west/frame_006.png" id="47"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/west/frame_007.png" id="48"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/north_west/frame_000.png" id="49"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/north_west/frame_001.png" id="50"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/north_west/frame_002.png" id="51"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/north_west/frame_003.png" id="52"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/north_west/frame_004.png" id="53"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/north_west/frame_005.png" id="54"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/north_west/frame_006.png" id="55"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/north_west/frame_007.png" id="56"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/north/frame_000.png" id="57"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/north/frame_001.png" id="58"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/north/frame_002.png" id="59"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/north/frame_003.png" id="60"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/north/frame_004.png" id="61"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/north/frame_005.png" id="62"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/north/frame_006.png" id="63"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/north/frame_007.png" id="64"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/north_east/frame_000.png" id="65"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/north_east/frame_001.png" id="66"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/north_east/frame_002.png" id="67"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/north_east/frame_003.png" id="68"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/north_east/frame_004.png" id="69"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/north_east/frame_005.png" id="70"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/north_east/frame_006.png" id="71"]
+[ext_resource type="Texture2D" path="res://assets/necromancer/anim/walk/north_east/frame_007.png" id="72"]
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("1")
+}],
+"loop": false,
+"name": &"idle_east",
+"speed": 1.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("2")
+}],
+"loop": false,
+"name": &"idle_south_east",
+"speed": 1.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("3")
+}],
+"loop": false,
+"name": &"idle_south",
+"speed": 1.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("4")
+}],
+"loop": false,
+"name": &"idle_south_west",
+"speed": 1.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("5")
+}],
+"loop": false,
+"name": &"idle_west",
+"speed": 1.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("6")
+}],
+"loop": false,
+"name": &"idle_north_west",
+"speed": 1.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("7")
+}],
+"loop": false,
+"name": &"idle_north",
+"speed": 1.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("8")
+}],
+"loop": false,
+"name": &"idle_north_east",
+"speed": 1.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("9")
+}, {
+"duration": 1.0,
+"texture": ExtResource("10")
+}, {
+"duration": 1.0,
+"texture": ExtResource("11")
+}, {
+"duration": 1.0,
+"texture": ExtResource("12")
+}, {
+"duration": 1.0,
+"texture": ExtResource("13")
+}, {
+"duration": 1.0,
+"texture": ExtResource("14")
+}, {
+"duration": 1.0,
+"texture": ExtResource("15")
+}, {
+"duration": 1.0,
+"texture": ExtResource("16")
+}],
+"loop": true,
+"name": &"walk_east",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("17")
+}, {
+"duration": 1.0,
+"texture": ExtResource("18")
+}, {
+"duration": 1.0,
+"texture": ExtResource("19")
+}, {
+"duration": 1.0,
+"texture": ExtResource("20")
+}, {
+"duration": 1.0,
+"texture": ExtResource("21")
+}, {
+"duration": 1.0,
+"texture": ExtResource("22")
+}, {
+"duration": 1.0,
+"texture": ExtResource("23")
+}, {
+"duration": 1.0,
+"texture": ExtResource("24")
+}],
+"loop": true,
+"name": &"walk_south_east",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("25")
+}, {
+"duration": 1.0,
+"texture": ExtResource("26")
+}, {
+"duration": 1.0,
+"texture": ExtResource("27")
+}, {
+"duration": 1.0,
+"texture": ExtResource("28")
+}, {
+"duration": 1.0,
+"texture": ExtResource("29")
+}, {
+"duration": 1.0,
+"texture": ExtResource("30")
+}, {
+"duration": 1.0,
+"texture": ExtResource("31")
+}, {
+"duration": 1.0,
+"texture": ExtResource("32")
+}],
+"loop": true,
+"name": &"walk_south",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("33")
+}, {
+"duration": 1.0,
+"texture": ExtResource("34")
+}, {
+"duration": 1.0,
+"texture": ExtResource("35")
+}, {
+"duration": 1.0,
+"texture": ExtResource("36")
+}, {
+"duration": 1.0,
+"texture": ExtResource("37")
+}, {
+"duration": 1.0,
+"texture": ExtResource("38")
+}, {
+"duration": 1.0,
+"texture": ExtResource("39")
+}, {
+"duration": 1.0,
+"texture": ExtResource("40")
+}],
+"loop": true,
+"name": &"walk_south_west",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("41")
+}, {
+"duration": 1.0,
+"texture": ExtResource("42")
+}, {
+"duration": 1.0,
+"texture": ExtResource("43")
+}, {
+"duration": 1.0,
+"texture": ExtResource("44")
+}, {
+"duration": 1.0,
+"texture": ExtResource("45")
+}, {
+"duration": 1.0,
+"texture": ExtResource("46")
+}, {
+"duration": 1.0,
+"texture": ExtResource("47")
+}, {
+"duration": 1.0,
+"texture": ExtResource("48")
+}],
+"loop": true,
+"name": &"walk_west",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("49")
+}, {
+"duration": 1.0,
+"texture": ExtResource("50")
+}, {
+"duration": 1.0,
+"texture": ExtResource("51")
+}, {
+"duration": 1.0,
+"texture": ExtResource("52")
+}, {
+"duration": 1.0,
+"texture": ExtResource("53")
+}, {
+"duration": 1.0,
+"texture": ExtResource("54")
+}, {
+"duration": 1.0,
+"texture": ExtResource("55")
+}, {
+"duration": 1.0,
+"texture": ExtResource("56")
+}],
+"loop": true,
+"name": &"walk_north_west",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("57")
+}, {
+"duration": 1.0,
+"texture": ExtResource("58")
+}, {
+"duration": 1.0,
+"texture": ExtResource("59")
+}, {
+"duration": 1.0,
+"texture": ExtResource("60")
+}, {
+"duration": 1.0,
+"texture": ExtResource("61")
+}, {
+"duration": 1.0,
+"texture": ExtResource("62")
+}, {
+"duration": 1.0,
+"texture": ExtResource("63")
+}, {
+"duration": 1.0,
+"texture": ExtResource("64")
+}],
+"loop": true,
+"name": &"walk_north",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("65")
+}, {
+"duration": 1.0,
+"texture": ExtResource("66")
+}, {
+"duration": 1.0,
+"texture": ExtResource("67")
+}, {
+"duration": 1.0,
+"texture": ExtResource("68")
+}, {
+"duration": 1.0,
+"texture": ExtResource("69")
+}, {
+"duration": 1.0,
+"texture": ExtResource("70")
+}, {
+"duration": 1.0,
+"texture": ExtResource("71")
+}, {
+"duration": 1.0,
+"texture": ExtResource("72")
+}],
+"loop": true,
+"name": &"walk_north_east",
+"speed": 12.0
+}]
