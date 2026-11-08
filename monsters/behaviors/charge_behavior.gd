@@ -34,8 +34,11 @@ const BACK_OFF_MIN_ROOM: float = 2.0
 @export var back_off_distance: float = 96.0
 ## 돌진이 끝난 뒤 멈춰 있는 시간 (초)
 @export var recover_time: float = 1.2
-## 상대의 발밑이 이 거리 안에 들어오고, 돌진 방향 앞쪽에 있으면 돌진에 맞는다 (픽셀)
+## 상대의 발밑이 이 거리 안에 들어오면 돌진에 맞는다 (픽셀)
 @export var hit_radius: float = 12.0
+## 켜면 돌진 방향 앞쪽(몸 가운데에서 돌진 방향 쪽 반)에 있는 상대만 맞는다. 끄면 방향과 상관없이 hit_radius 안이면 맞는다.
+## 기본은 끔 (사용자 결정 2026-11-08: 쥐 언데드 공격 거리 24만 채택하고 이 규칙은 넣지 않음. 측정해 보니 결과가 거의 같았다)
+@export var front_only_hit: bool = false
 ## 맞은 상대를 밀쳐내는 거리 (픽셀)와 시간 (초)
 @export var knockback_distance: float = 24.0
 @export var knockback_duration: float = 0.15
@@ -248,8 +251,8 @@ func _hit_hostiles(body: CharacterBody2D, stats: CombatStats) -> void:
 	for hostile: Node2D in body.call(&"get_hostiles"):
 		if _hit.has(hostile) or body.global_position.distance_to(hostile.global_position) > hit_radius:
 			continue
-		# 돌진 방향 앞쪽(몸 가운데에서 돌진 방향 쪽 반)에 있는 상대만 맞는다. 멧돼지 뒤·옆에 붙어 싸우던 언데드가 함께 맞지 않게 한다.
-		if (hostile.global_position - body.global_position).dot(_direction) <= 0.0:
+		# front_only_hit를 켜면 돌진 방향 앞쪽(몸 가운데에서 돌진 방향 쪽 반)에 있는 상대만 맞는다.
+		if front_only_hit and (hostile.global_position - body.global_position).dot(_direction) <= 0.0:
 			continue
 		# 구르기 무적이라 피해가 없어도 맞은 것으로 친다 (같은 돌진에서 다시 맞지 않는다).
 		_hit.append(hostile)

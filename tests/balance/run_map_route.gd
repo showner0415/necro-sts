@@ -10,6 +10,7 @@ extends ScenarioTest
 ## 전부 (헤드리스, 빠르게):
 ##   bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_map_route.gd
 ## 일부만: -- --routes=bat --skills=normal --undead=0 --runs=3
+## 멧돼지 돌진이 앞쪽만 맞히는 규칙(기본 끔)을 켜고 재려면: --charge_front_only=1
 ## 물러나기도 재려면: --retreat=0,1,2 (1: 언데드를 모두 잃거나 체력이 절반 이하면 싸움을 그만두고 합류 굴의 탈출 B로 물러난다, 2: 체력이 절반 이하일 때만). 1이나 2 중 하나만 줘도 둘 다 잰다
 ## 창으로 보기 (실제 속도, 한 판):
 ##   bash tools/godot.sh --path . -s tests/balance/run_map_route.gd -- --routes=boar --skills=normal --undead=2 --runs=1
@@ -22,6 +23,7 @@ const UNDEAD_BONES: int = 40
 const BAT_PATH: String = "res://data/monsters/bat.tres"
 const BAT_PATHS = preload("res://tests/bat_nest_paths.gd")
 const RAT_PATH: String = "res://data/monsters/rat.tres"
+const CHARGE_PATH: String = "res://data/behaviors/charge.tres"
 ## 시간 초과한 판의 위치 기록 간격 (초)과, 끝에서 몇 초 동안 움직인 거리를 볼지
 const TRACE_INTERVAL: float = 1.0
 const TRACE_TAIL: int = 20
@@ -65,6 +67,8 @@ var _scene: String = CAVE_SCENE
 var _png: String = MAP_PNG
 ## 시험용: 0보다 크면 쥐 언데드의 공격 거리(undead_attack_range_override)를 이 값으로 바꾼 데이터 복사본을 쓴다 (실제 .tres는 그대로)
 var _undead_attack_range: float = -1.0
+## 시험용: --charge_front_only=1이면 멧돼지 돌진이 앞쪽만 맞히는 규칙(front_only_hit, 기본 끔)을 켠다 (불러 둔 행동 데이터만 바꿈, 실제 .tres는 그대로)
+var _charge_front_only: bool = false
 var _rat_undead_data: MonsterData
 var _runs: int = DEFAULT_RUNS
 var _timeout: float = DEFAULT_TIMEOUT
@@ -108,6 +112,9 @@ func _parse_args() -> void:
 				_scene = parts[1]
 			"undead_attack_range":
 				_undead_attack_range = float(parts[1])
+			"charge_front_only":
+				_charge_front_only = parts[1] != "0"
+				(load(CHARGE_PATH) as ChargeBehavior).front_only_hit = _charge_front_only
 			"png":
 				_png = parts[1]
 			"timeout":
@@ -346,6 +353,8 @@ func _condition_name(undead_count: int) -> String:
 	var label: String = "혼자" if undead_count == 0 else "쥐 언데드 %d" % undead_count
 	if _undead_attack_range > 0.0:
 		label += " (언데드 공격 거리 %.0f)" % _undead_attack_range
+	if _charge_front_only:
+		label += " (돌진은 앞쪽만 맞힘)"
 	return label
 
 
