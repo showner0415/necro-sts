@@ -99,6 +99,17 @@ func test_undead_stats_scale_only_health_and_damage() -> void:
 	assert_true(rules.named_health_ratio > rules.health_ratio and rules.named_damage_ratio > rules.damage_ratio, "네임드는 일반보다 배율이 높다")
 
 
+func test_undead_attack_range_override() -> void:
+	var data: MonsterData = MonsterData.new()
+	data.attack_range = 16.0
+	data.undead_attack_range_override = 24.0
+	assert_eq(data.get_undead_stats().attack_range, 24.0, "언데드만 따로 둔 공격 거리")
+	assert_eq(data.get_enemy_stats().attack_range, 16.0, "적일 때는 그대로")
+	var rat: MonsterData = load("res://data/monsters/rat.tres")
+	assert_eq(rat.get_undead_stats().attack_range, 24.0, "쥐 언데드는 24 (멧돼지 돌진에 맞는 범위 20 밖)")
+	assert_eq(rat.get_enemy_stats().attack_range, 16.0, "적 쥐는 16 그대로")
+
+
 func test_undead_ratio_override_per_monster() -> void:
 	var data: MonsterData = MonsterData.new()
 	data.max_health = 10.0

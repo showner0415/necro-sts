@@ -133,16 +133,22 @@ func _orbit_keeps_distance() -> bool:
 	# 쥐 언데드를 네크로맨서 옆에 둔다. 도는 동안 둘 다와 거리를 지켜야 한다.
 	var skull: Skull = Skull.create(load(RAT_SKULL_PATH))
 	_summon(skull, 0)
-	await wait_frames(1)
 	var undead: Undead = get_first_node_in_group(&"undead") as Undead
 	if undead == null:
 		fail_step("언데드 소환", "언데드가 없음")
 		return false
+	# 붙잡아 둔 언데드가 박쥐를 물면 무리가 그 언데드를 노려 도는 중심이 바뀐다. 거리 유지만 보려고 공격하지 못하게 한다
+	# (공격 거리 0인 데이터 복사본). 박쥐가 방금 네크로맨서를 물어 곁에 있으므로, 한 프레임도 지나기 전에 바꾼다.
+	var passive: MonsterData = undead.data.duplicate()
+	passive.undead_attack_range_override = 0.0
+	undead.data = passive
+	await wait_frames(1)
 	var frames: int = await _wait_state(DiveBehavior.State.ORBIT)
 	if frames < 0:
 		fail_step("물러나 돌기", "돌기 시작하지 않음 (상태 %s)" % _state_name())
 		return false
 	var orbit_frames: int = 0
+	var bat_health: float = _bat.health
 	var min_necromancer: float = INF
 	var min_undead: float = INF
 	while _dive.get_state() == DiveBehavior.State.ORBIT and orbit_frames < TIMEOUT_FRAMES:
@@ -156,8 +162,8 @@ func _orbit_keeps_distance() -> bool:
 	var expected: int = roundi(_dive.orbit_time * Engine.physics_ticks_per_second)
 	var limit: float = _dive.keep_distance - KEEP_TOLERANCE
 	return _check("돌며 모두와 거리 유지", min_necromancer >= limit and min_undead >= limit and absi(orbit_frames - expected) <= 3 and _dive.get_state() == DiveBehavior.State.WINDUP,
-			"%d프레임 돎 (기대 %d), 가장 가까웠던 거리: 네크로맨서 %.0f, 언데드 %.0f (유지 거리 %.0f, 허용 %.0f), 다음 상태 %s" % [
-				orbit_frames, expected, min_necromancer, min_undead, _dive.keep_distance, limit, _state_name()])
+			"%d프레임 돎 (기대 %d), 가장 가까웠던 거리: 네크로맨서 %.0f, 언데드 %.0f (유지 거리 %.0f, 허용 %.0f), 다음 상태 %s, 도는 동안 박쥐 체력 %.1f → %.1f" % [
+				orbit_frames, expected, min_necromancer, min_undead, _dive.keep_distance, limit, _state_name(), bat_health, _bat.health])
 
 
 func _undead_bat() -> void:

@@ -64,6 +64,9 @@ enum PlaceholderShape { CIRCLE, ELLIPSE, DIAMOND }
 ## 이 몬스터만 언데드 체력·공격력 배율을 따로 둘 때 (0보다 작으면 기본 배율, UndeadStatRules)
 @export var undead_health_ratio_override: float = -1.0
 @export var undead_damage_ratio_override: float = -1.0
+## 이 몬스터만 언데드 공격 거리를 따로 둘 때 (0보다 작으면 몬스터의 attack_range와 같다).
+## 쥐 언데드는 멧돼지 돌진에 맞는 범위(20) 밖에서 싸우도록 24로 둔다 (사용자 결정, 2026-11-08)
+@export var undead_attack_range_override: float = -1.0
 @export var undead_placeholder_color: Color = Color.WHITE
 
 ## 언데드 능력치는 몬스터 값에서 계산한다 (규칙: UndeadStatRules). 체력·공격력에만 배율, 나머지는 몬스터와 같다.
@@ -102,9 +105,14 @@ func get_enemy_stats() -> CombatStats:
 	return CombatStats.create(move_speed, attack_range, contact_damage, attack_cooldown)
 
 
-## 언데드일 때의 능력치: 이동 속도·공격 거리·공격 간격은 몬스터와 같고, 공격력만 배율을 곱한다.
+## 언데드일 때의 능력치: 이동 속도·공격 간격은 몬스터와 같고, 공격력만 배율을 곱한다. 공격 거리는 따로 둔 값이 없으면 몬스터와 같다.
 func get_undead_stats() -> CombatStats:
-	return CombatStats.create(move_speed, attack_range, undead_contact_damage, attack_cooldown)
+	return CombatStats.create(move_speed, get_undead_attack_range(), undead_contact_damage, attack_cooldown)
+
+
+## 언데드 공격 거리 (이 몬스터에 따로 둔 값이 있으면 그것, 없으면 몬스터의 attack_range)
+func get_undead_attack_range() -> float:
+	return undead_attack_range_override if undead_attack_range_override >= 0.0 else attack_range
 
 
 ## 언데드 체력 배율 (이 몬스터에 따로 둔 값이 있으면 그것, 없으면 기본 배율)

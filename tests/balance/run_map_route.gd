@@ -10,7 +10,7 @@ extends ScenarioTest
 ## 전부 (헤드리스, 빠르게):
 ##   bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_map_route.gd
 ## 일부만: -- --routes=bat --skills=normal --undead=0 --runs=3
-## 물러나기도 재려면: --retreat=0,1 (1: 언데드를 모두 잃거나 체력이 절반 이하면 싸움을 그만두고 합류 굴의 탈출 B로 물러난다)
+## 물러나기도 재려면: --retreat=0,1,2 (1: 언데드를 모두 잃거나 체력이 절반 이하면 싸움을 그만두고 합류 굴의 탈출 B로 물러난다, 2: 체력이 절반 이하일 때만). 1이나 2 중 하나만 줘도 둘 다 잰다
 ## 창으로 보기 (실제 속도, 한 판):
 ##   bash tools/godot.sh --path . -s tests/balance/run_map_route.gd -- --routes=boar --skills=normal --undead=2 --runs=1
 
@@ -21,8 +21,6 @@ const BONE_PATH: String = "res://data/items/bone.tres"
 const UNDEAD_BONES: int = 40
 const BAT_PATH: String = "res://data/monsters/bat.tres"
 const BAT_PATHS = preload("res://tests/bat_nest_paths.gd")
-const FRONT_CHARGE = preload("res://tests/balance/front_charge_behavior.gd")
-const MONSTER_SCENE: String = "res://monsters/monster.tscn"
 const RAT_PATH: String = "res://data/monsters/rat.tres"
 ## 시간 초과한 판의 위치 기록 간격 (초)과, 끝에서 몇 초 동안 움직인 거리를 볼지
 const TRACE_INTERVAL: float = 1.0
@@ -33,6 +31,11 @@ const NEST_WAYPOINT_EVERY: int = 3
 const NEST_SNEAK_MARGIN: float = 96.0
 ## 물러나기 조건: 체력이 최대의 이 비율 이하
 const RETREAT_HEALTH_RATIO: float = 0.5
+## 물러나기 방식: 0 끝까지 싸우기, 1 언데드를 모두 잃거나 체력이 RETREAT_HEALTH_RATIO 이하면 합류 굴의 탈출 B로, 2 체력이 RETREAT_HEALTH_RATIO 이하일 때만 탈출 B로
+const RETREAT_NEVER: int = 0
+const RETREAT_UNDEAD_OR_HEALTH: int = 1
+const RETREAT_HEALTH_ONLY: int = 2
+const RETREAT_NAMES: Array[String] = ["끝까지", "물러나기", "물러나기(체력만)"]
 const TILE: float = 32.0
 ## 길: 이름, 출발 굴, 지나갈 굴들, 몬스터를 남길 굴들 (모두 굴 역할 이름, _find_roles).
 ## via_monsters가 있으면 굴 대신 남긴 몬스터 중 그 종류가 처음 놓인 자리를, 가까운 것부터 차례로 찾아간다 (일부러 싸우러 갈 때)
@@ -55,15 +58,13 @@ const SETTLE_FRAMES: int = 6
 var _routes: Array[StringName] = [&"bat", &"bat_direct", &"bat_sneak", &"boar", &"boar_hunt"]
 var _skills: Array[StringName] = [&"skilled", &"normal", &"novice"]
 var _undead_counts: Array[int] = [0, 2]
-## 0: 끝까지 싸우기, 1: 언데드를 모두 잃거나 체력이 RETREAT_HEALTH_RATIO 이하면 합류 굴의 탈출 B로 물러나기
+## 물러나기 방식들 (RETREAT_NAMES 순서)
 var _retreats: Array[int] = [0]
 ## 잴 지역 씬과 그 배치 PNG (다른 판의 맵과 비교할 때 --scene=, --png=로 바꾼다)
 var _scene: String = CAVE_SCENE
 var _png: String = MAP_PNG
-## 시험용: 0보다 크면 쥐 언데드의 공격 거리를 이 값으로 바꾼 데이터 복사본을 쓴다 (실제 .tres는 그대로)
+## 시험용: 0보다 크면 쥐 언데드의 공격 거리(undead_attack_range_override)를 이 값으로 바꾼 데이터 복사본을 쓴다 (실제 .tres는 그대로)
 var _undead_attack_range: float = -1.0
-## 시험용: true면 멧돼지가 돌진 방향 앞쪽만 맞히는 조각(front_charge_behavior.gd)을 쓴다 (데이터 복사본)
-var _charge_front: bool = false
 var _rat_undead_data: MonsterData
 var _runs: int = DEFAULT_RUNS
 var _timeout: float = DEFAULT_TIMEOUT
@@ -99,12 +100,14 @@ func _parse_args() -> void:
 				_runs = int(parts[1])
 			"retreat":
 				_retreats.assign(Array(values).map(func(v: String) -> int: return int(v)))
+				# 물러나기를 재면 두 조건(언데드를 잃거나 체력 절반 / 체력 절반만)을 늘 나란히 잰다 (사용자 결정)
+				for retreat: int in [RETREAT_UNDEAD_OR_HEALTH, RETREAT_HEALTH_ONLY]:
+					if not _retreats.has(retreat) and (_retreats.has(RETREAT_UNDEAD_OR_HEALTH) or _retreats.has(RETREAT_HEALTH_ONLY)):
+						_retreats.append(retreat)
 			"scene":
 				_scene = parts[1]
 			"undead_attack_range":
 				_undead_attack_range = float(parts[1])
-			"charge_front":
-				_charge_front = parts[1] == "1"
 			"png":
 				_png = parts[1]
 			"timeout":
@@ -139,15 +142,15 @@ func _run_all() -> void:
 				for skill_id: StringName in _skills:
 					var results: Array[Dictionary] = []
 					for run: int in _runs:
-						results.append(await _pass(route_id, undead_count, skill_id, run, retreat == 1))
-					lines.append(_row(route_id, undead_count, retreat == 1, skill_id, results))
+						results.append(await _pass(route_id, undead_count, skill_id, run, retreat))
+					lines.append(_row(route_id, undead_count, retreat, skill_id, results))
 					print(lines[-1])
 	print("")
 	print("\n".join(lines))
 	finish(true)
 
 
-func _pass(route_id: StringName, undead_count: int, skill_id: StringName, run: int, retreat: bool) -> Dictionary:
+func _pass(route_id: StringName, undead_count: int, skill_id: StringName, run: int, retreat: int) -> Dictionary:
 	await _reload_scene()
 	seed(BASE_SEED + run)
 	var route: Dictionary = ROUTES[route_id]
@@ -161,8 +164,6 @@ func _pass(route_id: StringName, undead_count: int, skill_id: StringName, run: i
 			kept.append(monster)
 		else:
 			monster.free()
-	if _charge_front:
-		kept = _replace_boars(kept)
 	var necromancer: Necromancer = find_necromancer()
 	necromancer.global_position = _room_center(_roles[route["start"]])
 	await wait_frames(SETTLE_FRAMES)
@@ -235,7 +236,7 @@ func _pass(route_id: StringName, undead_count: int, skill_id: StringName, run: i
 			_print_timeout(run, necromancer, bot, escape_point, kept, trace)
 			break
 		last_health = necromancer.health
-		if retreat and not bot.retreating and (necromancer.health <= max_health * RETREAT_HEALTH_RATIO or bot.lost_all_undead()):
+		if retreat != RETREAT_NEVER and not bot.retreating and (necromancer.health <= max_health * RETREAT_HEALTH_RATIO or (retreat == RETREAT_UNDEAD_OR_HEALTH and bot.lost_all_undead())):
 			bot.retreat_to(escape_point)
 		if bot.retreating:
 			bot.tick(delta)
@@ -305,7 +306,7 @@ func _reload_scene() -> void:
 		await physics_frame
 
 
-func _row(route_id: StringName, undead_count: int, retreat: bool, skill_id: StringName, results: Array[Dictionary]) -> String:
+func _row(route_id: StringName, undead_count: int, retreat: int, skill_id: StringName, results: Array[Dictionary]) -> String:
 	var died: int = results.filter(func(r: Dictionary) -> bool: return r["died"]).size()
 	var escaped: int = results.filter(func(r: Dictionary) -> bool: return r["escaped"]).size()
 	var same_frame: int = results.filter(func(r: Dictionary) -> bool: return r["undead_same_frame"]).size()
@@ -326,7 +327,7 @@ func _row(route_id: StringName, undead_count: int, retreat: bool, skill_id: Stri
 		kept += r["kept"]
 		undead_died += r["undead_died"]
 	return "| %s | %s | %s | %s | %d | %.0f%% | %.0f%% | %s | %.1f / %.1f | %.1f / %d | %.1f | %d / %d | %d | %s |" % [
-		ROUTES[route_id]["name"], _condition_name(undead_count), "물러나기" if retreat else "끝까지", PlayerBot.SKILLS[skill_id]["name"], results.size(),
+		ROUTES[route_id]["name"], _condition_name(undead_count), RETREAT_NAMES[retreat], PlayerBot.SKILLS[skill_id]["name"], results.size(),
 		100.0 * died / results.size(), 100.0 * escaped / results.size(), "%.1f초" % _mean(times) if not times.is_empty() else "-", _mean(damages), damages.max(),
 		float(killed) / results.size(), kept / results.size(), float(undead_died) / results.size(), same_frame, undead_lost_runs, timeouts, "%.0f%%" % (100.0 * hits / shots) if shots > 0 else "-"]
 
@@ -345,35 +346,16 @@ func _condition_name(undead_count: int) -> String:
 	var label: String = "혼자" if undead_count == 0 else "쥐 언데드 %d" % undead_count
 	if _undead_attack_range > 0.0:
 		label += " (언데드 공격 거리 %.0f)" % _undead_attack_range
-	if _charge_front:
-		label += " (돌진 앞쪽만)"
 	return label
 
 
-## 남긴 멧돼지를 같은 자리에 돌진 앞쪽만 맞히는 데이터 복사본으로 다시 놓는다. 다른 몬스터는 그대로.
-func _replace_boars(kept: Array[Monster]) -> Array[Monster]:
-	var result: Array[Monster] = []
-	for monster: Monster in kept:
-		if monster.data.id != &"boar" or not monster.data.behavior is ChargeBehavior:
-			result.append(monster)
-			continue
-		var data: MonsterData = monster.data.duplicate()
-		data.behavior = FRONT_CHARGE.copy_from(monster.data.behavior)
-		var copy: Monster = (load(MONSTER_SCENE) as PackedScene).instantiate()
-		copy.data = data
-		copy.position = monster.position
-		var parent: Node = monster.get_parent()
-		monster.free()
-		parent.add_child(copy)
-		result.append(copy)
-	return result
 
 
 ## 소환된 쥐 언데드를 공격 거리만 바꾼 데이터 복사본으로 바꾼다 (다시 소환되면 그때 다시 바꾼다).
 func _apply_undead_attack_range() -> void:
 	if _rat_undead_data == null:
 		_rat_undead_data = (load(RAT_PATH) as MonsterData).duplicate()
-		_rat_undead_data.attack_range = _undead_attack_range
+		_rat_undead_data.undead_attack_range_override = _undead_attack_range
 	for node: Node in get_nodes_in_group(&"undead"):
 		var undead: Undead = node as Undead
 		if undead != null and undead.data != _rat_undead_data and undead.data.id == _rat_undead_data.id:
@@ -388,7 +370,19 @@ func _print_timeout(run: int, necromancer: Necromancer, bot: PlayerBot, escape_p
 	var hunters: PackedStringArray = []
 	for monster: Variant in kept:
 		if is_instance_valid(monster) and (monster as Monster).health > 0.0 and (monster as Monster).get_target() != null:
-			hunters.append("%s 칸 %s 체력 %.0f" % [(monster as Monster).data.id, ((monster as Monster).global_position / TILE).floor(), (monster as Monster).health])
+			hunters.append(_hunter_summary(monster as Monster, necromancer))
 	print("시간 초과 판 %d: 물러나는 중 %s, 네크로맨서 칸 %s 체력 %.0f, 탈출 지점까지 %.0f px, 마지막 %d초 동안 움직인 거리 %.0f px, 지난 위치(칸) %s, 노리는 몬스터 %s" % [
 		run, bot.retreating, (necromancer.global_position / TILE).floor(), necromancer.health, necromancer.global_position.distance_to(escape_point), TRACE_TAIL, moved,
 		trace.slice(maxi(trace.size() - 8, 0)).map(func(p: Vector2) -> Vector2: return (p / TILE).floor()), hunters])
+
+
+## 시간 초과 기록용 몬스터 요약: 종류, 칸, 체력, 대상까지 거리. 돌진하는 몬스터는 상태와 대상 쪽으로 벽까지 거리도.
+func _hunter_summary(monster: Monster, necromancer: Necromancer) -> String:
+	var text: String = "%s 칸 %s 체력 %.0f 거리 %.1f" % [monster.data.id, (monster.global_position / TILE).floor(), monster.health, monster.global_position.distance_to(necromancer.global_position)]
+	var charge: ChargeBehavior = monster.get_behavior() as ChargeBehavior
+	if charge != null:
+		var rooms: PackedStringArray = []
+		for i: int in 8:
+			rooms.append("%.0f" % charge.get_room(monster, Vector2.from_angle(i * TAU / 8)))
+		text += " 상태 %s 벽까지 %.0f, 8방향(동부터 시계) 벽까지 [%s], 물러날 방향 %s, 속도 %s" % [ChargeBehavior.State.keys()[charge.get_state()], charge.get_room(monster, monster.global_position.direction_to(necromancer.global_position)), ",".join(rooms), charge.call(&"_back_off_direction", monster, necromancer).snapped(Vector2(0.01, 0.01)), monster.velocity.round()]
+	return text

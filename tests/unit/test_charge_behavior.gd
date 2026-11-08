@@ -154,6 +154,21 @@ func test_hits_each_hostile_once_per_charge() -> void:
 	other.free()
 
 
+func test_hostile_behind_or_beside_is_not_hit() -> void:
+	var behind: FakeHostile = FakeHostile.new()
+	var beside: FakeHostile = FakeHostile.new()
+	body.hostiles.append_array([behind, beside])
+	_run_windup()
+	# 돌진을 시작할 때 멧돼지에 붙어 있던 상대: 뒤쪽과 옆(돌진 방향과 90도). 맞는 거리 안이지만 앞쪽이 아니다.
+	behind.position = body.position - charge.get_direction() * (charge.hit_radius - 2.0)
+	beside.position = body.position + charge.get_direction().orthogonal() * (charge.hit_radius - 2.0)
+	_step()
+	assert_eq(behind.damage.size(), 0, "뒤쪽 상대는 맞지 않는다")
+	assert_eq(beside.damage.size(), 0, "옆 상대는 맞지 않는다")
+	behind.free()
+	beside.free()
+
+
 func test_next_charge_can_hit_again() -> void:
 	_run_windup()
 	while charge.get_state() == ChargeBehavior.State.CHARGE:
