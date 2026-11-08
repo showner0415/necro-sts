@@ -18,11 +18,20 @@ const MAP_PNG: String = "res://art_src/maps/shallow_cave.png"
 const RAT_SKULL_PATH: String = "res://data/skulls/rat_skull.tres"
 const BONE_PATH: String = "res://data/items/bone.tres"
 const UNDEAD_BONES: int = 40
+const BAT_PATH: String = "res://data/monsters/bat.tres"
+const BAT_PATHS = preload("res://tests/bat_nest_paths.gd")
+## 박쥐 둥지를 지나는 길에서 이 칸 수마다(그리고 꺾이는 칸마다) 걸을 점을 둔다
+const NEST_WAYPOINT_EVERY: int = 3
+## 몰래 가는 길이 박쥐 감지 범위에서 더 떨어져 지나는 여유 (픽셀). scenario_shallow_cave.gd의 BAT_SNEAK_MARGIN과 같다
+const NEST_SNEAK_MARGIN: float = 96.0
 const TILE: float = 32.0
 ## 길: 이름, 출발 굴, 지나갈 굴들, 몬스터를 남길 굴들 (모두 굴 역할 이름, _find_roles).
 ## via_monsters가 있으면 굴 대신 남긴 몬스터 중 그 종류가 처음 놓인 자리를, 가까운 것부터 차례로 찾아간다 (일부러 싸우러 갈 때)
+## nest_path가 있으면 via의 굴들 앞에 박쥐 둥지를 지나는 길(tests/bat_nest_paths.gd)의 점들을 차례로 걷는다: "default" 입구 → 출구 가장 짧은 길, "sneak" 감지되는 칸을 피하는 길
 const ROUTES: Dictionary = {
 	&"bat": {"name": "박쥐 길 (갈림 굴 → 박쥐 둥지 → 합류 굴)", "start": "fork", "via": ["bat_nest", "junction"], "keep": ["bat_nest"]},
+	&"bat_direct": {"name": "박쥐 길 기본 길 (둥지 입구 → 출구 가장 짧은 길)", "start": "fork", "via": ["junction"], "nest_path": "default", "keep": ["bat_nest"]},
+	&"bat_sneak": {"name": "박쥐 길 몰래 (둥지 서쪽 벽 → 바위 뒤 → 북쪽으로 돌아)", "start": "fork", "via": ["junction"], "nest_path": "sneak", "keep": ["bat_nest"]},
 	&"boar": {"name": "멧돼지 쪽 (합류 굴 → 빛 드는 굴 → 동굴 입구)", "start": "junction", "via": ["light_room", "cave_mouth"], "keep": ["light_room", "cave_mouth"]},
 	&"boar_hunt": {"name": "멧돼지 잡으러 (합류 굴 → 가까운 멧돼지부터 차례로)", "start": "junction", "via": [], "via_monsters": &"boar", "keep": ["light_room", "cave_mouth"]},
 }
@@ -34,7 +43,7 @@ const BASE_SEED: int = 2000
 const ARRIVE_DISTANCE: float = 16.0
 const SETTLE_FRAMES: int = 6
 
-var _routes: Array[StringName] = [&"bat", &"boar", &"boar_hunt"]
+var _routes: Array[StringName] = [&"bat", &"bat_direct", &"bat_sneak", &"boar", &"boar_hunt"]
 var _skills: Array[StringName] = [&"skilled", &"normal", &"novice"]
 var _undead_counts: Array[int] = [0, 2]
 var _runs: int = DEFAULT_RUNS
@@ -138,6 +147,10 @@ func _pass(route_id: StringName, undead_count: int, skill_id: StringName, run: i
 		await wait_frames(SETTLE_FRAMES)
 
 	var goals: Array[Vector2] = []
+	if route.has("nest_path"):
+		var nest: Dictionary = BAT_PATHS.measure((current_scene.get_node("Walls") as PlaceholderWalls).layout, _layout.objects, current_scene.get_node("NavigationGrid"),
+			(load(BAT_PATH) as MonsterData).detect_range, Vector2i(_layout.rooms[_roles.fork].center.round()), Vector2i(_layout.rooms[_roles.junction].center.round()), NEST_SNEAK_MARGIN)
+		goals.append_array(BAT_PATHS.waypoints(nest["default_path"] if route["nest_path"] == "default" else nest["sneak_path"], NEST_WAYPOINT_EVERY))
 	for role: String in route["via"]:
 		goals.append(_room_center(_roles[role]))
 	if route.has("via_monsters"):

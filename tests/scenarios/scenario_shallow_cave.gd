@@ -5,6 +5,8 @@ extends ScenarioTest
 ## 3. 쥐가 사는 굴들이 고리로 이어져 있다 (입구 굴·쥐 둥지·물웅덩이 굴과 그 사이를 잇는 작은 굴 사이에 돌아오는 길이 있다)
 ## 4. 상자가 있고 굴 하나에만 이어진 굴(막다른 굴, 둥지 뒷굴)은 입구가 하나다
 ## 5. 전망 바위의 전망 자리(tools/screenshot_setups/view_rock.gd)에 서면 박쥐가 모두 화면 안에 보이고, 박쥐 둥지까지 바로 가는 길은 없다 (벽을 돌아가야 한다)
+## 5-1. 박쥐 길 (tests/bat_nest_paths.gd, 박쥐의 처음 자리 기준): 갈림 굴 쪽 입구에서 합류 굴 쪽 출구까지 가장 짧은 길(기본 길)은
+##    박쥐에게 감지되고, 감지되는 곳은 입구에서 BAT_DETECT_DEPTH칸 이상 들어선 뒤다. 감지 범위보다 BAT_SNEAK_MARGIN 더 떨어져 지나는 길(몰래 가는 길)이 있다. 두 길의 길이·걷는 시간을 출력한다
 ## 6. 다듬은 뒤에도 박쥐 둥지가 유일한 넓은 방이다: 박쥐가 도는 반경(+ 몸)의 원이 벽에 닿지 않는 자리가 가장 많고, 가장 큰 원도 가장 크다
 ## 7. 멧돼지가 사는 굴마다 돌진(돌진 최대 거리 + 지나치는 거리)보다 긴 곧고 트인 길(3칸 폭)이 있다
 ## 8. 구간별 걷기 시간 (걷기, 몬스터는 없앰): 도착 지점 → 입구 굴, 입구 굴 → 갈림 굴, 갈림 굴 → 합류 굴(박쥐 길, 거미 길),
@@ -76,6 +78,11 @@ const ROCK_DIRECTIONS: Array[Vector2] = [Vector2(1, 0), Vector2(0, 1), Vector2(0
 const VIEW_SETTLE_FRAMES: int = 10
 ## 5. 바로 가는 길이 없다고 보려면, 전망 자리에서 박쥐 둥지까지 걷는 걸음 수가 곧은 거리의 이 배 이상이어야 한다
 const VIEW_DETOUR_RATIO: float = 3.0
+## 5-1. 기본 길에서 박쥐가 처음 감지하는 곳이 둥지 입구에서 적어도 이만큼(칸) 들어선 뒤여야 한다 (길목을 나서자마자 걸리지 않게)
+const BAT_DETECT_DEPTH: float = 3.0
+## 5-1. 몰래 가는 길은 박쥐 감지 범위보다 이만큼(픽셀) 더 떨어져 지나야 한다. 박쥐는 싸우지 않을 때 배회하므로(초당 15px), 둥지에 닿기까지 옮겨 간 만큼의 여유
+const BAT_SNEAK_MARGIN: float = 96.0
+const BAT_PATHS = preload("res://tests/bat_nest_paths.gd")
 ## 11. 탈출 지점에 선 뒤 거점에 가기를 기다리는 최대 프레임 (탈출 3초 + 여유)
 const ESCAPE_WAIT_FRAMES: int = 60 * 5
 ## 8방향 (곧은 길 찾기)
@@ -134,6 +141,8 @@ func _run() -> void:
 	if not _dead_end():
 		return
 	if not await _view_rock():
+		return
+	if not _bat_path():
 		return
 	if not _wide_bat_nest():
 		return
@@ -396,6 +405,23 @@ func _steps_from(rows: PackedStringArray, start: Vector2i) -> Dictionary:
 				steps[n] = steps[cell] + 1
 				queue.append(n)
 	return steps
+
+
+# --- 5-1. 박쥐 길: 들어선 뒤 감지, 몰래 가는 길 ---
+
+func _bat_path() -> bool:
+	var rows: PackedStringArray = (current_scene.get_node("Walls") as PlaceholderWalls).layout
+	var nav: NavigationGrid = current_scene.get_node("NavigationGrid")
+	var detect_range: float = (load(BAT_PATH) as MonsterData).detect_range
+	var fork_cell: Vector2i = Vector2i(_layout.rooms[_roles.fork].center.round())
+	var junction_cell: Vector2i = Vector2i(_layout.rooms[_roles.junction].center.round())
+	var result: Dictionary = BAT_PATHS.measure(rows, _layout.objects, nav, detect_range, fork_cell, junction_cell, BAT_SNEAK_MARGIN)
+	var speed: float = find_necromancer().move_speed
+	var entrance_seen: Array = result.entrance.filter(func(cell: Vector2i) -> bool: return result.detected.has(cell))
+	var ok: bool = result.first_detect >= BAT_DETECT_DEPTH and entrance_seen.is_empty() and result.sneak_length > 0.0
+	return _check("박쥐 길: 둥지에 들어선 뒤 감지, 몰래 가는 길 있음", ok, "박쥐 처음 자리 기준, 감지 %.0fpx, 감지하는 칸 %d. 입구 칸 %s 중 감지 %s. 기본 길 %.1f칸(%s) 중 처음 감지는 %.1f칸 들어선 곳 (%.0f칸 이상이어야 함, -1은 감지 안 됨). 몰래 가는 길(감지 범위 + 여유 %.0fpx 밖) %.1f칸(%s, +%.1f초, -1은 없음). 걷기 %.0f/초" % [
+		detect_range, result.detected.size(), result.entrance, entrance_seen, result.default_length, _seconds(result.default_length * TILE / speed),
+		result.first_detect, BAT_DETECT_DEPTH, BAT_SNEAK_MARGIN, result.sneak_length, _seconds(result.sneak_length * TILE / speed), (result.sneak_length - result.default_length) * TILE / speed, speed])
 
 
 # --- 6. 박쥐 둥지가 유일한 넓은 방 ---
