@@ -226,8 +226,11 @@ func take_damage(amount: float, source: Node2D = null) -> void:
 	if health <= 0.0:
 		_die()
 		return
-	modulate = Color(3, 3, 3)
-	create_tween().tween_property(self, "modulate", Color.WHITE, hit_flash_duration)
+	# 번쩍임은 색만 바꾼다. 투명도(modulate.a)는 시야(Vision)가 나타나고 사라질 때 쓴다.
+	modulate = Color(3, 3, 3, modulate.a)
+	var flash: Tween = create_tween().set_parallel()
+	for channel: String in ["r", "g", "b"]:
+		flash.tween_property(self, "modulate:" + channel, 1.0, hit_flash_duration)
 
 
 func _die() -> void:

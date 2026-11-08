@@ -78,6 +78,7 @@ res://
 - `undead`: 소환된 언데드. 몬스터가 공격 대상을 찾을 때 네크로맨서와 함께 쓴다.
 - `monsters`: 몬스터. 언데드가 공격 대상을 찾을 때 쓴다.
 - `navigation_grid`: 벽이 있는 지역의 길찾기(`NavigationGrid`). 몬스터·언데드의 `PathFollower`가 찾는다. 없으면 곧장 움직인다.
+- `sight_hidden`: 시야(`Vision`) 밖에서 숨기는 것 (바닥 물건·시체·몬스터의 돌). 몬스터(`monsters`)도 같이 숨긴다. 언데드는 넣지 않는다.
 
 ## 씬(.tscn) 파일
 
@@ -134,6 +135,7 @@ res://
   - `scenario_storage.gd`: 상자에서 F → 인벤토리(가운데 왼쪽)·창고(오른쪽) 나란히 → 핫바 머리뼈를 창고로(핫바 빔) → 뼈 합치기 → 소환 중인 머리뼈는 못 옮김 → 창고 메뉴 "인벤토리로 옮기기" → Shift+좌클릭 빠른 옮기기(양방향, 뼈 합치기, 소환 중·인벤토리 가득 참 안내) → 휠 스크롤로 100번째 칸 → 창고 클릭이 공격으로 안 넘어감 → 멀어지면·Esc로 닫힘 → 지역엔 창고 없음
   - `scenario_stamina.gd`: 가득 차면 도넛 숨김 → Shift+이동으로 뛰기(속도, 스태미나가 줄기만 함, 도넛 보임) → 멈추면 회복 → 가득 차면 숨김 → Space로 구르기(이동 방향·거리·비용, 앞부분 무적, 구르는 중 회복 없음) → 0까지 뛰면 걷기로 돌아가고 구르기 불가 → 언데드는 멀어지면 뛰는 속도로 따라옴 → 메뉴가 열린 채 Space면 구르기만 되고 메뉴는 그대로(씬의 모든 UI가 키보드 포커스를 받지 않음)
   - `scenario_summon.gd`: 숫자키로 핫바 선택(선택 테두리) → G로 소환(처음 소환 뼈·마나, 소환 중 테두리) → 언데드가 쥐를 잡음(피해마다 내구도 -1) → G로 해제(체력 유지) → R로 뼈를 써서 회복
+  - `scenario_vision.gd`: 시험 통로에서 시야가 붙고 지형(벽·바닥)만 어두움·벽 그림자 모양 있음 → 마우스를 동쪽에 두면 정면 쥐 보임, 벽 뒤·뒤쪽·부채꼴 밖 쥐 안 보임, 몸 바로 뒤(둘레 원) 쥐 보임 → 서쪽으로 돌리면 바뀜 → 언데드는 부채꼴 밖에서도 보임 → 시야를 끄면 모두 보이고 지형이 원래 밝기 → 시야 처리 시간 출력 → 거점에는 시야 없음 (쥐는 데이터 복사로 고정)
   - `scenario_undead_targeting.gd`: 가까이 쥐가 있어도 언데드가 먼저 공격하지 않음 → 네크로맨서가 쥐 A를 맞히면 A로 감 → 언데드 공격 반경에 들어오면 고정 → 네크로맨서가 B를 맞혀도 A 그대로 → A가 죽으면 최근에 맞은 B로 바로 감 → 네크로맨서를 노리며 다가오는 쥐는 네크로맨서 공격 반경(160) 안에서 고름 → 언데드를 노리는 쥐는 언데드 공격 반경 안에서 반격 (쥐는 데이터 복사로 고정)
   - 새 핵심 흐름(소환, 퀘스트 등)이 생기면 그 흐름의 시나리오를 추가할지 제안한다.
 - 검증에 쓴 스크립트가 다시 쓸 만하면 임시 폴더에 두지 말고 `tests/`나 `tools/`에 넣는다.
@@ -147,6 +149,10 @@ res://
 - **맵 배치 PNG → 지역 씬**: `bash tools/godot.sh --headless --path . -s tools/map_from_png.gd` (기본은 얕은 굴). 픽셀 하나 = 타일 한 칸이고 색 규칙은 `docs/maps/map_png_rules.md`. 만든 씬(`regions/shallow_cave.tscn`)은 손으로 고치지 않고 PNG를 고쳐 다시 변환한다. 변환할 때 벽 가장자리를 동굴처럼 다듬고(`MapSmoother`, 길목·굴 중심·굴 안 바위는 그대로, 바닥 최소 2칸), 굴마다 입구 수·이어진 굴·바위를 출력한다. 만든 씬의 길찾기(`NavigationGrid.wall_tiles`)는 막힌 칸을 물리 질의 대신 벽 타일에서 바로 계산한다 (같은 결과, 훨씬 빠름).
   - 맵 전체 스크린샷: `--setup=res://tools/screenshot_setups/map_overview.gd`, 전망 바위에서 박쥐 둥지 보기: `--setup=res://tools/screenshot_setups/view_rock.gd`
   - 바닥 통계: `bash tools/godot.sh --headless --path . -s tools/map_png/map_stats.gd` (굴·통로 비율, PNG 그대로와 다듬은 뒤. 통로마다 가장 넓은 곳·길목 칸 수)
+- **시야**: 개발 빌드에서 F2로 켜고 끈다 (배포판에서는 동작하지 않음).
+  - 스크린샷: `--scene=res://regions/shallow_cave.tscn --setup=res://tools/screenshot_setups/vision_preview.gd` (쥐 둥지 바위 앞, 동쪽을 봄. 쥐 넷: 정면·바위 뒤·부채꼴 밖·몸 바로 뒤)
+  - 움직이는 모습 연속 스크린샷: `bash tools/godot.sh --path . -s tools/record_vision_sequence.gd -- --out=<scratchpad 경로>/seq` (제자리 돌기·걷기·바위 옆 지나가기, 장면마다 12장을 모은 한 장과 낱장)
+  - 프레임 시간: `bash tools/godot.sh --path . -s tools/measure_vision_frame.gd -- --scene=res://regions/shallow_cave.tscn` (창이 뜬다. 시야를 켠 구간과 끈 구간을 번갈아 재서 프레임 시간 중앙값의 차이를 본다. 평균은 다른 프로그램 때문에 크게 흔들린다. 원인을 나누려면 `--no_shadow`, `--no_occluders`, `--no_light`)
 - **박쥐 무리 경로 그림**: `bash tools/godot.sh --headless --fixed-fps 60 --path . -s tools/record_pack_paths.gd -- --seconds=12 --out=<scratchpad 경로>/pack_paths.png`. 네크로맨서를 세워 두고 박쥐 3마리의 경로를 3초씩 칸으로 나눠 그린다(흰 테두리 점은 동시 돌진 예고). 도는 방향 바꾼 횟수, 박쥐끼리 가장 가까운 거리, 동시 돌진 시작 때 박쥐 사이 각도를 출력한다.
 - 출력에 `SCRIPT ERROR` 또는 `ERROR:`가 있으면 고치고 다시 실행한다.
 - 검증 결과를 보고할 때는 실제로 실행한 명령과, 무엇이 실행됐는지 보여주는 근거(출력 일부)를 함께 적는다.

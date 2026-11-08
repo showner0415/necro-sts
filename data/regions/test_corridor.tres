@@ -7,3 +7,4 @@ script = ExtResource("1_region")
 id = &"test_corridor"
 display_name = "시험 통로"
 scene_path = "res://regions/test_corridor.tscn"
+limit_vision = true

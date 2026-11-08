@@ -31,6 +31,8 @@ var _traveled: float = 0.0
 
 
 func _ready() -> void:
+	# 시야 밖에서는 보이지 않는다 (Vision).
+	add_to_group(&"sight_hidden")
 	var shape: CircleShape2D = CircleShape2D.new()
 	shape.radius = placeholder_radius
 	_collision.shape = shape
