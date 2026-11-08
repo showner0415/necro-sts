@@ -265,7 +265,9 @@ func _pass(route_id: StringName, undead_count: int, skill_id: StringName, run: i
 			goal_index += 1
 			press_moves(Vector2.ZERO)
 			continue
-		press_moves(follower.get_direction(necromancer, goals[goal_index]))
+		var walk: Vector2 = follower.get_direction(necromancer, goals[goal_index])
+		press_moves(walk)
+		bot.look_around(delta, walk)
 	if not result["escaped"]:
 		bot.release_all()
 	bot.finish_tracking(result["died"])

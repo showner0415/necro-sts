@@ -6,6 +6,7 @@ extends SceneTree
 ## bash tools/godot.sh --path . -s tools/measure_vision_frame.gd -- --scene=res://regions/shallow_cave.tscn [--phases=6] [--phase_frames=120]
 ## 원인 나누기: --no_shadow (빛 그림자 끔), --no_occluders (벽 그림자 모양을 지움), --no_light (빛을 끄고 스크립트만)
 ## 언데드 시야 예상: --extra_lights=N --extra_radius=200 (그림자 있는 빛 N개를 네크로맨서 둘레 48px에 두고 같이 돌린다. 시야를 켠 구간에만 켬)
+## 실제 언데드: --undead=N (쥐 언데드 N마리를 핫바·마나 없이 바로 세워 네크로맨서를 따라오게 한다. 언데드 시야 빛은 Vision이 단다)
 
 var _scene_path: String = "res://regions/shallow_cave.tscn"
 var _phases: int = 6
@@ -22,6 +23,7 @@ var _variant: Array[String] = []
 var _extra_count: int = 0
 var _extra_radius: float = 200.0
 var _extras: Array[PointLight2D] = []
+var _undead_count: int = 0
 ## --shot=<경로>: 시야를 켠 첫 구간 가운데쯤 한 프레임을 저장한다 (빛이 실제로 그려지는지 확인용)
 var _shot: String = ""
 ## --at=x,y: 네크로맨서를 이 자리(픽셀)로 옮겨 잰다 (벽이 촘촘한 곳에서 재려고)
@@ -40,6 +42,8 @@ func _initialize() -> void:
 			_phases = arg.trim_prefix("--phases=").to_int()
 		elif arg.begins_with("--phase_frames="):
 			_phase_frames = arg.trim_prefix("--phase_frames=").to_int()
+		elif arg.begins_with("--undead="):
+			_undead_count = arg.trim_prefix("--undead=").to_int()
 		elif arg.begins_with("--extra_lights="):
 			_extra_count = arg.trim_prefix("--extra_lights=").to_int()
 		elif arg.begins_with("--at="):
@@ -72,6 +76,13 @@ func _process(_delta: float) -> bool:
 			for node: Node in get_nodes_in_group(&"monsters"):
 				node.queue_free()
 		_start = _necromancer.global_position
+		for i: int in _undead_count:
+			var undead: Undead = (load("res://undead/undead.tscn") as PackedScene).instantiate()
+			undead.setup(Skull.create(load("res://data/skulls/rat_skull.tres")), load("res://data/monsters/rat.tres"), _necromancer)
+			undead.follow_speed = _necromancer.move_speed
+			undead.catch_up_speed = _necromancer.run_speed
+			_necromancer.get_parent().add_child(undead)
+			undead.global_position = _start + Vector2.from_angle(TAU * i / _undead_count) * 40.0
 		var size: Vector2i = (current_scene.get_node("Walls") as PlaceholderWalls).grid_size()
 		var light: PointLight2D = _vision.find_children("*", "PointLight2D", false, false)[0]
 		if _variant.has("--no_shadow"):
@@ -89,7 +100,7 @@ func _process(_delta: float) -> bool:
 			gradient.width = 256
 			gradient.gradient = Gradient.new()
 			gradient.gradient.set_color(0, Color.WHITE)
-			gradient.gradient.set_color(1, Color.BLACK)
+			gradient.gradient.set_color(1, Color(1, 1, 1, 0))
 			gradient.height = 256
 			extra.texture = gradient
 			extra.texture_scale = _extra_radius * 2.0 / 256.0
@@ -99,7 +110,7 @@ func _process(_delta: float) -> bool:
 			extra.shadow_item_cull_mask = light.shadow_item_cull_mask
 			current_scene.add_child(extra)
 			_extras.append(extra)
-		print("시험: %s%s" % [", ".join(_variant) if not _variant.is_empty() else "그대로", " + 빛 %d개 (반지름 %.0f)" % [_extra_count, _extra_radius] if _extra_count > 0 else ""])
+		print("시험: %s%s%s" % [", ".join(_variant) if not _variant.is_empty() else "그대로", " + 빛 %d개 (반지름 %.0f)" % [_extra_count, _extra_radius] if _extra_count > 0 else "", " + 언데드 %d마리" % _undead_count if _undead_count > 0 else ""])
 		print("맵 %d×%d칸, 그림자 모양: 합치기 전 %d칸 → 합친 뒤 %d개, 시야 준비 %.1fms" % [size.x, size.y, _vision.occluder_counts.x, _vision.occluder_counts.y, _vision.setup_usec / 1000.0])
 	_frame += 1
 	var now: int = Time.get_ticks_usec()

@@ -68,6 +68,8 @@ enum PlaceholderShape { CIRCLE, ELLIPSE, DIAMOND }
 ## 쥐 언데드는 멧돼지 돌진에 맞는 범위(20) 밖에서 싸우도록 24로 둔다 (사용자 결정, 2026-11-08)
 @export var undead_attack_range_override: float = -1.0
 @export var undead_placeholder_color: Color = Color.WHITE
+## 언데드일 때의 시야 (거리·각도 등). 비어 있으면 기본값 (UNDEAD_SIGHT_DEFAULT_PATH)
+@export var undead_sight: SightData
 
 ## 언데드 능력치는 몬스터 값에서 계산한다 (규칙: UndeadStatRules). 체력·공격력에만 배율, 나머지는 몬스터와 같다.
 ## 내구도가 가득 찼을 때의 값이다.
@@ -79,6 +81,8 @@ var undead_contact_damage: float:
 		return contact_damage * get_undead_damage_ratio()
 
 const UNDEAD_STAT_RULES_PATH: String = "res://data/undead_stat_rules.tres"
+const UNDEAD_SIGHT_DEFAULT_PATH: String = "res://data/sight/undead_default.tres"
+static var _default_sight: SightData
 static var _undead_rules: UndeadStatRules
 
 @export_group("그림")
@@ -113,6 +117,16 @@ func make_sprite_frames() -> SpriteFrames:
 		frames.set_animation_loop(animation, false)
 		frames.add_frame(animation, direction_textures[i])
 	return frames
+
+
+## 언데드일 때의 시야 (undead_sight가 비어 있으면 기본값). 기본값은 한 번 불러 붙잡아 둔다
+## (아무도 붙잡지 않으면 캐시에서 내려가 부를 때마다 파일을 다시 읽는다)
+func get_undead_sight() -> SightData:
+	if undead_sight != null:
+		return undead_sight
+	if _default_sight == null:
+		_default_sight = load(UNDEAD_SIGHT_DEFAULT_PATH)
+	return _default_sight
 
 
 ## 적일 때 쓰는 행동 조각의 복사본 (한 마리에 하나)

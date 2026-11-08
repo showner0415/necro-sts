@@ -4,6 +4,7 @@ extends ScenarioTest
 ## 2. 마우스를 동쪽으로 두면: 정면 쥐는 보이고, 부채꼴 안이어도 벽 뒤 쥐·뒤쪽 쥐·부채꼴 밖 쥐는 안 보이며, 몸 바로 뒤(둘레 원 안) 쥐는 보인다
 ## 3. 마우스를 서쪽으로 돌리면 정면이던 쥐는 안 보이고 뒤쪽이던 쥐가 보인다
 ## 4. 내 언데드는 부채꼴 밖에서도 보인다
+## 4-1. 언데드 시야: 플레이어가 반대쪽을 봐도 언데드가 보는 쪽의 쥐는 보인다, 언데드 시야도 벽 뒤는 안 보인다, 해제하면 다시 안 보인다
 ## 5. 시야를 끄면 모두 보인다 (개발용 키와 같은 set_active)
 ## 6. 매 프레임 시야 계산 시간을 출력한다
 ## 7. 거점(limit_vision 끔)에는 시야가 없다
@@ -99,6 +100,25 @@ func _run() -> void:
 		undead.global_position = _tile(FRONT_TILE + Vector2(-1, 0))
 	await wait_frames(SETTLE_FRAMES)
 	if not _check("언데드는 부채꼴 밖에서도 보임", undead != null and undead.visible and not vision.is_visible_at(undead.global_position), "언데드 %s, visible %s, 그 자리 시야 안 %s" % [undead, undead.visible if undead != null else false, vision.is_visible_at(undead.global_position) if undead != null else false]):
+		return
+	# 언데드 시야: 언데드를 정면 쥐 바로 서쪽에 세워 두고(움직이지 않게) 동쪽을 보게 한다. 플레이어는 서쪽을 보는 중이다.
+	var sighted: Undead = undead as Undead
+	sighted.process_mode = Node.PROCESS_MODE_DISABLED
+	sighted.global_position = _tile(FRONT_TILE + Vector2(-2, 0))
+	sighted.facing = Vector2.RIGHT
+	await wait_frames(SETTLE_FRAMES)
+	var front: Vector2 = (_rats["정면"] as Node2D).global_position
+	if not _check("언데드가 보는 쪽은 보임", _seen()["정면"] and not vision.is_visible_to_player(front) and vision.get_undead_light_count() == 1, "정면 쥐 보임 %s, 플레이어 시야 안 %s, 언데드 빛 %d개" % [_seen()["정면"], vision.is_visible_to_player(front), vision.get_undead_light_count()]):
+		return
+	var behind_wall: Vector2 = (_rats["벽 뒤"] as Node2D).global_position
+	sighted.facing = sighted.get_sight_origin().direction_to(behind_wall)
+	await wait_frames(SETTLE_FRAMES)
+	if not _check("언데드 시야도 벽 뒤는 안 보임", not _seen()["벽 뒤"] and sighted.get_sight_origin().distance_to(behind_wall) < sighted.data.get_undead_sight().view_range, "벽 뒤 쥐 보임 %s, 언데드에서 거리 %.0f (보는 거리 %.0f)" % [_seen()["벽 뒤"], sighted.get_sight_origin().distance_to(behind_wall), sighted.data.get_undead_sight().view_range]):
+		return
+	sighted.facing = Vector2.RIGHT
+	necro.summoner.toggle_selected()
+	await wait_frames(SETTLE_FRAMES)
+	if not _check("언데드를 해제하면 다시 안 보임", not _seen()["정면"] and vision.get_undead_light_count() == 0, "정면 쥐 보임 %s, 언데드 빛 %d개" % [_seen()["정면"], vision.get_undead_light_count()]):
 		return
 	vision.set_active(false)
 	await wait_frames(SETTLE_FRAMES)

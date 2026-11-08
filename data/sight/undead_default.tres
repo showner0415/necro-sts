@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="SightData" format=3]
+
+[ext_resource type="Script" path="res://regions/sight_data.gd" id="1_sight"]
+
+[resource]
+script = ExtResource("1_sight")
+id = &"undead_default"
+view_range = 200.0
+full_angle = 23.0
+total_angle = 35.0
+near_radius = 0.0
+brightness = 0.75
+turn_speed = 360.0

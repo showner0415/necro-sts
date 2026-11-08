@@ -7,6 +7,8 @@ extends Node2D
 ## - 벽 그림자는 PlaceholderWalls가 만든다 (WallOccluderRects). 바닥 쪽 벽 가장자리 wall_rim픽셀 띠는 빛을 받는다
 ## - 몬스터와 sight_hidden 그룹(바닥 물건·시체·몬스터의 돌)은 VisionRules(부채꼴 + 벽 가림)로 물체마다 판정해서
 ##   fade_time에 걸쳐 나타나고 사라진다. 언데드는 항상 보인다 (건드리지 않는다)
+## - 언데드마다 자기 시야(몬스터 데이터의 SightData: 부채꼴, 벽 가림)의 빛을 하나씩 단다. 언데드가 바라보는 쪽(Undead.facing)으로 돌고,
+##   지형을 SightData.brightness만큼 밝힌다 (플레이어 빛과 겹치면 더 밝아진다). 몬스터·물건은 플레이어나 언데드 중 하나에라도 보이면 보인다
 ## - 개발 빌드에서만 toggle_key로 시야를 끄고 켤 수 있다 (배포판에서는 키가 동작하지 않는다)
 
 ## 빛이 없는 지형의 밝기 (원래 색에 곱한다)
@@ -57,6 +59,9 @@ var _terrain: Array[CanvasItem] = []
 var _light: PointLight2D
 var _origin: Vector2 = Vector2.ZERO
 var _facing: Vector2 = Vector2.ZERO
+## 언데드마다 단 빛 (Undead → PointLight2D)과 시야 데이터마다 판정 규칙 (SightData → VisionRules)
+var _undead_lights: Dictionary = {}
+var _sight_rules: Dictionary = {}
 
 
 ## Region이 트리에 넣기 전에 부른다. terrain: 어둡게 칠할 지형 노드들 (아래 자식까지 빛 마스크를 바꾼다)
@@ -77,15 +82,7 @@ func _ready() -> void:
 		occluder_counts = _walls.add_light_occluders(wall_rim, occluder_depth, terrain_light_mask)
 	for item: CanvasItem in _terrain:
 		_set_light_mask(item)
-	_light = PointLight2D.new()
-	_light.texture = _light_texture()
-	_light.texture_scale = light_texel
-	# 더하기 빛은 어둡게 칠한 색에 곱해 더해진다: darkness × (1 + energy) = 1 이면 원래 밝기
-	_light.energy = (1.0 - darkness) / darkness
-	_light.range_item_cull_mask = terrain_light_mask
-	_light.shadow_enabled = true
-	_light.shadow_filter = Light2D.SHADOW_FILTER_NONE
-	_light.shadow_item_cull_mask = terrain_light_mask
+	_light = _make_light(_light_texture(light_radius, full_angle, total_angle, near_radius, near_fade), 1.0)
 	add_child(_light)
 	_apply_darkness()
 	setup_usec = Time.get_ticks_usec() - started
@@ -102,6 +99,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 func set_active(value: bool) -> void:
 	active = value
 	_light.enabled = active
+	for light: PointLight2D in _undead_lights.values():
+		light.enabled = active
 	_apply_darkness()
 	if not active:
 		for node: Node in _hideable():
@@ -124,6 +123,7 @@ func _process(delta: float) -> void:
 			_facing = to_mouse
 	_light.global_position = _origin
 	_light.rotation = _facing.angle()
+	_update_undead_lights()
 	var step: float = delta / fade_time if fade_time > 0.0 else 1.0
 	for node: Node in _hideable():
 		var item: Node2D = node as Node2D
@@ -136,9 +136,78 @@ func _process(delta: float) -> void:
 	last_update_usec = Time.get_ticks_usec() - started
 
 
-## world 위치가 지금 보이는지 (부채꼴·둘레 원 안이고 벽에 가리지 않음). 시야를 끄면 늘 보인다.
+## world 위치가 지금 보이는지: 플레이어 시야(부채꼴·둘레 원 안이고 벽에 가리지 않음)나 언데드 시야 중 하나에라도 들어오면. 시야를 끄면 늘 보인다.
 func is_visible_at(world: Vector2) -> bool:
+	if is_visible_to_player(world):
+		return true
+	for undead: Variant in _undead_lights.keys():
+		if is_instance_valid(undead) and _undead_sees(undead as Undead, world):
+			return true
+	return false
+
+
+## 플레이어 시야로만 world 위치가 보이는지
+func is_visible_to_player(world: Vector2) -> bool:
 	return not active or rules.level_with_walls(_origin, _facing, world) < rules.hidden_level()
+
+
+func _undead_sees(undead: Undead, world: Vector2) -> bool:
+	var sight_rules: VisionRules = _rules_for(undead.data.get_undead_sight())
+	var origin: Vector2 = undead.get_sight_origin()
+	if origin.distance_squared_to(world) > sight_rules.view_range * sight_rules.view_range:
+		return false
+	return sight_rules.level_with_walls(origin, undead.facing, world) < sight_rules.hidden_level()
+
+
+func _rules_for(sight: SightData) -> VisionRules:
+	if not _sight_rules.has(sight):
+		var sight_rules: VisionRules = sight.make_rules()
+		if _walls != null:
+			sight_rules.set_walls(_walls.wall_grid(), _walls.grid_size(), _walls.tile_size, _walls.global_position)
+		_sight_rules[sight] = sight_rules
+	return _sight_rules[sight]
+
+
+## 소환된 언데드마다 빛을 달고(새로 생기면 만들고, 없어지면 지운다) 몸 가운데·바라보는 방향에 맞춘다.
+func _update_undead_lights() -> void:
+	var present: Dictionary = {}
+	for node: Node in get_tree().get_nodes_in_group(&"undead"):
+		var undead: Undead = node as Undead
+		if undead == null or undead.is_queued_for_deletion():
+			continue
+		present[undead] = true
+		if not _undead_lights.has(undead):
+			var sight: SightData = undead.data.get_undead_sight()
+			var light: PointLight2D = _make_light(_light_texture(sight.view_range, sight.full_angle, sight.total_angle, sight.near_radius, sight.near_fade), sight.brightness)
+			add_child(light)
+			_undead_lights[undead] = light
+		var undead_light: PointLight2D = _undead_lights[undead]
+		undead_light.global_position = undead.get_sight_origin()
+		undead_light.rotation = undead.facing.angle()
+	for undead: Variant in _undead_lights.keys():
+		if not is_instance_valid(undead) or not present.has(undead):
+			(_undead_lights[undead] as PointLight2D).queue_free()
+			_undead_lights.erase(undead)
+
+
+## 확인용: 지금 언데드 빛 수
+func get_undead_light_count() -> int:
+	return _undead_lights.size()
+
+
+## 지형만 밝히고 벽 그림자를 받는 빛. brightness: 이 빛만 받은 지형의 밝기 (원래 색 = 1)
+func _make_light(texture: Texture2D, brightness: float) -> PointLight2D:
+	var light: PointLight2D = PointLight2D.new()
+	light.texture = texture
+	light.texture_scale = light_texel
+	# 더하기 빛은 어둡게 칠한 색에 곱해 더해진다: darkness × (1 + energy) = brightness
+	light.energy = brightness / darkness - 1.0
+	light.range_item_cull_mask = terrain_light_mask
+	light.shadow_enabled = true
+	light.shadow_filter = Light2D.SHADOW_FILTER_NONE
+	light.shadow_item_cull_mask = terrain_light_mask
+	light.enabled = active
+	return light
 
 
 func _hideable() -> Array[Node]:
@@ -161,13 +230,13 @@ func _set_light_mask(item: CanvasItem) -> void:
 			_set_light_mask(child as CanvasItem)
 
 
-## 부채꼴(full_angle까지 밝고 total_angle까지 매끄럽게 어두워짐, 바깥 light_edge 폭에서 어두워짐)과
-## 둘레 원(near_radius, 바깥 near_fade 폭)을 합친 빛 그림. 바라보는 방향은 +x다. 위아래가 같아 절반만 계산한다.
-func _light_texture() -> ImageTexture:
-	var key: String = "%s/%s/%s/%s/%s/%s/%s" % [light_radius, light_texel, light_edge, full_angle, total_angle, near_radius, near_fade]
+## 부채꼴(full까지 밝고 total까지 매끄럽게 어두워짐, 바깥 light_edge 폭에서 어두워짐)과
+## 둘레 원(near, 바깥 near_fade_width 폭. near가 0이면 없음)을 합친 빛 그림. 바라보는 방향은 +x다. 위아래가 같아 절반만 계산한다.
+func _light_texture(radius: float, full: float, total: float, near: float, near_fade_width: float) -> ImageTexture:
+	var key: String = "%s/%s/%s/%s/%s/%s/%s" % [radius, light_texel, light_edge, full, total, near, near_fade_width]
 	if _texture_cache.has(key):
 		return _texture_cache[key]
-	var half: int = ceili(light_radius / light_texel)
+	var half: int = ceili(radius / light_texel)
 	var size: int = half * 2
 	var bytes: PackedByteArray = PackedByteArray()
 	bytes.resize(size * size)
@@ -176,9 +245,10 @@ func _light_texture() -> ImageTexture:
 			var offset: Vector2 = Vector2(x + 0.5 - half, y + 0.5 - half) * light_texel
 			var distance: float = offset.length()
 			var angle: float = absf(rad_to_deg(offset.angle()))
-			var v: float = 1.0 - clampf((angle - full_angle) / (total_angle - full_angle), 0.0, 1.0)
-			v *= 1.0 - clampf((distance - (light_radius - light_edge)) / light_edge, 0.0, 1.0)
-			v = maxf(v, 1.0 - clampf((distance - near_radius) / near_fade, 0.0, 1.0))
+			var v: float = 1.0 - clampf((angle - full) / (total - full), 0.0, 1.0)
+			v *= 1.0 - clampf((distance - (radius - light_edge)) / light_edge, 0.0, 1.0)
+			if near > 0.0:
+				v = maxf(v, 1.0 - clampf((distance - near) / near_fade_width, 0.0, 1.0))
 			var value: int = roundi(v * 255.0)
 			bytes[y * size + x] = value
 			bytes[(size - 1 - y) * size + x] = value
