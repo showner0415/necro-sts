@@ -11,7 +11,7 @@ extends ScenarioTest
 ## 5-2. 빛 드는 굴의 합류 굴 쪽 입구에 서면 가장 가까운 멧돼지(처음 자리)가 화면 안에 보이고, 입구 칸은 모두 멧돼지 감지 거리 밖이다
 ## 6. 다듬은 뒤에도 박쥐 둥지가 유일한 넓은 방이다: 박쥐가 도는 반경(+ 몸)의 원이 벽에 닿지 않는 자리가 가장 많고, 가장 큰 원도 가장 크다
 ## 7. 멧돼지가 사는 굴마다 돌진(돌진 최대 거리 + 지나치는 거리)보다 긴 곧고 트인 길(3칸 폭)이 있고, 가장 긴 것도 BOAR_LANE_MAX칸을 넘지 않는다 (바위가 긴 직선을 끊어 돌진을 피할 곳이 있게).
-##    굴 안만, 가로·세로만 잰다 (통로까지 이어 재지 않음, 대각선은 기준에서 뺌)
+##    굴 안만, 가로·세로만 잰다 (통로까지 이어 재지 않음, 대각선과 문을 지나는 줄은 기준에서 뺌)
 ## 8. 구간별 걷기 시간 (걷기, 몬스터는 없앰): 도착 지점 → 입구 굴, 입구 굴 → 갈림 굴, 갈림 굴 → 합류 굴(박쥐 길, 거미 길),
 ##    합류 굴 → 동굴 입구, 도착 지점 → 동굴 입구 전체. 문서 기준값과 함께 출력한다
 ## 9. 쥐 언데드 2마리를 데리고, 이어진 두 굴 사이를 모두 한 번씩 오간다 (순서는 PNG의 굴 연결에서 만든다). 굴에 닿을 때마다 2마리 모두 따라와 곁에 모인다 (휘어진 통로에서 걸리지 않음)
@@ -96,6 +96,8 @@ const BOAR_LANE_MAX: float = 13.0
 const ESCAPE_WAIT_FRAMES: int = 60 * 5
 ## 7. 멧돼지 굴 곧은 길은 가로·세로만 본다 (대각선은 기준에서 뺌, 사용자 결정 2026-11-08)
 const LANE_DIRECTIONS: Array[Vector2i] = [Vector2i(1, 0), Vector2i(0, 1)]
+## 7. 곧은 길과 직각으로 트인 폭이 이 이하인 칸은 문으로 보고 줄을 끊는다 (칸)
+const LANE_DOOR_SPAN: int = 5
 
 var _layout: MapLayout
 ## 굴 역할 → 굴 번호 (_find_roles)
@@ -539,13 +541,26 @@ func _boar_lanes() -> bool:
 
 
 ## start에서 direction으로, 칸 둘레 3×3이 모두 바닥인 칸이 이어지는 길이 (칸, 대각선은 √2배)
+## 문(길과 직각으로 트인 폭이 LANE_DOOR_SPAN칸 이하인 곳)을 만나면 끊는다. 방 나누기의 3~4칸 문을 지나는 줄은 기준에서 뺀다 (사용자 결정).
 func _lane_length(layout: MapLayout, start: Vector2i, direction: Vector2i, room: int) -> float:
 	var count: int = 0
 	var cell: Vector2i = start
-	while _open_3x3(layout, cell) and layout.room_at(cell) == room:
+	var across: Vector2i = Vector2i(direction.y, direction.x)
+	while _open_3x3(layout, cell) and layout.room_at(cell) == room and _open_span(layout, cell, across, room) > LANE_DOOR_SPAN:
 		count += 1
 		cell += direction
 	return maxf(count - 1, 0) * Vector2(direction).length()
+
+
+## cell에서 direction 양쪽으로, 같은 굴의 벽 아닌 칸이 이어진 수
+func _open_span(layout: MapLayout, cell: Vector2i, direction: Vector2i, room: int) -> int:
+	var count: int = 1
+	for sign: int in [1, -1]:
+		var p: Vector2i = cell + direction * sign
+		while not layout.is_wall(p) and layout.room_at(p) == room:
+			count += 1
+			p += direction * sign
+	return count
 
 
 func _open_3x3(layout: MapLayout, cell: Vector2i) -> bool:
