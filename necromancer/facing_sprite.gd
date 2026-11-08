@@ -7,6 +7,7 @@ extends AnimatedSprite2D
 ##   걷기를 거꾸로 재생한다 (뒷걸음질)
 ## - 걷기 재생 속도는 이동 속도 / 걷는 속도에 비례한다 (speed_scale). 뛰거나 구르면 빨라지고, 쏘며 걸으면 느려진다
 ## - 정지 그림(32×32)과 걷기 프레임(40×40)은 캔버스 크기가 달라서, 같은 발밑에 서도록 기준점 offset을 따로 둔다
+## - 걷기 애니메이션이 없으면(몬스터 그림) 움직여도 바라보는 방향의 정지 그림을 보여 준다
 
 const DIRECTION_NAMES: Array[String] = ["east", "south_east", "south", "south_west", "west", "north_west", "north", "north_east"]
 const IDLE_PREFIX: String = "idle_"
@@ -50,6 +51,10 @@ func update_motion(velocity: Vector2, walk_speed: float) -> void:
 		_show_idle()
 		return
 	var walk: StringName = StringName(WALK_PREFIX + DIRECTION_NAMES[_direction_index])
+	# 걷기 애니메이션이 없는 그림(쥐 등)은 움직여도 바라보는 방향의 정지 그림이다.
+	if sprite_frames == null or not sprite_frames.has_animation(walk):
+		_show_idle()
+		return
 	if animation != walk:
 		# 걷는 중에 방향만 바뀌면 걸음이 끊기지 않게 같은 프레임에서 잇는다.
 		var keep: bool = String(animation).begins_with(WALK_PREFIX)

@@ -50,6 +50,10 @@ var _seen_target: Node2D
 var _seen_origin: Vector2
 ## 감지 범위 밖에서 맞았을 때 공격자를 쫓는 규칙
 var _aggro: Aggro
+## 그림이 있는 몬스터(data.has_sprite())의 8방향 그림. 없으면 null이고 임시 도형으로 그린다
+var _sprite: FacingSprite
+## 이보다 느리게 움직이면(벽에 미끄러질 때의 아주 작은 속도 등) 그림 방향을 바꾸지 않는다 (픽셀/초)
+const SPRITE_TURN_SPEED: float = 1.0
 
 @onready var _collision: CollisionShape2D = $CollisionShape2D
 
@@ -63,6 +67,12 @@ func _ready() -> void:
 	_collision.position = PlaceholderBody.center(data)
 	_path_follower = PathFollower.new(data.get_placeholder_half_size(), PlaceholderBody.center(data))
 	# 날아다니는 몸은 벽하고만 부딪히고, 다른 몸도 이 몸에 부딪히지 않는다 (탄은 이 층도 검사한다).
+	if data.has_sprite():
+		_sprite = FacingSprite.new()
+		_sprite.sprite_frames = data.make_sprite_frames()
+		_sprite.centered = false
+		_sprite.idle_offset = data.sprite_offset
+		add_child(_sprite)
 	if data.flying:
 		collision_layer = flying_layer
 		collision_mask = flying_mask
@@ -98,6 +108,7 @@ func _physics_process(delta: float) -> void:
 		velocity = _knockback.get_velocity()
 	move_and_slide()
 	_knockback.update(delta)
+	_update_sprite()
 	# 예고 표시(깜빡임, 방향 선)가 프레임마다 바뀐다.
 	queue_redraw()
 
@@ -230,9 +241,10 @@ func _die() -> void:
 
 
 func _draw() -> void:
-	# 그림이 생기기 전까지 쓰는 임시 도형. 바닥의 예고 표시를 먼저 그리고, 기준점(발밑) 위에 몸을 그린다.
+	# 바닥의 예고 표시를 먼저 그리고, 기준점(발밑) 위에 몸을 그린다. 그림이 있으면 몸은 그림(_sprite)이고, 없으면 임시 도형이다.
 	_behavior.draw_overlay(self, indicator_color)
-	PlaceholderBody.draw(self, data, _behavior.get_body_color(data.placeholder_color), PlaceholderBody.center(data))
+	if _sprite == null:
+		PlaceholderBody.draw(self, data, _behavior.get_body_color(data.placeholder_color), PlaceholderBody.center(data))
 
 
 ## 평소(IDLE)에 보던 대상을 기억했다가, 놓치면(벽 뒤로 숨거나 감지 범위를 벗어남) 공격자를 쫓을 때와 같은 한계까지 쫓는다.
@@ -278,3 +290,13 @@ func is_marked_by_necromancer() -> bool:
 ## 지금까지 네크로맨서에게 맞은 횟수. 언데드가 지난 프레임의 값과 비교해 새로 맞았는지 본다.
 func get_necromancer_hit_count() -> int:
 	return _necromancer_hits
+
+
+## 그림이 있으면 실제로 움직인 방향의 그림을 보여 준다. 멈추면 마지막 방향 그대로다.
+func _update_sprite() -> void:
+	if _sprite == null:
+		return
+	var moved: Vector2 = get_real_velocity()
+	if moved.length() > SPRITE_TURN_SPEED:
+		_sprite.face(moved)
+	_sprite.update_motion(moved, data.move_speed)

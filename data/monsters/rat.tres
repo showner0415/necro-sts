@@ -5,6 +5,14 @@
 [ext_resource type="Script" uid="uid://bcih3jlpk6ss2" path="res://items/drop_entry.gd" id="3_drop"]
 [ext_resource type="Resource" uid="uid://bra1oda508qor" path="res://data/skulls/rat_skull.tres" id="4_rat_skull"]
 [ext_resource type="Resource" path="res://data/behaviors/approach.tres" id="5_approach"]
+[ext_resource type="Texture2D" path="res://assets/monsters/rat/rat_east.png" id="6_rat_east"]
+[ext_resource type="Texture2D" path="res://assets/monsters/rat/rat_south_east.png" id="7_rat_south_east"]
+[ext_resource type="Texture2D" path="res://assets/monsters/rat/rat_south.png" id="8_rat_south"]
+[ext_resource type="Texture2D" path="res://assets/monsters/rat/rat_south_west.png" id="9_rat_south_west"]
+[ext_resource type="Texture2D" path="res://assets/monsters/rat/rat_west.png" id="10_rat_west"]
+[ext_resource type="Texture2D" path="res://assets/monsters/rat/rat_north_west.png" id="11_rat_north_west"]
+[ext_resource type="Texture2D" path="res://assets/monsters/rat/rat_north.png" id="12_rat_north"]
+[ext_resource type="Texture2D" path="res://assets/monsters/rat/rat_north_east.png" id="13_rat_north_east"]
 
 [sub_resource type="Resource" id="Resource_drop_bone"]
 script = ExtResource("3_drop")
@@ -27,4 +35,6 @@ summon_mana_cost = 4.0
 undead_upkeep_mana_per_second = 1.0
 undead_attack_range_override = 24.0
 undead_placeholder_color = Color(0.7529412, 0.79607844, 0.8627451, 1)
+direction_textures = Array[Texture2D]([ExtResource("6_rat_east"), ExtResource("7_rat_south_east"), ExtResource("8_rat_south"), ExtResource("9_rat_south_west"), ExtResource("10_rat_west"), ExtResource("11_rat_north_west"), ExtResource("12_rat_north"), ExtResource("13_rat_north_east")])
+sprite_offset = Vector2(-16, -25)
 placeholder_color = Color(0.72156864, 0.43529412, 0.3137255, 1)

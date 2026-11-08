@@ -86,3 +86,22 @@ func test_stopping_returns_to_idle() -> void:
 	assert_eq(_sprite.animation, &"idle_east", "멈추면 정지 그림")
 	assert_almost_eq(_sprite.speed_scale, 1.0, 0.001, "배율 되돌림")
 	assert_eq(_sprite.offset, _sprite.idle_offset, "정지 그림 기준점")
+
+
+func test_without_walk_animation_moving_shows_idle_of_direction() -> void:
+	# 쥐처럼 정지 그림만 있는 그림: 움직여도 오류 없이 움직인 방향의 정지 그림이다.
+	var rat: MonsterData = load("res://data/monsters/rat.tres")
+	assert_true(rat.has_sprite(), "쥐는 8방향 그림이 있다")
+	_sprite.sprite_frames = rat.make_sprite_frames()
+	_sprite.idle_offset = rat.sprite_offset
+	_sprite.face(Vector2.LEFT)
+	_sprite.update_motion(Vector2(-WALK_SPEED, 0), WALK_SPEED)
+	assert_eq(_sprite.animation, &"idle_west", "움직여도 서쪽 정지 그림")
+	assert_eq(_sprite.offset, rat.sprite_offset, "쥐 그림 기준점")
+	assert_eq(_sprite.speed_scale, 1.0, "재생 속도는 그대로")
+	for direction: String in FacingSprite.DIRECTION_NAMES:
+		assert_eq(_sprite.sprite_frames.get_frame_texture(StringName(FacingSprite.IDLE_PREFIX + direction), 0).get_size(), IDLE_SIZE, "%s 쥐 그림 32×32" % direction)
+
+
+func test_monster_without_textures_has_no_sprite() -> void:
+	assert_false((load("res://data/monsters/boar.tres") as MonsterData).has_sprite(), "그림이 없는 몬스터는 임시 도형")

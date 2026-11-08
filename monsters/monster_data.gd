@@ -81,6 +81,13 @@ var undead_contact_damage: float:
 const UNDEAD_STAT_RULES_PATH: String = "res://data/undead_stat_rules.tres"
 static var _undead_rules: UndeadStatRules
 
+@export_group("그림")
+## 살아 있는 몬스터의 8방향 정지 그림 (Facing 순서: 동, 남동, 남, 남서, 서, 북서, 북, 북동). 8장이 아니면 임시 도형으로 그린다.
+## 언데드와 시체는 그림이 있어도 임시 도형이다. 충돌 모양은 그림과 상관없이 임시 도형 값(아래)으로 정한다.
+@export var direction_textures: Array[Texture2D] = []
+## 그림의 기준점(발밑) offset. 모든 방향에 같은 값을 쓴다 (방향마다 다르면 방향이 바뀔 때 들썩여 보인다)
+@export var sprite_offset: Vector2 = Vector2.ZERO
+
 @export_group("임시 도형")
 @export var placeholder_color: Color = Color.WHITE
 ## 원, 가로로 긴 타원 (네발짐승 등), 가로로 넓은 마름모 (날개 편 박쥐 등)
@@ -89,6 +96,23 @@ static var _undead_rules: UndeadStatRules
 @export var placeholder_radius: float = 5.0
 ## 타원·마름모일 때: 가로 반지름, 세로 반지름
 @export var placeholder_ellipse_size: Vector2 = Vector2(10, 6)
+
+
+## 살아 있는 몬스터를 그림으로 그리는지 (8방향 그림이 다 있을 때)
+func has_sprite() -> bool:
+	return direction_textures.size() == FacingSprite.DIRECTION_NAMES.size()
+
+
+## 8방향 그림으로 정지 그림 애니메이션(idle_<방향>)만 든 SpriteFrames를 만든다 (FacingSprite용). 걷기 애니메이션은 없다.
+func make_sprite_frames() -> SpriteFrames:
+	var frames: SpriteFrames = SpriteFrames.new()
+	frames.remove_animation(&"default")
+	for i: int in FacingSprite.DIRECTION_NAMES.size():
+		var animation: StringName = StringName(FacingSprite.IDLE_PREFIX + FacingSprite.DIRECTION_NAMES[i])
+		frames.add_animation(animation)
+		frames.set_animation_loop(animation, false)
+		frames.add_frame(animation, direction_textures[i])
+	return frames
 
 
 ## 적일 때 쓰는 행동 조각의 복사본 (한 마리에 하나)
