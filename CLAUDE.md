@@ -142,6 +142,8 @@ res://
 - **밸런스 측정** (`tests/balance/`): 플레이어 봇(`player_bot.gd`)이 실제 입력만 흉내 내서 싸우고, `run_balance.gd`가 대상 × 조건(혼자 / 쥐 언데드 2마리) × 실력(숙련·보통·초보)마다 여러 번 싸워 잡는 시간·받은 피해·죽은 비율·명중률을 표로 낸다.
   - 봇은 시야를 따른다: 플레이어나 언데드 시야에 보이는 몬스터·돌만 알고, 겨눌 몬스터가 없으면 걷는 방향을 보며 실력마다 정한 간격으로 좌우를 둘러본다 (`player_bot.gd`의 `look_around`).
   - 판정이 없어서 `run_all.sh`에는 넣지 않는다. 몬스터를 추가하면 `run_balance.gd`의 `TARGETS`에 넣고 다시 잰다.
+  - 표 아래에 잡은 시간·받은 피해·죽음의 95% 오차 범위 표가 함께 나온다. 전후를 비교할 때는 이 범위를 같이 본다.
+  - 원인 진단: `bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_diagnose.gd -- --mode=charge_sight --runs=10` (돌진 시작 때 봇이 멧돼지를 봤는지, 그 돌진에 맞았는지. `--skills=skilled --runs=1 --trace=1`이면 0.2초마다 상태 출력), `--mode=goblin_time --runs=50` (고블린이 살아 있는 동안 봇이 무엇을 했는지, 누가 때렸는지. `--no_retreat=1`은 테스트 안에서만 물러나기를 끈다)
   - 전부: `bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_balance.gd` (약 1분)
   - 언데드 대 적 (같은 몬스터끼리): `bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_undead_duel.gd` (일부: `-- --monsters=rat,boar --cases=1,3 --runs=10 --skill=normal`). 경우 1 언데드 1 vs 적 1(목표: 진다), 2 언데드 1 + 네크로맨서(봇) vs 적 1(목표: 이긴다), 3 언데드 2 vs 적 1(목표: 이긴다). 1·3은 네크로맨서가 구경만 하고 마나가 바닥나지 않는다
   - 일부: `-- --targets=boar,bat_pack --skills=normal --undead=0 --runs=5`, 거리 두기를 끄려면 `--keep=0`, 무리 동시 공격(박쥐 동시 돌진)을 처음 N번 일부러 못 피하게 하려면 `--miss_pack=N` (놓친 동시 공격 피해·직후 마나·최저 마나·언데드 죽음/해제 열로 "실수 한 번의 값"을 본다)

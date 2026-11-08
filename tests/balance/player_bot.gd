@@ -18,6 +18,8 @@ extends RefCounted
 ##   예고·돌은 보이기 시작한 때부터 반응 시간을 센다
 ## - 둘러보기 (사용자 확정): 겨눌 몬스터가 없으면 걷는 방향을 본다. scan_interval초마다 좌우 scan_angle도를 한 번씩 scan_look_time초 동안 본다.
 ##   안 보이는 몬스터에게 맞으면 hit_turn_delay초 뒤 맞은 쪽을 hit_look_time초 동안 본다 (맵을 걸을 때는 look_around를 부른다)
+## - 놓친 몬스터 (사용자 결정): 살아 있는 몬스터가 시야에서 사라지면 반응 시간 동안 마우스를 그대로 두고, 그 뒤 last_seen_look_time초 동안 마지막으로 본 자리를 본다.
+##   실제 위치가 아니라 마지막으로 본 자리만 쓴다. 싸우는 중이면 그다음 둘러보기도 그쪽을 기준으로 한다
 ## 실력은 반응 시간, 조준 오차, 회피 성공률(, 둘러보는 간격) 값으로 정한다 (SKILLS, 임시값).
 
 ## 실력 단계: [이름, 반응 시간(초), 조준 오차(도, 표준편차), 회피 성공률, 둘러보는 간격(초, 사용자 확정)]
@@ -62,6 +64,10 @@ var scan_look_time: float = 0.4
 var hit_turn_delay: float = 0.3
 ## 맞은 쪽을 보는 시간 (초, 제안)
 var hit_look_time: float = 0.8
+## 놓친 몬스터의 마지막 자리를 보는 시간 (초, 제안)
+var last_seen_look_time: float = 1.0
+## 몬스터를 앞서 겨눌 때 실제 몸에서 벗어나도 되는 각도 (도, 제안). 시야가 완전히 밝은 각도(좌우 23도) 안쪽
+var max_lead_angle: float = 20.0
 ## 둘러볼 때 마우스를 몸에서 이만큼 떨어진 곳에 둔다 (픽셀)
 var look_distance: float = 100.0
 
@@ -113,6 +119,10 @@ var _scan_timer: float = 0.0
 var _hit_timer: float = -1.0
 var _hit_direction: Vector2 = Vector2.ZERO
 var _last_health: float = -1.0
+## 보이는 몬스터마다 지금 자리, 가장 최근에 놓친 몬스터의 마지막 자리와 놓친 시각 (-1이면 없음)
+var _last_seen: Dictionary = {}
+var _lost_position: Vector2 = Vector2.ZERO
+var _lost_at: float = -1.0
 
 ## 진행 중인 무리 동시 공격: 일부러 놓치는지, 시작할 때 체력, 예고가 안 보인 지 얼마나 됐는지
 var _group_active: bool = false
@@ -258,11 +268,19 @@ func _update_seen(visible: Array[Monster]) -> void:
 	var now: Dictionary = {}
 	for monster: Monster in visible:
 		now[monster] = true
+		_last_seen[monster] = monster.global_position
 		if not _seen_at.has(monster):
 			_seen_at[monster] = _time
 	for monster: Variant in _seen_at.keys():
 		if not now.has(monster):
 			_seen_at.erase(monster)
+			# 다시 보일 때 안 보이던 동안의 이동이 한 프레임 속도로 계산되지 않게 지운다.
+			_last_positions.erase(monster)
+			# 죽어서 사라진 몬스터는 찾지 않는다.
+			if is_instance_valid(monster) and not monster.is_queued_for_deletion() and monster.health > 0.0:
+				_lost_position = _last_seen[monster]
+				_lost_at = _time
+			_last_seen.erase(monster)
 
 
 ## 체력이 줄었는데 때린 몬스터(네크로맨서를 노리는 가장 가까운 몬스터)가 안 보이면, 맞은 쪽 보기를 시작한다.
@@ -280,7 +298,7 @@ func _check_hit() -> void:
 
 
 ## 겨눌 몬스터가 없을 때 마우스를 둔다: 걷는 방향(walk_direction이 ZERO면 마지막으로 걸은 방향), scan_interval초마다 좌우를 한 번씩 둘러봄,
-## 안 보이는 쪽에서 맞았으면 맞은 쪽. 맵을 걸을 때(싸우지 않을 때)는 밖에서 매 물리 프레임 부른다.
+## 안 보이는 쪽에서 맞았으면 맞은 쪽, 방금 몬스터를 놓쳤으면 마지막으로 본 자리. 맵을 걸을 때(싸우지 않을 때)는 밖에서 매 물리 프레임 부른다.
 func look_around(delta: float, walk_direction: Vector2) -> void:
 	if walk_direction != Vector2.ZERO:
 		_walk_direction = walk_direction.normalized()
@@ -291,6 +309,13 @@ func look_around(delta: float, walk_direction: Vector2) -> void:
 			look = _hit_direction
 		if _hit_timer >= hit_turn_delay + hit_look_time:
 			_hit_timer = -1.0
+	elif _lost_at >= 0.0 and _time - _lost_at < skill["reaction"]:
+		# 놓친 것을 알아차리기 전이다. 마우스를 그대로 둔다.
+		return
+	elif _lost_at >= 0.0 and _time - _lost_at < skill["reaction"] + last_seen_look_time:
+		look = _necromancer.get_body_center().direction_to(_lost_position)
+		if walk_direction == Vector2.ZERO and look != Vector2.ZERO:
+			_walk_direction = look
 	else:
 		_scan_timer += delta
 		var since: float = _scan_timer - skill["scan_interval"]
@@ -337,11 +362,22 @@ func _aim_and_fire(target: Monster, delta: float, fleeing: bool) -> void:
 	if _last_positions.has(target) and delta > 0.0:
 		velocity = (target.global_position - _last_positions[target]) / delta
 	var flight_time: float = origin.distance_to(center) / _necromancer.attack.projectile_speed
-	var aim: Vector2 = center + velocity * flight_time
+	var aim: Vector2 = _limit_lead(origin, center, center + velocity * flight_time)
 	aim = origin + (aim - origin).rotated(deg_to_rad(_aim_offset_deg))
 	_test.aim_mouse_at(aim)
 	var in_range: bool = origin.distance_to(center) <= _necromancer.attack.projectile_range * fire_range_ratio
 	_test.press_mouse(in_range and not fleeing)
+
+
+## 앞서 겨눈 자리(lead)를 실제 몸(center)에서 max_lead_angle도 안쪽으로 줄인다. 빠르게 달려오는 몬스터를 앞서 겨누면 겨눌 자리가
+## 봇의 몸 근처나 뒤쪽이 되어 마우스 방향이 튀고, 시야 부채꼴이 그 몬스터를 벗어난다.
+func _limit_lead(origin: Vector2, center: Vector2, lead: Vector2) -> Vector2:
+	var to_center: Vector2 = center - origin
+	var angle: float = to_center.angle_to(lead - origin)
+	var limit: float = deg_to_rad(max_lead_angle)
+	if absf(angle) <= limit and origin.distance_to(lead) >= to_center.length() * 0.5:
+		return lead
+	return origin + to_center.rotated(clampf(angle, -limit, limit))
 
 
 ## 예고를 보고 반응 시간 뒤 공격 방향의 옆으로 구른다. 이번 프레임에 굴렀으면 true.
