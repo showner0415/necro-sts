@@ -49,6 +49,9 @@ func before_each() -> void:
 	world.add_child(target)
 	stats = CombatStats.create(SPEED, RANGE, DAMAGE, COOLDOWN)
 	throw = (load("res://data/behaviors/throw.tres") as ThrowBehavior).make_instance()
+	# 거리 두기·던지기 규칙만 보는 테스트는 멈춤과 옆걸음을 끈다. 아래 "싸울 때 움직임"에서 따로 켠다.
+	throw.throw_pause_time = 0.0
+	throw.strafe_speed = 0.0
 
 
 func after_each() -> void:
@@ -88,6 +91,33 @@ func test_close_target_makes_it_retreat_slowly() -> void:
 	_step()
 	assert_almost_eq(body.velocity.x, -throw.retreat_speed, 0.01, "가까우면 반대쪽으로 느리게 물러난다")
 	assert_eq(_stones().size(), 1, "물러나면서도 던진다")
+
+
+# --- 싸울 때 움직임 ---
+
+func test_pauses_after_throw_then_moves_again() -> void:
+	throw.throw_pause_time = 0.4
+	throw.strafe_speed = 30.0
+	target.position = Vector2(throw.retreat_distance - 20.0, 0)
+	_step()
+	assert_eq(_stones().size(), 1, "던진다")
+	assert_eq(body.velocity, Vector2.ZERO, "던지면 멈춘다")
+	assert_true(throw.is_paused_after_throw(), "멈춤 중")
+	assert_false(throw.allows_spacing(), "멈춤 중에는 밀지 않는다")
+	for frame: int in roundi(0.4 / DT) + 2:
+		_step()
+	assert_false(throw.is_paused_after_throw(), "멈춤이 끝남")
+	assert_true(body.velocity.x < 0.0, "멈춤이 끝나면 다시 물러난다")
+
+
+func test_strafes_sideways_between_throws() -> void:
+	throw.throw_pause_time = 0.0
+	throw.strafe_speed = 30.0
+	target.position = Vector2((throw.retreat_distance + RANGE) / 2.0, 0)
+	_step()
+	_step()
+	assert_almost_eq(absf(body.velocity.y), 30.0, 0.01, "알맞은 거리면 옆으로 걷는다")
+	assert_almost_eq(body.velocity.x, 0.0, 0.01, "앞뒤로는 움직이지 않는다")
 
 
 # --- 던지기 ---

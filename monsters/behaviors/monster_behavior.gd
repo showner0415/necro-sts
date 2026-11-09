@@ -110,12 +110,14 @@ func can_move(body: CharacterBody2D, direction: Vector2, probe: float) -> bool:
 	return not blocked
 
 
-## 벽을 따라 미끄러지지 않고 갈 방향: direction이 트였으면 그대로, 막혔으면 45도·90도 튼 방향 중 트인 쪽 (side 쪽을 먼저 본다).
+## 벽을 따라 미끄러지지 않고 갈 방향: direction이 트였으면 그대로, 막혔으면 45도(max_turn이 90 이상이면 90도까지) 튼 방향 중 트인 쪽 (side 쪽을 먼저 본다).
 ## 어느 쪽도 막혔거나 direction이 ZERO면 ZERO (멈춘다).
-func free_direction(body: CharacterBody2D, direction: Vector2, probe: float, side: float) -> Vector2:
+func free_direction(body: CharacterBody2D, direction: Vector2, probe: float, side: float, max_turn: float = 90.0) -> Vector2:
 	if direction == Vector2.ZERO:
 		return Vector2.ZERO
 	for degrees: float in [0.0, 45.0 * side, -45.0 * side, 90.0 * side, -90.0 * side]:
+		if absf(degrees) > max_turn:
+			continue
 		var turned: Vector2 = direction.rotated(deg_to_rad(degrees))
 		if can_move(body, turned, probe):
 			return turned

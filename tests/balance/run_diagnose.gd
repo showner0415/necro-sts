@@ -17,6 +17,8 @@ var _no_retreat: bool = false
 var _goblin_target: StringName = &"goblin_pair"
 ## 0 이상이면 테스트 안에서만 고블린이 물러나는 속도를 이 값으로 바꾼다 (--retreat_speed=30)
 var _retreat_speed: float = -1.0
+## 0 이상이면 테스트 안에서만 고블린의 옆걸음 속도를 이 값으로 바꾼다 (--strafe_speed=0)
+var _strafe_speed: float = -1.0
 var _trace: bool = false
 var _spawned: Array[Monster] = []
 var _necromancer_ref: Variant = null
@@ -56,6 +58,8 @@ func _on_scene_ready() -> void:
 			_no_retreat = true
 		elif arg == "--trace=1":
 			_trace = true
+		elif arg.begins_with("--strafe_speed="):
+			_strafe_speed = arg.trim_prefix("--strafe_speed=").to_float()
 		elif arg.begins_with("--retreat_speed="):
 			_retreat_speed = arg.trim_prefix("--retreat_speed=").to_float()
 		elif arg == "--room=1":
@@ -106,6 +110,8 @@ func _on_fight_start(necromancer: Necromancer, _bot: PlayerBot, spawned: Array[M
 			var behavior: ThrowBehavior = monster.get_behavior() as ThrowBehavior
 			if _no_retreat:
 				behavior.retreat_distance = 0.0
+			if _strafe_speed >= 0.0:
+				behavior.strafe_speed = _strafe_speed
 			if _retreat_speed >= 0.0:
 				behavior.retreat_speed = _retreat_speed
 			monster.hit_by.connect(func(source: Node2D) -> void:

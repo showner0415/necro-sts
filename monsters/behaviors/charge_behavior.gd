@@ -14,6 +14,8 @@ enum State { APPROACH, WINDUP, CHARGE, RECOVER }
 ## 물러날 방향을 고를 때 살펴보는 방향 수와, 이보다 짧게만 갈 수 있는 방향은 고르지 않는 거리 (픽셀)
 const BACK_OFF_DIRECTIONS: int = 8
 const BACK_OFF_MIN_ROOM: float = 2.0
+## 돌진 뒤 거리를 벌릴 때 고르는 방향: 대상 쪽과의 내적이 이 값 이하 (-0.5면 120도 이상 등을 돌림)
+const TURN_AWAY_MAX_DOT: float = -0.5
 
 ## 대상이 이 거리 안에 들어오면 예고를 시작한다 (픽셀)
 @export var charge_range: float = 90.0
@@ -34,6 +36,10 @@ const BACK_OFF_MIN_ROOM: float = 2.0
 @export var back_off_distance: float = 96.0
 ## 돌진이 끝난 뒤 멈춰 있는 시간 (초)
 @export var recover_time: float = 1.2
+## 돌진이 끝나고 멈칫한 뒤 방향을 틀어 back_off_distance까지 거리를 벌리는지. 끄면 곧바로 다가간다
+@export var back_off_after_charge: bool = false
+## 돌진 뒤 거리를 벌리는 최대 시간 (초). 대상이 따라와도 끝없이 도망가지 않게
+@export var turn_away_max_time: float = 2.5
 ## 상대의 발밑이 이 거리 안에 들어오면 돌진에 맞는다 (픽셀)
 @export var hit_radius: float = 12.0
 ## 켜면 돌진 방향 앞쪽(몸 가운데에서 돌진 방향 쪽 반)에 있는 상대만 맞는다. 끄면 방향과 상관없이 hit_radius 안이면 맞는다.
@@ -63,6 +69,9 @@ var _saved_layer: int = 0
 var _locked_target: Node2D
 ## 돌진할 거리가 모자라 물러나는 중인지 (back_off_distance까지 이어 간다)
 var _backing_off: bool = false
+## 돌진 뒤 거리를 벌리는 방향과 남은 시간 (0이면 벌리는 중이 아님)
+var _turn_away_direction: Vector2 = Vector2.ZERO
+var _turn_away_left: float = 0.0
 
 
 func is_busy() -> bool:
@@ -103,7 +112,7 @@ func is_attack_locked() -> bool:
 func act(body: CharacterBody2D, stats: CombatStats, target: Node2D, delta: float) -> void:
 	match _state:
 		State.APPROACH:
-			_approach(body, stats, target)
+			_approach(body, stats, target, delta)
 		State.WINDUP:
 			_windup(body, delta)
 		State.CHARGE:
@@ -113,14 +122,23 @@ func act(body: CharacterBody2D, stats: CombatStats, target: Node2D, delta: float
 			_timer += delta
 			if _timer >= recover_time:
 				_state = State.APPROACH
+				if back_off_after_charge and is_instance_valid(_locked_target):
+					_begin_turn_away(body, _locked_target)
 				_locked_target = null
 
 
-func _approach(body: CharacterBody2D, stats: CombatStats, target: Node2D) -> void:
+func _approach(body: CharacterBody2D, stats: CombatStats, target: Node2D, delta: float) -> void:
 	if target == null:
 		body.velocity = Vector2.ZERO
 		return
 	var distance: float = body.global_position.distance_to(target.global_position)
+	if _turn_away_left > 0.0:
+		_turn_away_left -= delta
+		# 대상과 충분히 벌어졌거나 그 방향이 벽에 막히면 끝낸다.
+		if distance < back_off_distance and get_room(body, _turn_away_direction) >= BACK_OFF_MIN_ROOM:
+			body.velocity = _turn_away_direction * stats.move_speed
+			return
+		_turn_away_left = 0.0
 	# 물러나기 시작했으면 back_off_distance만큼 멀어질 때까지 이어 간다 (64px 경계에서 물러나기·다가가기를 번갈아 하며 흔들리지 않게).
 	if _backing_off:
 		var away: Vector2 = _back_off_direction(body, target)
@@ -200,6 +218,21 @@ func _back_off(body: CharacterBody2D, target: Node2D, stats: CombatStats) -> voi
 	var away: Vector2 = _back_off_direction(body, target)
 	_backing_off = away != Vector2.ZERO
 	body.velocity = away * stats.move_speed
+
+
+## 돌진이 끝나고 멈칫한 뒤: 대상에게서 등을 돌린 쪽(120도 이상)의 8방향 중 벽까지 여유가 있는 방향을 무작위로 골라 back_off_distance까지 벌린다.
+## 방향은 이때 한 번만 정한다 (떨리지 않게). 그런 방향이 없으면 벌리지 않고 바로 다가간다.
+func _begin_turn_away(body: CharacterBody2D, target: Node2D) -> void:
+	var to_target: Vector2 = body.global_position.direction_to(target.global_position)
+	var candidates: Array[Vector2] = []
+	for i: int in BACK_OFF_DIRECTIONS:
+		var direction: Vector2 = Vector2.from_angle(i * TAU / BACK_OFF_DIRECTIONS)
+		if direction.dot(to_target) <= TURN_AWAY_MAX_DOT and get_room(body, direction) >= back_off_distance:
+			candidates.append(direction)
+	if candidates.is_empty():
+		return
+	_turn_away_direction = candidates[randi() % candidates.size()]
+	_turn_away_left = turn_away_max_time
 
 
 ## 돌진할 거리가 모자랄 때 물러날 방향: 8방향 중 대상 쪽이 아닌(대상 방향과 90도 이상) 방향에서 벽까지 가장 멀리 갈 수 있는 쪽.

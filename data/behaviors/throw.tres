@@ -10,3 +10,7 @@ stone_speed = 160.0
 retreat_distance = 90.0
 retreat_speed = 40.0
 throw_height = 6.0
+throw_pause_time = 0.4
+strafe_speed = 30.0
+wall_probe_distance = 12.0
+max_wall_turn = 45.0

@@ -21,6 +21,7 @@ script = ExtResource("1_monster")
 id = &"goblin_slinger"
 display_name = "고블린 투석병"
 behavior = ExtResource("5_throw")
+combat_spacing = 32.0
 max_health = 6.0
 move_speed = 45.0
 detect_range = 150.0
