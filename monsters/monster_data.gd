@@ -21,6 +21,8 @@ enum PlaceholderShape { CIRCLE, ELLIPSE, DIAMOND }
 @export var max_health: float = 3.0
 ## 대상을 쫓을 때의 속도 (픽셀/초)
 @export var move_speed: float = 40.0
+## 싸우는 동안 다른 몬스터와 떨어지려는 거리 (픽셀). 0이면 비켜 서지 않는다
+@export var combat_spacing: float = 0.0
 ## 대상이 이 거리 안에 들어오면 쫓아온다
 @export var detect_range: float = 80.0
 ## 대상이 이 거리 안이면 멈춰서 공격한다

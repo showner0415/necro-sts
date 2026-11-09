@@ -172,21 +172,15 @@ func _follow() -> void:
 
 ## 따라가는 동안 다른 언데드에게서 비켜 서는 방향과 세기 (가까울수록 세다, 길이 최대 1)
 func _spacing_push() -> Vector2:
-	var push: Vector2 = Vector2.ZERO
+	var others: Array[Vector2] = []
+	var ids: Array[int] = []
 	for node: Node in get_tree().get_nodes_in_group(&"undead"):
 		var other: Node2D = node as Node2D
 		if other == self or other == null or other.is_queued_for_deletion():
 			continue
-		var away: Vector2 = global_position - other.global_position
-		var gap: float = away.length()
-		if gap >= spacing_distance:
-			continue
-		# 같은 자리에 겹쳐 있으면 정해진 쪽으로 비킨다 (인스턴스 번호로 서로 반대쪽).
-		if gap == 0.0:
-			away = Vector2.RIGHT if get_instance_id() > other.get_instance_id() else Vector2.LEFT
-		# 제곱근으로 해서 거의 다 떨어졌을 때도 너무 느려지지 않게 한다.
-		push += away.normalized() * sqrt((spacing_distance - gap) / spacing_distance)
-	return push.limit_length(1.0)
+		others.append(other.global_position)
+		ids.append(other.get_instance_id())
+	return BodySpacing.push(global_position, get_instance_id(), others, ids, spacing_distance)
 
 
 ## 살아 있는 몬스터마다 이번 프레임 정보를 모아 UndeadTargeting에 넣고, 정해진 대상을 돌려준다.

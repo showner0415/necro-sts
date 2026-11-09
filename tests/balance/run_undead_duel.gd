@@ -61,8 +61,8 @@ func _on_scene_ready() -> void:
 			print(row)
 			rows.append(row)
 	print("")
-	print("| 몬스터 | 경우 | 언데드 쪽 승리 | 패배 | 해제(마나 0) | 시간 초과 | 이겼을 때 남은 언데드 체력 | 졌을 때 남은 적 체력 | 평균 시간 | 네크로맨서 사망 |")
-	print("|---|---|---|---|---|---|---|---|---|---|")
+	print("| 몬스터 | 경우 | 언데드 쪽 승리 | 패배 | 해제(마나 0) | 시간 초과 | 이겼을 때 남은 언데드 체력 | 졌을 때 남은 적 체력 | 평균 시간 | 네크로맨서 사망 | 내구도 소모 합계 (판당) | 초당 소모 (합계) |")
+	print("|---|---|---|---|---|---|---|---|---|---|---|---|")
 	for row: String in rows:
 		print(row)
 	finish(start_failures == 0)
@@ -126,6 +126,7 @@ func _fight(monster_id: StringName, case_id: int, run: int) -> Dictionary:
 	necromancer.get_parent().add_child(enemy)
 	if not check_fight_start(TEST_REGION_SCENE, 1):
 		return {"invalid": true}
+	var durability_start: float = _total_durability(skulls)
 
 	var time: float = 0.0
 	var delta: float = 1.0 / Engine.physics_ticks_per_second
@@ -150,6 +151,7 @@ func _fight(monster_id: StringName, case_id: int, run: int) -> Dictionary:
 	if bot != null:
 		bot.release_all()
 	result["time"] = time
+	result["durability_lost"] = durability_start - _total_durability(skulls)
 	var max_health: float = data.undead_max_health
 	result["undead_ratio"] = skulls.map(func(s: Skull) -> float: return s.health / max_health).reduce(func(a: float, b: float) -> float: return a + b, 0.0) / skulls.size()
 	result["enemy_ratio"] = maxf(enemy_health, 0.0) / data.max_health
@@ -165,10 +167,22 @@ func _row(monster_id: StringName, case_id: int, results: Array[Dictionary]) -> S
 	var undead_left: String = "%d%%" % roundi(100.0 * _mean(wins.map(func(r: Dictionary) -> float: return r["undead_ratio"]))) if not wins.is_empty() else "-"
 	var enemy_left: String = "%d%%" % roundi(100.0 * _mean(losses.map(func(r: Dictionary) -> float: return r["enemy_ratio"]))) if not losses.is_empty() else "-"
 	var necro_deaths: String = "%d%%" % (100 * results.filter(func(r: Dictionary) -> bool: return r["necro_died"]).size() / n) if case_id == 2 else "-"
-	return "| %s | %s | %d%% | %d%% | %d%% | %d%% | %s | %s | %.1f초 | %s |" % [
+	var total_time: float = 0.0
+	var total_lost: float = 0.0
+	for result: Dictionary in results:
+		total_time += result["time"]
+		total_lost += result["durability_lost"]
+	return "| %s | %s | %d%% | %d%% | %d%% | %d%% | %s | %s | %.1f초 | %s | %.1f | %.2f |" % [
 		MONSTERS[monster_id], CASE_NAMES[case_id], 100 * count.call("win") / n, 100 * count.call("lose") / n,
 		100 * count.call("released") / n, 100 * count.call("timeout") / n, undead_left, enemy_left,
-		_mean(results.map(func(r: Dictionary) -> float: return r["time"])), necro_deaths]
+		_mean(results.map(func(r: Dictionary) -> float: return r["time"])), necro_deaths, total_lost / n, total_lost / maxf(total_time, 0.01)]
+
+
+func _total_durability(skulls: Array[Skull]) -> float:
+	var total: float = 0.0
+	for skull: Skull in skulls:
+		total += skull.durability
+	return total
 
 
 ## 시험 지역을 새로 불러오고, 전역 상태(인벤토리·핫바)를 비운다.

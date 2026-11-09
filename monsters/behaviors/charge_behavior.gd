@@ -42,8 +42,6 @@ const BACK_OFF_MIN_ROOM: float = 2.0
 ## 맞은 상대를 밀쳐내는 거리 (픽셀)와 시간 (초)
 @export var knockback_distance: float = 24.0
 @export var knockback_duration: float = 0.15
-## 돌진하는 동안 부딪히는 충돌층 (벽). 몸끼리는 지나간다.
-@export_flags_2d_physics var world_collision_mask: int = 1
 
 @export_group("예고 표시")
 ## 깜빡일 때의 몸 색과, 한 번 켜지거나 꺼지는 시간 (초)

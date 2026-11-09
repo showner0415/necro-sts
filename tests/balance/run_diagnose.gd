@@ -13,6 +13,8 @@ extends "res://tests/balance/run_balance.gd"
 
 var _mode: String = "charge_sight"
 var _no_retreat: bool = false
+## goblin_time에서 싸울 대상 (--room=1이면 벽으로 둘러싸인 방)
+var _goblin_target: StringName = &"goblin_pair"
 ## 0 이상이면 테스트 안에서만 고블린이 물러나는 속도를 이 값으로 바꾼다 (--retreat_speed=30)
 var _retreat_speed: float = -1.0
 var _trace: bool = false
@@ -56,6 +58,8 @@ func _on_scene_ready() -> void:
 			_trace = true
 		elif arg.begins_with("--retreat_speed="):
 			_retreat_speed = arg.trim_prefix("--retreat_speed=").to_float()
+		elif arg == "--room=1":
+			_goblin_target = &"goblin_room"
 		elif arg == "--no_vision=1":
 			_no_vision = true
 	if _mode == "charge_sight":
@@ -322,7 +326,7 @@ func _run_goblin_time() -> void:
 		for skill_id: StringName in _skills:
 			var results: Array[Dictionary] = []
 			for run: int in _runs:
-				var result: Dictionary = await _fight(&"goblin_pair", undead_count, skill_id, run)
+				var result: Dictionary = await _fight(_goblin_target, undead_count, skill_id, run)
 				if not result.has("invalid"):
 					results.append(result)
 			print(_goblin_row(undead_count, skill_id, results))

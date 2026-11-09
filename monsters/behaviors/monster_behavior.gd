@@ -6,6 +6,9 @@ extends Resource
 ## 조각은 상태(공격 간격 등)를 가지므로, 쓰는 쪽은 make_instance()로 한 마리에 하나씩 복사해서 쓴다.
 ## 여러 대상을 치는 조각(돌진 등)은 쓰는 쪽의 get_hostiles()로 칠 수 있는 상대를 받는다.
 
+## 벽의 충돌층 (돌진이 부딪히는 벽, 물러날 때 살피는 벽)
+@export_flags_2d_physics var world_collision_mask: int = 1
+
 
 ## 한 마리가 쓸 복사본
 func make_instance() -> MonsterBehavior:
@@ -73,6 +76,11 @@ func can_join_pack_attack() -> bool:
 	return true
 
 
+## 몸끼리 간격을 두려고 쓰는 쪽이 속도를 조금 밀어도 되는지. 예고·돌진처럼 정해진 동작 중에는 false다.
+func allows_spacing() -> bool:
+	return not is_busy()
+
+
 ## 몸 색. 깜빡임 같은 표시가 있으면 바꿔서 돌려준다.
 func get_body_color(base: Color) -> Color:
 	return base
@@ -89,6 +97,29 @@ func move_direction(body: CharacterBody2D, goal: Vector2) -> Vector2:
 	if body.has_method(&"get_move_direction"):
 		return body.call(&"get_move_direction", goal)
 	return body.global_position.direction_to(goal)
+
+
+## body가 direction으로 probe 픽셀을 벽에 막히지 않고 갈 수 있는지 (몸의 실제 모양으로, 벽만 본다). 트리 밖(단위 테스트)이면 true.
+func can_move(body: CharacterBody2D, direction: Vector2, probe: float) -> bool:
+	if not body.is_inside_tree():
+		return true
+	var saved_mask: int = body.collision_mask
+	body.collision_mask = world_collision_mask
+	var blocked: bool = body.test_move(body.global_transform, direction.normalized() * probe)
+	body.collision_mask = saved_mask
+	return not blocked
+
+
+## 벽을 따라 미끄러지지 않고 갈 방향: direction이 트였으면 그대로, 막혔으면 45도·90도 튼 방향 중 트인 쪽 (side 쪽을 먼저 본다).
+## 어느 쪽도 막혔거나 direction이 ZERO면 ZERO (멈춘다).
+func free_direction(body: CharacterBody2D, direction: Vector2, probe: float, side: float) -> Vector2:
+	if direction == Vector2.ZERO:
+		return Vector2.ZERO
+	for degrees: float in [0.0, 45.0 * side, -45.0 * side, 90.0 * side, -90.0 * side]:
+		var turned: Vector2 = direction.rotated(deg_to_rad(degrees))
+		if can_move(body, turned, probe):
+			return turned
+	return Vector2.ZERO
 
 
 ## body에서 target까지 벽이 가로막지 않는지. 돌진·던지기를 시작하기 전에 본다 (벽 너머로 돌진하거나 던지지 않고 돌아서 다가가게).

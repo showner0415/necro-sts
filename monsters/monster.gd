@@ -21,6 +21,8 @@ extends CharacterBody2D
 @export var indicator_color: Color = Color(0.89411765, 0.23137255, 0.26666668, 1)
 ## 네크로맨서에게 맞은 뒤 이 시간(초) 동안, 대상이 없는 언데드가 고를 수 있는 몬스터가 된다 (임시값)
 @export var necromancer_mark_duration: float = 5.0
+## 몸끼리 비켜 서는 세기가 이보다 약하면 밀지 않는다 (거의 떨어졌을 때 떨리지 않게)
+@export var spacing_deadband: float = 0.05
 
 ## 맞았을 때 (source는 때린 쪽). 무리가 이것으로 무리 대상을 정한다.
 signal hit_by(source: Node2D)
@@ -50,6 +52,8 @@ var _seen_target: Node2D
 var _seen_origin: Vector2
 ## 감지 범위 밖에서 맞았을 때 공격자를 쫓는 규칙
 var _aggro: Aggro
+## 평소 → 발견 → 싸움 → 찾기 → 돌아가기
+var _ai: MonsterAiState = MonsterAiState.new()
 ## 그림이 있는 몬스터(data.has_sprite())의 8방향 그림. 없으면 null이고 임시 도형으로 그린다
 var _sprite: FacingSprite
 ## 이보다 느리게 움직이면(벽에 미끄러질 때의 아주 작은 속도 등) 그림 방향을 바꾸지 않는다 (픽셀/초)
@@ -97,10 +101,13 @@ func _physics_process(delta: float) -> void:
 			_own_target = nearest
 	# 무리에 대상이 있으면 자기 판단과 상관없이 그 대상을 노린다.
 	_target = _pack_target if _is_alive_node(_pack_target) else _own_target
-	# 하던 동작(돌진 예고 등)은 대상이 사라져도 이어 간다.
-	if _target != null or _behavior.is_busy():
+	var target_visible: bool = _target != null and _path_follower.can_see(self, _target.global_position)
+	_ai.update(_target != null, _behavior.is_busy(), _aggro.state == Aggro.State.RETURNING, target_visible)
+	# 하던 동작(돌진 예고 등)은 대상이 사라져도 이어 간다. 찾기(대상이 벽 뒤)는 지금은 길을 따라 쫓는 것을 그대로 쓴다.
+	if _ai.is_fighting():
 		_behavior.act(self, data.get_enemy_stats(), _target, delta)
-	elif _aggro.state == Aggro.State.RETURNING and _target == null:
+		_apply_spacing()
+	elif _ai.state == MonsterAiState.State.RETURNING:
 		velocity = get_move_direction(_aggro.origin) * data.move_speed
 	else:
 		_wander(delta)
@@ -113,9 +120,31 @@ func _physics_process(delta: float) -> void:
 	queue_redraw()
 
 
+## 싸우는 동안 다른 몬스터와 한 점에 겹치지 않게 속도를 민다 (data.combat_spacing이 0이면 하지 않는다). 날아다니는 몸은 겹쳐 지나간다.
+func _apply_spacing() -> void:
+	if data.combat_spacing <= 0.0 or data.flying or not _behavior.allows_spacing():
+		return
+	var others: Array[Vector2] = []
+	var ids: Array[int] = []
+	for node: Node in get_tree().get_nodes_in_group(&"monsters"):
+		var other: Monster = node as Monster
+		if other == null or other == self or other.is_queued_for_deletion() or other.data.flying:
+			continue
+		others.append(other.global_position)
+		ids.append(other.get_instance_id())
+	var push: Vector2 = BodySpacing.push(global_position, get_instance_id(), others, ids, data.combat_spacing)
+	if push.length() >= spacing_deadband:
+		velocity = (velocity + push * data.move_speed).limit_length(maxf(velocity.length(), data.move_speed))
+
+
 ## 테스트·디버그용: 지금 노리는 대상 (없으면 null)
 func get_target() -> Node2D:
 	return _target
+
+
+## 테스트·디버그용: 지금 상태 (평소·발견·싸움·찾기·돌아가기)
+func get_ai_state() -> MonsterAiState.State:
+	return _ai.state
 
 
 ## 행동 조각이 부른다: goal(발밑 좌표)로 가려면 움직일 방향. 벽이 가로막으면 돌아가는 방향이다.

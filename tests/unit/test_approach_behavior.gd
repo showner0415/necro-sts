@@ -42,6 +42,38 @@ func test_far_target_is_approached_at_move_speed() -> void:
 	assert_true(target.received.is_empty(), "멀면 때리지 않는다")
 
 
+func test_hit_and_run_backs_off_after_bite_in_fixed_direction() -> void:
+	behavior.hit_and_run = true
+	target.position = Vector2(ATTACK_RANGE - 1.0, 0)
+	behavior.act(body, stats, target, 0.0)
+	assert_eq(target.received, [DAMAGE] as Array[float], "문다")
+	assert_eq(behavior.get_phase(), ApproachBehavior.Phase.BACK_OFF, "물고 나면 물러나기")
+	# 대상이 반대쪽으로 옮겨도 물러나는 방향은 문 순간 그대로다 (떨리지 않게).
+	target.position = Vector2(-50, 0)
+	behavior.act(body, stats, target, 0.0)
+	assert_eq(body.velocity, Vector2(-behavior.back_off_speed, 0), "문 순간의 대상 반대쪽으로 물러난다")
+
+
+func test_hit_and_run_pauses_then_closes_in() -> void:
+	behavior.hit_and_run = true
+	target.position = Vector2(ATTACK_RANGE - 1.0, 0)
+	behavior.act(body, stats, target, 0.0)
+	body.position = Vector2(-behavior.back_off_distance, 0)
+	behavior.act(body, stats, target, 0.0)
+	assert_eq(behavior.get_phase(), ApproachBehavior.Phase.PAUSE, "거리만큼 물러나면 멈춤")
+	assert_eq(body.velocity, Vector2.ZERO, "멈춤 중에는 서 있다")
+	behavior.act(body, stats, target, behavior.pause_time)
+	assert_eq(behavior.get_phase(), ApproachBehavior.Phase.CLOSE_IN, "멈춤이 끝나면 다시 들어온다")
+
+
+func test_without_hit_and_run_stays_in_place_after_bite() -> void:
+	target.position = Vector2(ATTACK_RANGE - 1.0, 0)
+	behavior.act(body, stats, target, 0.0)
+	behavior.act(body, stats, target, 0.0)
+	assert_eq(behavior.get_phase(), ApproachBehavior.Phase.CLOSE_IN, "물러나지 않는다")
+	assert_eq(body.velocity, Vector2.ZERO, "붙어서 멈춰 있다")
+
+
 func test_target_in_range_stops_and_hits() -> void:
 	target.position = Vector2(ATTACK_RANGE - 1.0, 0)
 	behavior.act(body, stats, target, 0.0)
