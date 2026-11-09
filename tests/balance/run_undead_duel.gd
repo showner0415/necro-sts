@@ -47,6 +47,7 @@ func get_start_scene() -> String:
 
 
 func _on_scene_ready() -> void:
+	apply_goblin_args()
 	for arg: String in OS.get_cmdline_user_args():
 		var parts: PackedStringArray = arg.trim_prefix("--").split("=")
 		if parts.size() != 2:

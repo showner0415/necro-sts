@@ -27,6 +27,8 @@ const SCENE_LOAD_TIMEOUT_FRAMES: int = 300
 var step_frames: int = 0
 ## 측정에서 판 시작 검사(check_fight_start)에 실패한 판 수
 var start_failures: int = 0
+## apply_goblin_args로 바꾼 고블린 데이터가 캐시에서 사라지지 않게 잡아 둔다
+var _kept_goblin_data: MonsterData
 var _scene_ready: bool = false
 ## 흉내 낸 마우스의 마지막 창 좌표 (이동량 계산용)
 var _last_mouse_window_position: Vector2 = Vector2.ZERO
@@ -103,6 +105,21 @@ func finish(success: bool) -> void:
 
 
 # --- 밸런스 측정 ---
+
+## 측정 안에서만 고블린 데이터를 바꾼다 (실제 .tres는 바꾸지 않는다): --burst=3 --burst_interval=0.15 --stone_damage=1 --stone_cooldown=2
+func apply_goblin_args() -> void:
+	var data: MonsterData = load("res://data/monsters/goblin_slinger.tres")
+	_kept_goblin_data = data
+	for arg: String in OS.get_cmdline_user_args():
+		if arg.begins_with("--burst="):
+			data.throw_burst_count = arg.trim_prefix("--burst=").to_int()
+		elif arg.begins_with("--burst_interval="):
+			data.throw_burst_interval = arg.trim_prefix("--burst_interval=").to_float()
+		elif arg.begins_with("--stone_damage="):
+			data.contact_damage = arg.trim_prefix("--stone_damage=").to_float()
+		elif arg.begins_with("--stone_cooldown="):
+			data.attack_cooldown = arg.trim_prefix("--stone_cooldown=").to_float()
+
 
 ## 측정 스크립트가 판 사이에 scene_path 씬을 새로 불러오고 전역 상태(인벤토리·핫바)를 비운다.
 ## 판이 끝난 뒤에도 날아오던 돌이나 남은 몬스터에 네크로맨서가 죽을 수 있다. 그러면 지역이 거점으로 가는 요청이 이 함수의 요청을
