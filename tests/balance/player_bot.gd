@@ -88,6 +88,9 @@ var _running: bool = false
 var _summon_cooldown: float = 0.0
 var _undead_skulls: Array[Skull] = []
 var _key_queue: Array[Key] = []
+## 측정: 앞서 겨누기를 계산한 프레임 수, 그중 max_lead_angle 제한에 걸린 프레임 수 (측정용, 동작을 바꾸지 않는다)
+var lead_checks: int = 0
+var lead_clamped: int = 0
 ## 측정: 쏜 탄 수, 맞힌 탄 수, 구른 횟수
 var shots: int = 0
 var hits: int = 0
@@ -375,8 +378,10 @@ func _limit_lead(origin: Vector2, center: Vector2, lead: Vector2) -> Vector2:
 	var to_center: Vector2 = center - origin
 	var angle: float = to_center.angle_to(lead - origin)
 	var limit: float = deg_to_rad(max_lead_angle)
+	lead_checks += 1
 	if absf(angle) <= limit and origin.distance_to(lead) >= to_center.length() * 0.5:
 		return lead
+	lead_clamped += 1
 	return origin + to_center.rotated(clampf(angle, -limit, limit))
 
 

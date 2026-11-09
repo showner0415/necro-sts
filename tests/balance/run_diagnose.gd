@@ -19,6 +19,8 @@ var _goblin_target: StringName = &"goblin_pair"
 var _retreat_speed: float = -1.0
 ## 0 이상이면 테스트 안에서만 고블린의 옆걸음 속도를 이 값으로 바꾼다 (--strafe_speed=0)
 var _strafe_speed: float = -1.0
+## 0 이상이면 봇이 앞서 겨눌 수 있는 각도를 이 값으로 바꾼다 (--max_lead=180이면 각도 제한 없음)
+var _max_lead: float = -1.0
 var _trace: bool = false
 var _spawned: Array[Monster] = []
 var _necromancer_ref: Variant = null
@@ -62,6 +64,8 @@ func _on_scene_ready() -> void:
 			_strafe_speed = arg.trim_prefix("--strafe_speed=").to_float()
 		elif arg.begins_with("--retreat_speed="):
 			_retreat_speed = arg.trim_prefix("--retreat_speed=").to_float()
+		elif arg.begins_with("--max_lead="):
+			_max_lead = arg.trim_prefix("--max_lead=").to_float()
 		elif arg == "--room=1":
 			_goblin_target = &"goblin_room"
 		elif arg == "--no_vision=1":
@@ -83,7 +87,9 @@ func _on_scene_ready() -> void:
 		_run_goblin_time()
 
 
-func _on_fight_start(necromancer: Necromancer, _bot: PlayerBot, spawned: Array[Monster]) -> void:
+func _on_fight_start(necromancer: Necromancer, bot: PlayerBot, spawned: Array[Monster]) -> void:
+	if _max_lead >= 0.0:
+		bot.max_lead_angle = _max_lead
 	_necromancer_ref = necromancer
 	_spawned = spawned
 	_tracks = {}
@@ -127,7 +133,9 @@ func _on_fight_frame(necromancer: Necromancer, bot: PlayerBot, time: float) -> v
 		_track_goblin(necromancer, bot, time)
 
 
-func _on_fight_end(result: Dictionary, _bot: PlayerBot) -> void:
+func _on_fight_end(result: Dictionary, bot: PlayerBot) -> void:
+	result["lead_checks"] = bot.lead_checks
+	result["lead_clamped"] = bot.lead_clamped
 	if _mode == "charge_sight":
 		# 돌진에 맞아 죽으면 지역 씬이 사라지므로, 진행 중이던 돌진을 맞은 것으로 끝낸다.
 		for track: Dictionary in _tracks.values():
@@ -326,8 +334,8 @@ func _track_goblin(necromancer: Necromancer, bot: Variant, time: float) -> void:
 
 func _run_goblin_time() -> void:
 	print("(고블린이 물러나지 않게 고침: %s)" % ("예" if _no_retreat else "아니오"))
-	print("| 조건 | 실력 | 잡은 시간 (95% 오차) | 첫 고블린까지 | 쏘는 중 | 사거리 밖 | 안 보임 | 도망 | 봇과 가장 가까운 고블린 거리 | 고블린이 노림: 네크로맨서 / 언데드 / 없음 | 고블린 움직임 | 탄 명중 | 언데드 명중 | 초당 발사 | 명중률 |")
-	print("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
+	print("| 조건 | 실력 | 잡은 시간 (95% 오차) | 첫 고블린까지 | 쏘는 중 | 사거리 밖 | 안 보임 | 도망 | 봇과 가장 가까운 고블린 거리 | 고블린이 노림: 네크로맨서 / 언데드 / 없음 | 고블린 움직임 | 탄 명중 | 언데드 명중 | 초당 발사 | 명중률 | 죽음 | 모든 판의 명중률 | 앞서 겨누기 제한 걸린 비율 |")
+	print("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
 	for undead_count: int in _undead_counts:
 		for skill_id: StringName in _skills:
 			var results: Array[Dictionary] = []
@@ -358,7 +366,7 @@ func _goblin_row(undead_count: int, skill_id: StringName, results: Array[Diction
 	var frames: float = maxf(total.get("frames", 0.0), 1.0)
 	var goblin_frames: float = maxf(total.get("goblin_frames", 0.0), 1.0)
 	var count: int = maxi(finished.size(), 1)
-	return "| %s | %s | %s | %.1f초 | %.0f%% | %.0f%% | %.0f%% | %.0f%% | %.0f | %.0f / %.0f / %.0f%% | %.0f%% | %.1f | %.1f | %.2f | %.0f%% |" % [
+	return "| %s | %s | %s | %.1f초 | %.0f%% | %.0f%% | %.0f%% | %.0f%% | %.0f | %.0f / %.0f / %.0f%% | %.0f%% | %.1f | %.1f | %.2f | %.0f%% | %.0f%% | %.0f%% | %.0f%% |" % [
 		"혼자" if undead_count == 0 else "쥐 언데드 %d" % undead_count, PlayerBot.SKILLS[skill_id]["name"],
 		_mean_error(finished.map(func(r: Dictionary) -> float: return r["time"]), "초"), _mean(first_kills),
 		100.0 * total.get("firing", 0.0) / frames, 100.0 * total.get("out_of_range", 0.0) / frames, 100.0 * total.get("not_known", 0.0) / frames, 100.0 * total.get("fleeing", 0.0) / frames,
@@ -366,7 +374,8 @@ func _goblin_row(undead_count: int, skill_id: StringName, results: Array[Diction
 		100.0 * total.get("target_necromancer", 0.0) / goblin_frames, 100.0 * total.get("target_undead", 0.0) / goblin_frames, 100.0 * total.get("target_none", 0.0) / goblin_frames,
 		100.0 * total.get("moving", 0.0) / goblin_frames,
 		total.get("bolt_hits", 0.0) / count, total.get("undead_hits", 0.0) / count,
-		shots / maxf(time, 0.01), 100.0 * hits / maxi(shots, 1)]
+		shots / maxf(time, 0.01), 100.0 * hits / maxi(shots, 1),
+		100.0 * results.filter(func(r: Dictionary) -> bool: return r["died"]).size() / maxi(results.size(), 1), 100.0 * _sum(results, "hits") / maxf(_sum(results, "shots"), 1.0), 100.0 * _sum(results, "lead_clamped") / maxf(_sum(results, "lead_checks"), 1.0)]
 
 
 func _track_aim_sight(necromancer: Necromancer, bot: PlayerBot) -> void:
@@ -529,3 +538,10 @@ func _attack_rows(target_id: StringName, undead_count: int, skill_id: StringName
 			{"dive": "혼자 돌진", "group": "동시 돌진", "stone": "돌"}[kind], attacks.size(), _share(seen.size(), attacks.size()), _share(_count(attacks, "windup_seen"), attacks.size()),
 			_share(seen.filter(hit).size(), seen.size()), _share(unseen.filter(hit).size(), unseen.size()), _share(_count(attacks, "rolled"), attacks.size())])
 	return rows
+
+
+func _sum(results: Array[Dictionary], key: String) -> float:
+	var total: float = 0.0
+	for result: Dictionary in results:
+		total += result[key]
+	return total
