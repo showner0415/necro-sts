@@ -45,6 +45,7 @@ const AIM_HIT_DISTANCE: float = 24.0
 var _no_vision: bool = false
 var _aim: Dictionary = {}
 var _attacks: Array[Dictionary] = []
+var _dodge_rows: Array[String] = []
 var _dive_tracks: Dictionary = {}
 var _stone_tracks: Dictionary = {}
 var _last_facing: Vector2 = Vector2.ZERO
@@ -437,11 +438,14 @@ func _track_dive(necromancer: Necromancer, bot: PlayerBot, monster: Monster, beh
 	elif state == DiveBehavior.State.DIVE:
 		if track["state"] != state:
 			var entry: Dictionary = {"kind": "group" if behavior.is_group_attack() else "dive", "on_necromancer": monster.get_target() == necromancer,
-				"seen_at_start": seen, "windup_seen": track["windup_seen"], "rolled": false, "hit": false}
+				"seen_at_start": seen, "windup_seen": track["windup_seen"], "rolled": false, "hit": false, "tried": false, "real_roll": false}
 			_attacks.append(entry)
 			track["entry"] = entry
-		if bot.get(&"_telegraphs").has(behavior) and bot.get(&"_telegraphs")[behavior]["done"]:
-			track["entry"]["rolled"] = true
+		if bot.get(&"_telegraphs").has(behavior):
+			track["entry"]["tried"] = track["entry"]["tried"] or bot.get(&"_telegraphs")[behavior]["try"]
+			if bot.get(&"_telegraphs")[behavior]["done"]:
+				track["entry"]["rolled"] = true
+		track["entry"]["real_roll"] = track["entry"]["real_roll"] or necromancer.is_rolling()
 	elif track["state"] == DiveBehavior.State.DIVE and lost_health and monster.global_position.distance_to(necromancer.global_position) <= AIM_HIT_DISTANCE:
 		track["entry"]["hit"] = true
 	track["state"] = state
@@ -495,6 +499,12 @@ func _run_aim_sight() -> void:
 	print("|---|---|---|---|---|---|---|---|---|---|")
 	for row: String in attack_rows:
 		print(row)
+	print("")
+	print("(맞은 수 / 공격 수) 네크로맨서를 노린 공격을 봇이 어떻게 처리했는가")
+	print("| 대상 | 실력 | 공격 종류 | 피하려 하지 않음 (회피 성공률) | 피하려 했으나 구르기 전에 끝남 (반응 늦음) | 구름 | 구르기 키를 눌렀지만 구르지 못함 (스태미나 등) |")
+	print("|---|---|---|---|---|---|---|")
+	for row: String in _dodge_rows:
+		print(row)
 	finish(start_failures == 0)
 
 
@@ -537,7 +547,21 @@ func _attack_rows(target_id: StringName, undead_count: int, skill_id: StringName
 			TARGETS[target_id]["name"], "혼자" if undead_count == 0 else "쥐 언데드 %d" % undead_count, PlayerBot.SKILLS[skill_id]["name"],
 			{"dive": "혼자 돌진", "group": "동시 돌진", "stone": "돌"}[kind], attacks.size(), _share(seen.size(), attacks.size()), _share(_count(attacks, "windup_seen"), attacks.size()),
 			_share(seen.filter(hit).size(), seen.size()), _share(unseen.filter(hit).size(), unseen.size()), _share(_count(attacks, "rolled"), attacks.size())])
+		_dodge_rows.append(_dodge_row(target_id, skill_id, kind, attacks, hit))
 	return rows
+
+
+## 공격을 봇이 어떻게 처리했는지로 나눈 줄: 맞은 수/공격 수
+func _dodge_row(target_id: StringName, skill_id: StringName, kind: String, attacks: Array[Dictionary], hit: Callable) -> String:
+	var not_tried: Array[Dictionary] = attacks.filter(func(a: Dictionary) -> bool: return not a.get("tried", a["rolled"]))
+	var tried: Array[Dictionary] = attacks.filter(func(a: Dictionary) -> bool: return a.get("tried", a["rolled"]))
+	if kind == "stone":
+		return "| %s | %s | 돌 | %s | - | %s | - |" % [TARGETS[target_id]["name"], PlayerBot.SKILLS[skill_id]["name"], _share(not_tried.filter(hit).size(), not_tried.size()), _share(tried.filter(hit).size(), tried.size())]
+	var late: Array[Dictionary] = tried.filter(func(a: Dictionary) -> bool: return not a["rolled"])
+	var failed: Array[Dictionary] = tried.filter(func(a: Dictionary) -> bool: return a["rolled"] and not a["real_roll"])
+	var rolled: Array[Dictionary] = tried.filter(func(a: Dictionary) -> bool: return a["rolled"] and a["real_roll"])
+	return "| %s | %s | %s | %s | %s | %s | %s |" % [TARGETS[target_id]["name"], PlayerBot.SKILLS[skill_id]["name"], {"dive": "혼자 돌진", "group": "동시 돌진"}[kind],
+		_share(not_tried.filter(hit).size(), not_tried.size()), _share(late.filter(hit).size(), late.size()), _share(rolled.filter(hit).size(), rolled.size()), _share(failed.filter(hit).size(), failed.size())]
 
 
 func _sum(results: Array[Dictionary], key: String) -> float:

@@ -14,7 +14,7 @@ extends RefCounted
 ##   언데드를 노린 공격이 뒤로 이어지지 않게. 사람도 예고 선이 보일 때 비키므로 예고 중에만 한다
 ## - 언데드: 핫바의 머리뼈가 소환 중이 아니고 마나가 넉넉하면 숫자키 → G로 다시 소환한다
 ## - 물러나기(retreat_to): 쏘지 않고 탈출 지점으로 길찾기로 가며, 뛸 수 있으면 뛰고 예고된 공격만 구르기로 피한다
-## - 시야: 지역에 시야(Vision)가 있으면 플레이어나 언데드 시야에 보이는 몬스터·돌만 안다. 처음 보인 뒤 반응 시간이 지나야 겨눈다.
+## - 시야 (--sight, 기본 full): full이면 모든 몬스터·돌의 위치를 안다. cone이면 지역에 시야(Vision)가 있을 때 플레이어나 언데드 시야에 보이는 몬스터·돌만 안다. 처음 보인 뒤 반응 시간이 지나야 겨눈다.
 ##   예고·돌은 보이기 시작한 때부터 반응 시간을 센다
 ## - 둘러보기 (사용자 확정): 겨눌 몬스터가 없으면 걷는 방향을 본다. scan_interval초마다 좌우 scan_angle도를 한 번씩 scan_look_time초 동안 본다.
 ##   안 보이는 몬스터에게 맞으면 hit_turn_delay초 뒤 맞은 쪽을 hit_look_time초 동안 본다 (맵을 걸을 때는 look_around를 부른다)
@@ -72,6 +72,9 @@ var max_lead_angle: float = 20.0
 var look_distance: float = 100.0
 
 var skill: Dictionary
+## 봇이 몬스터를 아는 방식 (명령줄 --sight=full / --sight=cone). full: 시야와 상관없이 모든 몬스터와 돌의 위치를 안다 (기본값, 사용자 결정 2026-11-09).
+## cone: 플레이어·언데드 시야에 보이는 것만 안다. 실력 차이는 full이면 반응 시간·조준 오차·회피 성공률로만 나뉜다.
+var sight: StringName = &"full"
 var _test: ScenarioTest
 var _necromancer: Necromancer
 var _aim_offset_deg: float = 0.0
@@ -138,6 +141,9 @@ func _init(test: ScenarioTest, necromancer: Necromancer, skill_id: StringName) -
 	_test = test
 	_necromancer = necromancer
 	skill = SKILLS[skill_id]
+	for arg: String in OS.get_cmdline_user_args():
+		if arg.begins_with("--sight="):
+			sight = StringName(arg.trim_prefix("--sight="))
 	aim_resample_interval = necromancer.attack.cooldown
 	_necromancer.get_parent().child_entered_tree.connect(_on_actor_added)
 	_necromancer.summoner.roster.unsummoned.connect(func(_skull: Skull, died: bool) -> void:
@@ -262,6 +268,8 @@ func _vision() -> Vision:
 
 
 func _can_see(world: Vector2) -> bool:
+	if sight == &"full":
+		return true
 	var vision: Vision = _vision()
 	return vision == null or vision.is_visible_at(world)
 
