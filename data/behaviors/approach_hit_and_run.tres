@@ -4,6 +4,7 @@
 
 [resource]
 script = ExtResource("1_approach")
+attack_windup = 0.1
 hit_and_run = true
 back_off_distance = 40.0
 back_off_speed = 40.0

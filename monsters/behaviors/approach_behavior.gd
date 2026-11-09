@@ -8,6 +8,9 @@ extends MonsterBehavior
 
 enum Phase { CLOSE_IN, BACK_OFF, PAUSE }
 
+## 물기 직전 멈춰 있는 시간 (초)
+@export var attack_windup: float = 0.0
+
 @export_group("치고 빠지기")
 ## 물고 나서 물러나는지. 꺼져 있으면 붙어서 싸운다
 @export var hit_and_run: bool = false
@@ -26,6 +29,8 @@ enum Phase { CLOSE_IN, BACK_OFF, PAUSE }
 @export var wall_probe_distance: float = 12.0
 
 var _attack_timer: float = 0.0
+var _winding_up: bool = false
+var _windup_left: float = 0.0
 var _phase: Phase = Phase.CLOSE_IN
 var _phase_timer: float = 0.0
 var _back_off_origin: Vector2
@@ -36,6 +41,10 @@ var _side: float = 1.0
 
 func update(delta: float) -> void:
 	_attack_timer = maxf(_attack_timer - delta, 0.0)
+
+
+func is_winding_up() -> bool:
+	return _winding_up
 
 
 func get_phase() -> Phase:
@@ -57,6 +66,7 @@ func act(body: CharacterBody2D, stats: CombatStats, target: Node2D, delta: float
 	var to_target: Vector2 = target.global_position - body.global_position
 	var distance: float = to_target.length()
 	if distance > stats.attack_range:
+		_winding_up = false
 		var direction: Vector2 = move_direction(body, target.global_position)
 		if hit_and_run and distance < circle_range and has_clear_line(body, target):
 			direction = (direction + direction.orthogonal() * _side * circle_strength).normalized()
@@ -64,6 +74,16 @@ func act(body: CharacterBody2D, stats: CombatStats, target: Node2D, delta: float
 		return
 	if _attack_timer == 0.0:
 		body.velocity = Vector2.ZERO
+		# 물기 직전 잠깐 멈춘다. 그사이 대상이 공격 거리 밖으로 나가면 위에서 다시 다가가며 물지 않는다.
+		if attack_windup > 0.0:
+			if not _winding_up:
+				_winding_up = true
+				_windup_left = attack_windup
+				return
+			_windup_left -= delta
+			if _windup_left > 0.0:
+				return
+			_winding_up = false
 		_attack_timer = stats.attack_cooldown
 		# 네크로맨서·언데드·몬스터는 서로 다른 클래스라서 이름으로 부른다.
 		target.call(&"take_damage", stats.contact_damage, body)

@@ -86,6 +86,8 @@ var _telegraphs: Dictionary = {}
 var _stones: Dictionary = {}
 ## 돌 줄에서 몸 가운데가 이 거리 안이면 맞을 것으로 보고 옆으로 걷는다 (몸 반지름 + 돌 반지름 + 여유)
 var stone_danger_width: float = 12.0
+## 그림자 원 가장자리에서 이만큼 더 벗어난다 (몸 반지름과 여유)
+var shadow_margin: float = 8.0
 var _time: float = 0.0
 var _running: bool = false
 var _summon_cooldown: float = 0.0
@@ -464,7 +466,8 @@ func _try_sidestep_stones() -> bool:
 	var seen_now: Dictionary = {}
 	for node: Node in _necromancer.get_parent().get_children():
 		var stone: Stone = node as Stone
-		if stone == null or stone.is_queued_for_deletion() or not stone.hostile_groups.has(&"necromancer") or not _can_see(stone.global_position):
+		# 그림자 원은 시야와 상관없이 보이므로 돌도 던진 순간부터 안다. 돌이 안 보여도 그림자로 알 수 있다.
+		if stone == null or stone.is_queued_for_deletion() or not stone.hostile_groups.has(&"necromancer") or not (_can_see(stone.global_position) or stone.landing_radius > 0.0):
 			continue
 		seen_now[stone] = true
 		if not _stones.has(stone):
@@ -472,6 +475,12 @@ func _try_sidestep_stones() -> bool:
 			_stones[stone] = {"seen": _time, "try": randf() < skill["dodge"]}
 		var info: Dictionary = _stones[stone]
 		if not info["try"] or _time - info["seen"] < skill["reaction"]:
+			continue
+		# 그림자 원 안이면 원 밖으로 걷는다 (돌이 도착하면 맞는 범위다).
+		var ground: Vector2 = stone.global_position + stone.direction * (stone.max_distance - stone.get_traveled())
+		var from_landing: Vector2 = center - ground
+		if stone.landing_radius > 0.0 and from_landing.length() <= stone.landing_radius + shadow_margin:
+			step = from_landing.normalized() if from_landing != Vector2.ZERO else stone.direction.orthogonal()
 			continue
 		var to_me: Vector2 = center - stone.global_position
 		var along: float = to_me.dot(stone.direction)

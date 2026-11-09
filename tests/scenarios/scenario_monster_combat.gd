@@ -242,7 +242,7 @@ func _rat_hit_and_run() -> bool:
 		if phase == ApproachBehavior.Phase.PAUSE:
 			paused_frames += 1
 			paused_moving += 1 if rat.velocity.length() > 0.01 else 0
-		elif rat.velocity.length() < 0.01:
+		elif rat.velocity.length() < 0.01 and not behavior.is_winding_up():
 			standing += 1
 		if _necromancer.health < health:
 			second_bite = true
@@ -253,7 +253,7 @@ func _rat_hit_and_run() -> bool:
 		return false
 	if not _check("다시 들어와 또 묾", second_bite, "두 번째 물기 %s" % second_bite):
 		return false
-	return _check("멈춤 말고는 서 있지 않음", standing <= 2, "멈춤 단계 밖에서 속도 0인 프레임 %d" % standing)
+	return _check("멈춤 말고는 서 있지 않음", standing <= 2, "멈춤·물기 직전 밖에서 속도 0인 프레임 %d" % standing)
 
 
 func _rats_do_not_overlap() -> bool:
