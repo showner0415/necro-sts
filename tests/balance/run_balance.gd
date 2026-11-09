@@ -89,7 +89,9 @@ func _run_all() -> void:
 			for skill_id: StringName in _skills:
 				var results: Array[Dictionary] = []
 				for run: int in _runs:
-					results.append(await _fight(target_id, undead_count, skill_id, run))
+					var result: Dictionary = await _fight(target_id, undead_count, skill_id, run)
+					if not result.has("invalid"):
+						results.append(result)
 				var stats: Dictionary = _summarize(results)
 				if undead_count == 0:
 					alone[[target_id, skill_id]] = stats
@@ -109,7 +111,7 @@ func _run_all() -> void:
 	print("|---|---|---|---|---|---|---|")
 	for row: String in error_rows:
 		print(row)
-	finish(true)
+	finish(start_failures == 0)
 
 
 ## 한 판 싸운다. 결과: time(초), damage, died, timeout, shots, hits
@@ -138,6 +140,8 @@ func _fight(target_id: StringName, undead_count: int, skill_id: StringName, run:
 		var pack: MonsterPack = MonsterPack.new()
 		pack.set_members(spawned)
 		region.add_child(pack)
+	if not check_fight_start(TEST_REGION_SCENE, spawned.size()):
+		return {"invalid": true}
 
 	var bot: PlayerBot = PlayerBot.new(self, necromancer, skill_id)
 	bot.miss_group_attacks = _miss_pack
@@ -222,15 +226,7 @@ func _give_undead(necromancer: Necromancer, count: int) -> Array[Skull]:
 
 ## 시험 지역을 새로 불러오고, 전역 상태(인벤토리·핫바)를 비운다.
 func _reload_scene() -> void:
-	# 지난 판에서 죽었으면 지역 씬이 거점으로 보내는 중일 수 있다. 그 뒤에 다시 부른다.
-	await physics_frame
-	await physics_frame
-	var game_state: Node = root.get_node("GameState")
-	game_state.call(&"reset_after_death")
-	var old_scene: Node = current_scene
-	change_scene_to_file(TEST_REGION_SCENE)
-	while current_scene == old_scene or current_scene == null or not current_scene.is_node_ready():
-		await physics_frame
+	await reload_fight_scene(TEST_REGION_SCENE)
 
 
 ## 한 조건의 결과 요약. 시간은 살아서 잡은 판만으로 낸다 (모두 죽거나 시간 초과면 time_mean은 -1).

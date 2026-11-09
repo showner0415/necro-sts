@@ -149,12 +149,14 @@ func _run_all() -> void:
 				for skill_id: StringName in _skills:
 					var results: Array[Dictionary] = []
 					for run: int in _runs:
-						results.append(await _pass(route_id, undead_count, skill_id, run, retreat))
+						var result: Dictionary = await _pass(route_id, undead_count, skill_id, run, retreat)
+						if not result.has("invalid"):
+							results.append(result)
 					lines.append(_row(route_id, undead_count, retreat, skill_id, results))
 					print(lines[-1])
 	print("")
 	print("\n".join(lines))
-	finish(true)
+	finish(start_failures == 0)
 
 
 func _pass(route_id: StringName, undead_count: int, skill_id: StringName, run: int, retreat: int) -> Dictionary:
@@ -171,6 +173,9 @@ func _pass(route_id: StringName, undead_count: int, skill_id: StringName, run: i
 			kept.append(monster)
 		else:
 			monster.free()
+	# 남길 굴이 있는 길은 몬스터가 적어도 한 마리 있어야 한다 (거점처럼 몬스터 없는 씬이면 틀림).
+	if not check_fight_start(_scene, maxi(kept.size(), 0 if keep_rooms.is_empty() else 1)):
+		return {"invalid": true}
 	var necromancer: Necromancer = find_necromancer()
 	necromancer.global_position = _room_center(_roles[route["start"]])
 	await wait_frames(SETTLE_FRAMES)
@@ -306,13 +311,7 @@ func _give_undead(necromancer: Necromancer, count: int) -> Array[Skull]:
 
 ## 얕은 굴을 새로 불러오고, 전역 상태(인벤토리·핫바)를 비운다.
 func _reload_scene() -> void:
-	await physics_frame
-	await physics_frame
-	root.get_node("GameState").call(&"reset_after_death")
-	var old_scene: Node = current_scene
-	change_scene_to_file(_scene)
-	while current_scene == old_scene or current_scene == null or not current_scene.is_node_ready():
-		await physics_frame
+	await reload_fight_scene(_scene)
 
 
 func _row(route_id: StringName, undead_count: int, retreat: int, skill_id: StringName, results: Array[Dictionary]) -> String:

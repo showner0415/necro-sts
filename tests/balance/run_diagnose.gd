@@ -5,7 +5,7 @@ extends "res://tests/balance/run_balance.gd"
 ##   bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_diagnose.gd -- --mode=charge_sight --runs=10
 ## 고블린과 언데드: 살아 있는 고블린이 있는 동안 봇이 무엇을 했는지 (쏨 / 사거리 밖 / 안 보임 / 도망), 누가 때렸는지
 ##   bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_diagnose.gd -- --mode=goblin_time --runs=50
-## 고블린이 물러나지 않으면 어떻게 되는지 비교: -- --mode=goblin_time --no_retreat=1
+## 고블린이 물러나지 않으면 어떻게 되는지 비교: -- --mode=goblin_time --no_retreat=1, 물러나는 속도를 바꿔 비교: --retreat_speed=30
 ## 박쥐·고블린의 겨누기와 시야: 봇이 겨눈 몬스터와 화면 방향의 차이, 시야가 튀는 정도, 공격이 시작될 때 봤는지와 그 공격에 맞았는지
 ##   bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_diagnose.gd -- --mode=aim_sight --runs=50
 ## 시야를 끄고 같은 싸움을 재서 비교: -- --mode=aim_sight --runs=50 --no_vision=1
@@ -13,6 +13,8 @@ extends "res://tests/balance/run_balance.gd"
 
 var _mode: String = "charge_sight"
 var _no_retreat: bool = false
+## 0 이상이면 테스트 안에서만 고블린이 물러나는 속도를 이 값으로 바꾼다 (--retreat_speed=30)
+var _retreat_speed: float = -1.0
 var _trace: bool = false
 var _spawned: Array[Monster] = []
 var _necromancer_ref: Variant = null
@@ -52,6 +54,8 @@ func _on_scene_ready() -> void:
 			_no_retreat = true
 		elif arg == "--trace=1":
 			_trace = true
+		elif arg.begins_with("--retreat_speed="):
+			_retreat_speed = arg.trim_prefix("--retreat_speed=").to_float()
 		elif arg == "--no_vision=1":
 			_no_vision = true
 	if _mode == "charge_sight":
@@ -95,9 +99,11 @@ func _on_fight_start(necromancer: Necromancer, _bot: PlayerBot, spawned: Array[M
 		return
 	if _mode != "charge_sight":
 		for monster: Monster in spawned:
+			var behavior: ThrowBehavior = monster.get_behavior() as ThrowBehavior
 			if _no_retreat:
-				var behavior: ThrowBehavior = monster.get_behavior() as ThrowBehavior
 				behavior.retreat_distance = 0.0
+			if _retreat_speed >= 0.0:
+				behavior.retreat_speed = _retreat_speed
 			monster.hit_by.connect(func(source: Node2D) -> void:
 				_goblin["bolt_hits" if source == necromancer else "undead_hits"] += 1)
 
@@ -234,6 +240,8 @@ func _run_charge_sight() -> void:
 		var deaths: int = 0
 		for run: int in _runs:
 			var result: Dictionary = await _fight(&"boar", _undead_counts[0], skill_id, run)
+			if result.has("invalid"):
+				continue
 			var charges: Array[Dictionary] = []
 			charges.assign(result["charges"])
 			all.append_array(charges)
@@ -249,7 +257,7 @@ func _run_charge_sight() -> void:
 	print("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
 	for row: String in summaries:
 		print(row)
-	finish(true)
+	finish(start_failures == 0)
 
 
 func _charge_summary(skill_id: StringName, all: Array[Dictionary], frames: int, lost_frames: int, lost_spells: int, deaths: int) -> String:
@@ -314,9 +322,11 @@ func _run_goblin_time() -> void:
 		for skill_id: StringName in _skills:
 			var results: Array[Dictionary] = []
 			for run: int in _runs:
-				results.append(await _fight(&"goblin_pair", undead_count, skill_id, run))
+				var result: Dictionary = await _fight(&"goblin_pair", undead_count, skill_id, run)
+				if not result.has("invalid"):
+					results.append(result)
 			print(_goblin_row(undead_count, skill_id, results))
-	finish(true)
+	finish(start_failures == 0)
 
 
 func _goblin_row(undead_count: int, skill_id: StringName, results: Array[Dictionary]) -> String:
@@ -450,7 +460,9 @@ func _run_aim_sight() -> void:
 		for skill_id: StringName in _skills:
 			var results: Array[Dictionary] = []
 			for run: int in _runs:
-				results.append(await _fight(target_id, undead_count, skill_id, run))
+				var result: Dictionary = await _fight(target_id, undead_count, skill_id, run)
+				if not result.has("invalid"):
+					results.append(result)
 			rows.append(_aim_row(target_id, undead_count, skill_id, results))
 			attack_rows.append_array(_attack_rows(target_id, undead_count, skill_id, results))
 			print(rows[-1])
@@ -464,7 +476,7 @@ func _run_aim_sight() -> void:
 	print("|---|---|---|---|---|---|---|---|---|---|")
 	for row: String in attack_rows:
 		print(row)
-	finish(true)
+	finish(start_failures == 0)
 
 
 func _aim_row(target_id: StringName, undead_count: int, skill_id: StringName, results: Array[Dictionary]) -> String:

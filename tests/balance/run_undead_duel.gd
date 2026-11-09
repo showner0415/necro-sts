@@ -54,7 +54,9 @@ func _on_scene_ready() -> void:
 		for case_id: int in _cases:
 			var results: Array[Dictionary] = []
 			for run: int in _runs:
-				results.append(await _fight(monster_id, case_id, run))
+				var result: Dictionary = await _fight(monster_id, case_id, run)
+				if not result.has("invalid"):
+					results.append(result)
 			var row: String = _row(monster_id, case_id, results)
 			print(row)
 			rows.append(row)
@@ -63,7 +65,7 @@ func _on_scene_ready() -> void:
 	print("|---|---|---|---|---|---|---|---|---|---|")
 	for row: String in rows:
 		print(row)
-	finish(true)
+	finish(start_failures == 0)
 
 
 ## 한 판. 결과: outcome("win"/"lose"/"released"/"timeout"), time, undead_ratio(남은 언데드 체력 비율 평균), enemy_ratio, necro_died
@@ -122,6 +124,8 @@ func _fight(monster_id: StringName, case_id: int, run: int) -> Dictionary:
 	enemy.data = data
 	enemy.position = necromancer.global_position + ENEMY_OFFSET
 	necromancer.get_parent().add_child(enemy)
+	if not check_fight_start(TEST_REGION_SCENE, 1):
+		return {"invalid": true}
 
 	var time: float = 0.0
 	var delta: float = 1.0 / Engine.physics_ticks_per_second
@@ -169,13 +173,7 @@ func _row(monster_id: StringName, case_id: int, results: Array[Dictionary]) -> S
 
 ## 시험 지역을 새로 불러오고, 전역 상태(인벤토리·핫바)를 비운다.
 func _reload_scene() -> void:
-	await physics_frame
-	await physics_frame
-	root.get_node("GameState").call(&"reset_after_death")
-	var old_scene: Node = current_scene
-	change_scene_to_file(TEST_REGION_SCENE)
-	while current_scene == old_scene or current_scene == null or not current_scene.is_node_ready():
-		await physics_frame
+	await reload_fight_scene(TEST_REGION_SCENE)
 
 
 func _mean(values: Array) -> float:
