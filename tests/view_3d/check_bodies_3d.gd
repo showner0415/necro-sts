@@ -6,7 +6,7 @@ extends View3DCheck
 ## 3. 맞았을 때 번쩍임이 그림에 보인다
 ## 4. 쥐 그림 가운데를 8방향에서 조준해 쏘면 맞는다
 ## 5. 벽에 가린 몸 앞만 반투명하고, 플레이어 앞 벽은 잘린다
-## 6. 시야 밖 몸은 벽을 반투명하게 하지 않고, 언데드는 시야 밖에서도 반투명하게 한다
+## 6. 시야 밖 몬스터·물건은 벽을 반투명하게 하지 않고, 언데드는 시야 밖에서도 반투명하게 한다
 
 const SETTLE_FRAMES: int = 20
 const OPEN_SPOT: Vector2 = Vector2(5, 5) * ViewSpace.TILE
@@ -34,6 +34,11 @@ const BOAR_DATA: String = "res://data/monsters/boar.tres"
 const BONE_DATA: String = "res://data/items/bone.tres"
 const MONSTER_SCENE: String = "res://monsters/monster.tscn"
 const CORPSE_SCENE: String = "res://monsters/corpse.tscn"
+const UNDEAD_SCENE: String = "res://undead/undead.tscn"
+const RAT_SKULL: String = "res://data/skulls/rat_skull.tres"
+## 시야와 반투명 검사에서 쥐 곁에 놓는 자리
+const UNDEAD_FROM_RAT: Vector2 = Vector2(0, 24)
+const PICKUP_FROM_RAT: Vector2 = Vector2(0, -24)
 ## 부채꼴 안·밖을 만드는 방향
 const AWAY: Vector2 = Vector2.LEFT
 
@@ -225,17 +230,24 @@ func _check_vision_rule() -> void:
 	_vision.set_active(true)
 	_necromancer.global_position = OPEN_SPOT
 	_rat.global_position = RAT_SPOT
+	var undead: Undead = (load(UNDEAD_SCENE) as PackedScene).instantiate()
+	undead.setup(Skull.create(load(RAT_SKULL)), load(RAT_DATA), _necromancer)
+	undead.process_mode = Node.PROCESS_MODE_DISABLED
+	_rat.get_parent().add_child(undead)
+	undead.global_position = RAT_SPOT + UNDEAD_FROM_RAT
+	var pickup: Pickup = _necromancer.pickup_scene.instantiate()
+	pickup.stack = ItemStack.of_item(load(BONE_DATA), 1)
+	_rat.get_parent().add_child(pickup)
+	pickup.global_position = RAT_SPOT + PICKUP_FROM_RAT
 	_view.aim_override = _necromancer.get_body_center() + AWAY * SHOT_DISTANCE
 	await wait_frames(FADE_FRAMES)
-	var outside: float = walls.get_see_weight(_rat)
-	_rat.add_to_group(&"undead")
-	await wait_frames(FADE_FRAMES)
-	var as_undead: float = walls.get_see_weight(_rat)
-	_rat.remove_from_group(&"undead")
+	var outside: Array[float] = [walls.get_see_weight(_rat), walls.get_see_weight(pickup), walls.get_see_weight(undead)]
 	_view.aim_override = _necromancer.get_body_center() + Vector2.RIGHT * SHOT_DISTANCE
 	await wait_frames(FADE_FRAMES)
-	var inside: float = walls.get_see_weight(_rat)
-	if outside > 0.0 or as_undead < 0.99 or inside < 0.99:
-		fail_step("시야와 반투명", "시야 밖 %.2f, 언데드 %.2f, 시야 안 %.2f" % [outside, as_undead, inside])
+	var inside: Array[float] = [walls.get_see_weight(_rat), walls.get_see_weight(pickup), walls.get_see_weight(undead)]
+	undead.free()
+	pickup.free()
+	if outside[0] > 0.0 or outside[1] > 0.0 or outside[2] < 0.99 or inside.min() < 0.99:
+		fail_step("시야와 반투명", "시야 밖 (쥐, 물건, 언데드) %s, 시야 안 %s" % [outside, inside])
 		return
-	pass_step("시야와 반투명", "시야 밖 %.2f, 시야 밖 언데드 %.2f, 시야 안 %.2f" % [outside, as_undead, inside])
+	pass_step("시야와 반투명", "시야 밖 (쥐, 물건, 언데드) %s, 시야 안 %s" % [outside, inside])

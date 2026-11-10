@@ -33,5 +33,23 @@ func test_slanted_ray_stops_at_aim_height_not_ground() -> void:
 	assert_almost_eq(aim.y, 50.0, 0.001, "y")
 
 
+func test_screen_offset_of_feet_is_zero() -> void:
+	var offset: Vector2 = ViewSpace.screen_offset(Vector2(100, 50), Vector2(100, 50), 0.0, 70.0, 45.0, 30.0, 360.0)
+	assert_almost_eq(offset.length(), 0.0, 0.001, "발밑은 화면 가운데")
+
+
+func test_screen_offset_one_tile_east_is_one_tile_on_screen() -> void:
+	var offset: Vector2 = ViewSpace.screen_offset(Vector2.ZERO, Vector2(32, 0), 0.0, 60.0, 0.0, 30.0, 360.0)
+	assert_almost_eq(offset.x, 32.0, 0.5, "발밑 평면에서 1픽셀 = 화면 1픽셀")
+	assert_almost_eq(offset.y, 0.0, 0.5, "세로로는 안 움직임")
+
+
+func test_screen_offset_north_goes_up_and_height_goes_up() -> void:
+	var north: Vector2 = ViewSpace.screen_offset(Vector2.ZERO, Vector2(0, -64), 0.0, 60.0, 0.0, 30.0, 360.0)
+	var raised: Vector2 = ViewSpace.screen_offset(Vector2.ZERO, Vector2.ZERO, 32.0, 60.0, 0.0, 30.0, 360.0)
+	assert_true(north.y < 0.0, "북쪽은 화면 위")
+	assert_true(raised.y < 0.0, "높은 점은 화면 위")
+
+
 func test_ray_along_plane_uses_fallback() -> void:
 	assert_eq(ViewSpace.aim_from_ray(Vector3(0, 5, 0), Vector3.RIGHT, AIM_HEIGHT, FALLBACK), FALLBACK, "평면과 나란한 광선")

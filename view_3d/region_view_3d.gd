@@ -17,7 +17,7 @@ const TERRAIN_SHADER: String = "res://view_3d/terrain.gdshader"
 const STAMINA_RING_PATH: String = "StaminaRing"
 
 ## 카메라가 아래로 기운 각도 (도)
-@export var pitch_degrees: float = 60.0
+@export var pitch_degrees: float = 70.0
 ## 화면이 맵 기준으로 돌아간 각도 (도)
 @export var yaw_degrees: float = 45.0
 ## 화각 (도)
@@ -27,7 +27,7 @@ const STAMINA_RING_PATH: String = "StaminaRing"
 ## 카메라 깊이를 맞출 격자 (단위, 0이면 맞추지 않음). 몸 위치의 아주 작은 흔들림이 벽 경계 픽셀을 뒤집지 않게 한다
 @export var depth_step: float = 1.0 / 256.0
 ## 벽 높이 (픽셀)
-@export var wall_height_px: float = 32.0
+@export var wall_height_px: float = 96.0
 ## 앞벽을 잘라낸 자리에 보이는 낮은 윗면 높이 (픽셀). 지형 셰이더의 cut_keep_height(0.2칸 = 6.4픽셀)보다 조금 낮다
 @export var cut_cap_height_px: float = 6.08
 ## 지형 구역 한 변의 칸 수
@@ -37,6 +37,8 @@ const STAMINA_RING_PATH: String = "StaminaRing"
 var aim_lead: AimLead = AimLead.new()
 ## 확인용: 값이 있으면 마우스 대신 이 월드 좌표를 조준한다 (스크린샷·검사)
 var aim_override: Vector2 = Vector2.INF
+## 확인용: 값이 있으면 실제 마우스 대신 이 화면 위치를 쓴다 (앞서 가기·조준)
+var mouse_override: Vector2 = Vector2.INF
 
 var _necromancer: Necromancer
 var _vision: Vision
@@ -105,6 +107,12 @@ func _process(delta: float) -> void:
 	_sight_lights.update_sights()
 
 
+## 카메라 기울기를 바꾼다 (검사에서 값을 비교할 때 쓴다).
+func set_pitch(degrees: float) -> void:
+	pitch_degrees = degrees
+	set_yaw(yaw_degrees)
+
+
 ## 화면 회전을 바꾼다. 이동 입력도 같이 돌아간다 (8방향 그림은 BodyLayer가 프레임마다 맞춘다).
 func set_yaw(degrees: float) -> void:
 	yaw_degrees = degrees
@@ -115,7 +123,7 @@ func set_yaw(degrees: float) -> void:
 
 ## 지금 조준하는 월드(2D) 좌표
 func get_aim_position() -> Vector2:
-	return aim_override if aim_override != Vector2.INF else aim_from_screen(get_viewport().get_mouse_position())
+	return aim_override if aim_override != Vector2.INF else aim_from_screen(_mouse())
 
 
 ## 화면(내부 해상도)의 점을 누르면 조준되는 월드(2D) 좌표
@@ -252,10 +260,12 @@ func _update_camera(delta: float) -> void:
 	# 앞서 가기: 화면 픽셀만큼 카메라 평면에서 옮긴다 (화면 아래가 +y).
 	var screen_center: Vector2 = get_viewport().get_visible_rect().size * 0.5
 	_lead_offset = aim_lead.follow(_lead_offset, aim_lead.target_offset(_lead_mouse(screen_center), screen_center), delta)
-	feet += (right * _lead_offset.x - up * _lead_offset.y) / ViewSpace.TILE
-	# 카메라를 화면 픽셀 격자에 맞춘다 (바닥 무늬가 꿈틀거리지 않게).
+	# 카메라를 화면 픽셀 격자에 맞춘다 (바닥 무늬가 꿈틀거리지 않게). 몸과 앞서 간 양을 따로 맞춰야,
+	# 앞서 간 양에 소수가 있어도 걷는 동안 몸이 화면에서 1픽셀씩 흔들리지 않는다.
 	var pixel: float = 1.0 / ViewSpace.TILE
-	var snapped_target: Vector3 = right * snappedf(feet.dot(right), pixel) + up * snappedf(feet.dot(up), pixel) + back * snappedf(feet.dot(back), depth_step)
+	var lead_right: float = round(_lead_offset.x) * pixel
+	var lead_up: float = -round(_lead_offset.y) * pixel
+	var snapped_target: Vector3 = right * (snappedf(feet.dot(right), pixel) + lead_right) + up * (snappedf(feet.dot(up), pixel) + lead_up) + back * snappedf(feet.dot(back), depth_step)
 	# 발밑 평면에서 그림 1픽셀이 화면 1픽셀이 되는 거리: 세로 화면 전체가 viewport_height / TILE 단위로 보인다.
 	var view_height: float = ProjectSettings.get_setting("display/window/size/viewport_height") / ViewSpace.TILE
 	_camera.global_position = snapped_target + back * (view_height * 0.5 / tan(deg_to_rad(fov_degrees * 0.5)))
@@ -263,4 +273,9 @@ func _update_camera(delta: float) -> void:
 
 ## 앞서 가기가 쓰는 마우스의 화면 위치. 조준을 코드로 정한 확인 상태에서는 앞서 가지 않는다.
 func _lead_mouse(screen_center: Vector2) -> Vector2:
-	return screen_center if aim_override != Vector2.INF else get_viewport().get_mouse_position()
+	return screen_center if aim_override != Vector2.INF else _mouse()
+
+
+## 마우스의 화면 위치 (검사에서는 mouse_override)
+func _mouse() -> Vector2:
+	return mouse_override if mouse_override != Vector2.INF else get_viewport().get_mouse_position()

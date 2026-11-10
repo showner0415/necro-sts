@@ -70,10 +70,13 @@ func _process(delta: float) -> bool:
 func _build_scenes() -> void:
 	var start: Vector2 = _necromancer.global_position
 	var layout: MapLayout = MapLayout.from_file(MAP_PNG)
-	var rat_room: int = layout.room_at(layout.cells_of("rat")[0])
+	# 쥐 굴이 여러 개이고 바위가 없는 굴도 있으므로, 쥐가 있는 모든 굴에서 가장 큰 바위를 고른다.
+	var rat_rooms: Dictionary = {}
+	for cell: Vector2i in layout.cells_of("rat"):
+		rat_rooms[layout.room_at(cell)] = true
 	var rock: Dictionary = {}
 	for r: Dictionary in layout.rocks:
-		if r.room == rat_room and (rock.is_empty() or r.cells.size() > rock.cells.size()):
+		if rat_rooms.has(r.room) and (rock.is_empty() or r.cells.size() > rock.cells.size()):
 			rock = r
 	var rect: Rect2 = Rect2(Vector2(rock.rect.position) * TILE, Vector2(rock.rect.size) * TILE)
 	var walk_time: float = _frames * _interval / 60.0

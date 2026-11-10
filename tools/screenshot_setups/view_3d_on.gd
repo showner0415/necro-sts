@@ -10,3 +10,7 @@ static func run(scene: Node) -> void:
 	# 찍을 때마다 실제 마우스 위치에 따라 카메라와 몸 방향이 달라지지 않게 동쪽 고정 지점을 조준한다.
 	var necromancer: Necromancer = scene.get_tree().get_first_node_in_group(&"necromancer")
 	view.aim_override = necromancer.get_body_center() + Vector2.RIGHT * AIM_DISTANCE
+	# --pitch=<도>: 기울기를 바꿔 비교한다.
+	for arg: String in OS.get_cmdline_user_args():
+		if arg.begins_with("--pitch="):
+			view.set_pitch(arg.trim_prefix("--pitch=").to_float())

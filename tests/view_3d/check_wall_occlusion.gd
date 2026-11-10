@@ -11,6 +11,7 @@ const SAMPLE_RANGE: int = 30
 ## 바닥 점 간격 (칸)
 const SAMPLE_STEP: float = 0.4
 const NEAR_CELLS: float = 4.0
+const NARROW_SPAN: int = 3
 const FLOOR_MAX_ROW_SPAN: int = 3
 const POSE_FRAMES: int = 3
 const FADE_FRAMES: int = 30
@@ -52,6 +53,11 @@ func _on_scene_ready() -> void:
 			elif color.a > 0.0:
 				floors.append(Vector2i(x, y))
 	_view.aim_override = _necromancer.get_body_center()
+	var pitches: PackedFloat64Array = _pitch_args()
+	if not pitches.is_empty():
+		await _measure_pitches(pitches, floors)
+		finish(true)
+		return
 	for yaw: float in [0.0, 45.0]:
 		_view.set_yaw(yaw)
 		for front_walls: bool in [false, true]:
@@ -63,6 +69,41 @@ func _on_scene_ready() -> void:
 				var entry: Vector2 = _detail[key]
 				print("  둘레 %d칸 안, %s: 바닥 점 %d개, 가림 %d개 (%.1f%%)" % [int(NEAR_CELLS), key, int(entry.x), int(entry.y), 100.0 * entry.y / maxf(entry.x, 1.0)])
 	finish(true)
+
+
+func _pitch_args() -> PackedFloat64Array:
+	var values: PackedFloat64Array = PackedFloat64Array()
+	for arg: String in OS.get_cmdline_user_args():
+		if arg.begins_with("--pitches="):
+			for text: String in arg.trim_prefix("--pitches=").split(","):
+				values.append(text.to_float())
+	return values
+
+
+## 기울기마다 45도 화면에서 넓은 곳·좁은 길에 선 경우의 가림을 잰다 (--pitches=55,60,70).
+func _measure_pitches(pitches: PackedFloat64Array, floors: Array[Vector2i]) -> void:
+	var narrow: Array[Vector2i] = floors.filter(func(cell: Vector2i) -> bool: return _span(cell, Vector2i(0, 1)) <= NARROW_SPAN or _span(cell, Vector2i(1, 0)) <= NARROW_SPAN)
+	print("벽 높이 %.0fpx, 좁은 길 칸 %d개 (폭 %d칸 이하)" % [_view.wall_height_px, narrow.size(), NARROW_SPAN])
+	_view.set_yaw(45.0)
+	for pitch: float in pitches:
+		_view.set_pitch(pitch)
+		for front_walls: bool in [false, true]:
+			_view.get_front_walls().enabled = front_walls
+			await wait_frames(FADE_FRAMES)
+			var open_ratio: Vector2 = await _measure(floors)
+			var narrow_ratio: Vector2 = await _measure(narrow)
+			print("[측정] 기울기 %d도, 앞벽 처리 %s: 가린 바닥 화면 전체 %.1f%%, 둘레 %d칸 %.1f%%, 좁은 길에 섰을 때 화면 전체 %.1f%%, 둘레 %d칸 %.1f%%" % [int(pitch), "켬" if front_walls else "끔", open_ratio.x * 100.0, int(NEAR_CELLS), open_ratio.y * 100.0, narrow_ratio.x * 100.0, int(NEAR_CELLS), narrow_ratio.y * 100.0])
+
+
+## cell에서 direction 양쪽으로 이어진 바닥 칸 수 (NARROW_SPAN + 1까지만 센다)
+func _span(cell: Vector2i, direction: Vector2i) -> int:
+	var count: int = 1
+	for side: int in [1, -1]:
+		var at: Vector2i = cell + direction * side
+		while count <= NARROW_SPAN and at.x >= 0 and at.y >= 0 and at.x < _cells.size.x and at.y < _cells.size.y and not _cells.is_wall(at.x, at.y):
+			count += 1
+			at += direction * side
+	return count
 
 
 ## 바닥 점을 잘라내기 자리와의 관계로 나눈다: 화면에서 자리 안쪽(완전히 잘림)·가장자리(점무늬)·밖, 그리고 플레이어보다 카메라 쪽 바닥인지.
