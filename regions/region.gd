@@ -197,6 +197,7 @@ func _add_vision() -> void:
 		if child.get_index() < actors.get_index() and child is CanvasItem:
 			terrain.append(child as CanvasItem)
 	vision.setup(_necromancer, get_node_or_null("Walls") as PlaceholderWalls, terrain)
+	vision.skip_2d_shapes = wants_view_3d()
 	add_child(vision)
 
 

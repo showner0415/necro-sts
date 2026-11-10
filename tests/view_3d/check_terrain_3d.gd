@@ -48,13 +48,16 @@ func _on_scene_ready() -> void:
 	# 실제 마우스 자리의 벽이 잘려서 색이 달라지지 않게 앞벽 처리를 끄고 조준을 고정한다.
 	_view.aim_override = _necromancer.get_body_center()
 	_view.get_front_walls().enabled = false
+	_view.get_palette().set_enabled(false)
+	if vision != null:
+		print("시야 준비 시간 %.0fms (2D 그림자 모양 %d개)" % [vision.setup_usec / 1000.0, vision.occluder_counts.y])
 	(current_scene.get_node("HUD") as CanvasLayer).visible = false
 	for child: Node in current_scene.get_children():
 		if child is PlaceholderGround:
 			_cells.append(TerrainCells.from_ground(child as PlaceholderGround))
 		elif child is PlaceholderWalls:
 			_cells.append(TerrainCells.from_walls(child as PlaceholderWalls))
-	print("지형: 사각형 %d, 구역 %d개, 만드는 시간 %.0fms" % [_view.get_terrain_quads(), _view.get_terrain_chunks().size(), _view.get_terrain_build_usec() / 1000.0])
+	print("지형: 사각형 %d, 구역 %d개, 만드는 시간 %.0fms (그중 칸 읽기·메시 %.0fms)" % [_view.get_terrain_quads(), _view.get_terrain_chunks().size(), _view.get_terrain_build_usec() / 1000.0, _view.get_terrain_mesh_usec() / 1000.0])
 	await wait_frames(SETTLE_FRAMES)
 	await _check_colors()
 	var map: TerrainCells = _largest_map()
