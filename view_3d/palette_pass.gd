@@ -7,6 +7,8 @@ extends CanvasLayer
 const SHADER_PATH: String = "res://view_3d/palette.gdshader"
 const PALETTE_PATHS: Array[String] = ["res://assets/palette/endesga-32.hex", "res://view_3d/palette_dark_steps.hex"]
 
+## 처음에 켤지. 지금은 끈다 (사용자 결정, 2026-11-10: 시야 가장자리가 끊어져서. 지형 에셋을 만든 뒤 디더링과 함께 다시 시험한다)
+@export var start_enabled: bool = false
 ## 개발용 켜고 끄기 키
 @export var toggle_key: Key = KEY_F4
 
@@ -24,6 +26,7 @@ func _ready() -> void:
 	material.set_shader_parameter(&"palette", _palette_colors())
 	_rect.material = material
 	add_child(_rect)
+	visible = start_enabled
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
