@@ -118,7 +118,7 @@ func _process(delta: float) -> void:
 	if facing_override != Vector2.ZERO:
 		_facing = facing_override
 	else:
-		var to_mouse: Vector2 = _necromancer.get_global_mouse_position() - _origin
+		var to_mouse: Vector2 = _necromancer.get_aim_position() - _origin
 		if to_mouse != Vector2.ZERO:
 			_facing = to_mouse
 	_light.global_position = _origin
