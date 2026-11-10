@@ -126,12 +126,14 @@ func _find_roles() -> void:
 	var base: int = _layout.room_at(_layout.cells_of("spawn")[0])
 	for cell: Vector2i in _layout.cells_of("escape"):
 		var room: int = _layout.room_at(cell)
-		if not _layout.rooms[base].neighbors.has(room):
+		# 입구가 하나인 쉼터 굴(탈출 C)은 합류 굴이 아니다.
+		if not _layout.rooms[base].neighbors.has(room) and _layout.rooms[room].entrances > 1:
 			_roles.junction = room
 	_roles.bat_nest = _layout.room_at(_layout.cells_of("bat")[0])
 	_roles.cave_mouth = _layout.room_at(_layout.cells_of("light")[0])
 	for cell: Vector2i in _layout.cells_of("boar"):
-		if _layout.room_at(cell) != _roles.cave_mouth:
+		# 진흙 굴의 멧돼지는 빼고, 합류 굴과 이어진 멧돼지 굴을 고른다.
+		if _layout.room_at(cell) != _roles.cave_mouth and _layout.rooms[_layout.room_at(cell)].neighbors.has(_roles.junction):
 			_roles.light_room = _layout.room_at(cell)
 	# 갈림 굴: 박쥐 둥지와 이어진 1등급 굴
 	for room: int in _layout.rooms[_roles.bat_nest].neighbors:
