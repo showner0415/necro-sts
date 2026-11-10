@@ -19,10 +19,12 @@ const NEIGHBORS_8: Array[Vector2i] = [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP
 ##   "sneak_path": [칸] (없으면 빈 배열), "sneak_length": 칸 수 (없으면 -1)}
 static func measure(rows: PackedStringArray, objects: Array[Dictionary], nav: NavigationGrid, detect_range: float, from_cell: Vector2i, to_cell: Vector2i, sneak_margin: float = 0.0) -> Dictionary:
 	var layout: MapLayout = MapLayout.from_rows(rows, objects)
-	var bats: Array[Vector2] = []
-	for cell: Vector2i in layout.cells_of("bat"):
-		bats.append(_center(cell))
 	var nest: int = layout.room_at(layout.cells_of("bat")[0])
+	var bats: Array[Vector2] = []
+	# 박쥐 둥지의 무리만 본다 (다른 굴의 무리는 이 길과 상관없다).
+	for cell: Vector2i in layout.cells_of("bat"):
+		if layout.room_at(cell) == nest:
+			bats.append(_center(cell))
 	var entrance: Array[Vector2i] = doorway(layout, nest, layout.room_at(from_cell))
 	var exit: Array[Vector2i] = doorway(layout, nest, layout.room_at(to_cell))
 	var detected: Dictionary = _seen_cells(layout, nest, nav, bats, detect_range)

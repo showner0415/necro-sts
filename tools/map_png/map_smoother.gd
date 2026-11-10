@@ -6,7 +6,8 @@ extends RefCounted
 ##
 ## 지키는 것 (어기는 변경은 하지 않는다):
 ## - 보호 칸은 바꾸지 않는다: 좁은 곳(3×3 바닥 덩어리에 들지 못하는 바닥 칸 = 너비 2 이하인 곳)과 그 옆의 벽,
-##   굴 중심(굴 가운데에서 ROOM_CORE_RADIUS칸 안), 물건(몬스터·상자·탈출·도착 지점) 칸과 그 둘레, 막아 둔 길목과 그 둘레, 맵 테두리
+##   굴 중심(굴 가운데에서 ROOM_CORE_RADIUS칸 안), 물건(몬스터·상자·탈출·도착 지점) 칸과 그 둘레, 막아 둔 길목과 그 둘레, 맵 테두리,
+##   입구(굴과 통로가 맞닿은 바닥 칸)와 그 둘레
 ## - 바닥 칸은 모두 2×2 바닥 덩어리에 든다 (이동하는 길은 최소 2칸). 원래 3칸 이상 넓던 곳은 3×3 덩어리에 남는다 (넓은 통로가 좁은 길목이 되지 않게)
 ## - 메워도 바닥이 끊기지 않는다. 깎는 칸 둘레의 바닥은 모두 원래 같은 덩어리(같은 굴 또는 같은 통로)여야 한다:
 ##   굴과 통로, 통로와 통로가 새로 이어지지 않으니 입구가 합쳐지거나 지름길이 생기지 않는다
@@ -161,6 +162,12 @@ func _prepare(layout: MapLayout) -> void:
 				var floor_distance: int = _nearest_distance(cell, true, MAX_CARVE_DEPTH)
 				if floor_distance >= 0:
 					_carve_depth[cell] = true
+	# 입구(굴과 통로처럼 서로 다른 덩어리가 맞닿은 바닥 칸)와 그 둘레는 그대로 둔다. 입구 한가운데를 메우면 입구 하나가 둘로 갈라진다.
+	for cell: Vector2i in _segment:
+		for offset: Vector2i in NEIGHBORS_4:
+			if _segment.has(cell + offset) and _segment[cell + offset] != _segment[cell]:
+				_protect_around(cell, 1)
+				break
 	for o: Dictionary in layout.objects:
 		_protect_around(o.cell, 1)
 	# 굴 안의 바위·기둥은 깎지 않는다 (둘레를 메우는 것은 너비 규칙 안에서 된다).

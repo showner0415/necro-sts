@@ -5,12 +5,13 @@ extends ScenarioTest
 ## 2. 굴 역할을 찾고, 굴마다 입구 수와 이어진 굴이 설계 문서(docs/maps/shallow_cave_design.md 배치도)와 같다. 2칸 길목은 "좁은 길목 8곳" 표의 통로에만 있다
 ## 3. 쥐가 사는 굴들이 고리로 이어져 있다 (입구 굴·쥐 둥지·물웅덩이 굴과 그 사이를 잇는 작은 굴 사이에 돌아오는 길이 있다)
 ## 4. 상자가 있고 굴 하나에만 이어진 굴(막다른 굴, 둥지 뒷굴)은 입구가 하나다
-## 5. 전망 바위의 전망 자리(tools/screenshot_setups/view_rock.gd)에 서면 박쥐가 모두 화면 안에 보이고, 박쥐 둥지까지 바로 가는 길은 없다 (벽을 돌아가야 한다)
+## 5. 전망 바위의 전망 자리(tools/screenshot_setups/view_rock.gd)에서 박쥐 둥지로 바로 가는 길이 없다. 박쥐가 화면 안인지는 출력만 한다 (2배 맵, 3D 이전 때 다시 정함)
 ## 5-1. 박쥐 길 (tests/bat_nest_paths.gd, 박쥐의 처음 자리 기준): 갈림 굴 쪽 입구에서 합류 굴 쪽 출구까지 가장 짧은 길(기본 길)은
 ##    박쥐에게 감지되고, 감지되는 곳은 입구에서 BAT_DETECT_DEPTH칸 이상 들어선 뒤다. 감지 범위보다 BAT_SNEAK_MARGIN 더 떨어져 지나는 길(몰래 가는 길)이 있다. 두 길의 길이·걷는 시간을 출력한다
 ## 5-2. 빛 드는 굴의 합류 굴 쪽 입구에 서면 가장 가까운 멧돼지(처음 자리)가 화면 안에 보이고, 입구 칸은 모두 멧돼지 감지 거리 밖이다
-## 6. 다듬은 뒤에도 박쥐 둥지가 유일한 넓은 방이다: 박쥐가 도는 반경(+ 몸)의 원이 벽에 닿지 않는 자리가 가장 많고, 가장 큰 원도 가장 크다
-## 7. 멧돼지가 사는 굴마다 돌진(돌진 최대 거리 + 지나치는 거리)보다 긴 곧고 트인 길(3칸 폭)이 있고, 가장 긴 것도 BOAR_LANE_MAX칸을 넘지 않는다 (바위가 긴 직선을 끊어 돌진을 피할 곳이 있게)
+## 6. 다듬은 뒤에도 박쥐 둥지에 박쥐가 돌 공간(도는 반경 + 몸의 원이 벽에 닿지 않는 자리)이 있다. 2배 맵은 다른 큰 굴도 넓어서 "유일"은 보지 않는다 (사용자 결정, 2026-11-10)
+## 7. 멧돼지가 사는 굴마다 돌진(돌진 최대 거리 + 지나치는 거리)보다 긴 곧고 트인 길(3칸 폭)이 있고, 가장 긴 것도 BOAR_LANE_MAX칸을 넘지 않는다 (바위가 긴 직선을 끊어 돌진을 피할 곳이 있게).
+##    굴 안만, 가로·세로만 잰다 (통로까지 이어 재지 않음, 대각선과 문을 지나는 줄은 기준에서 뺌)
 ## 8. 구간별 걷기 시간 (걷기, 몬스터는 없앰): 도착 지점 → 입구 굴, 입구 굴 → 갈림 굴, 갈림 굴 → 합류 굴(박쥐 길, 거미 길),
 ##    합류 굴 → 동굴 입구, 도착 지점 → 동굴 입구 전체. 문서 기준값과 함께 출력한다
 ## 9. 쥐 언데드 2마리를 데리고, 이어진 두 굴 사이를 모두 한 번씩 오간다 (순서는 PNG의 굴 연결에서 만든다). 굴에 닿을 때마다 2마리 모두 따라와 곁에 모인다 (휘어진 통로에서 걸리지 않음)
@@ -32,25 +33,32 @@ const TARGET_TO_ENTRANCE: float = 10.0
 const TARGET_TO_FORK: float = 40.0
 const TARGET_FORK_TO_JUNCTION: float = 60.0
 const TARGET_JUNCTION_TO_MOUTH: float = 25.0
-const TARGET_TOTAL: float = 120.0
+const TARGET_TOTAL: float = 210.0
 ## 굴 역할마다 [입구 수, 이어진 굴 역할들] (배치도 그대로)
 const EXPECTED_ROOMS: Dictionary = {
 	"base": [1, ["entrance"]],
-	"entrance": [3, ["base", "rat_nest", "puddle"]],
-	"rat_nest": [4, ["entrance", "view_rock", "side", "fork"]],
+	"entrance": [4, ["base", "rat_nest", "puddle", "mushroom"]],
+	"mushroom": [2, ["entrance", "rat_nest"]],
+	"rat_nest": [6, ["entrance", "mushroom", "view_rock", "collapsed", "side", "fork"]],
 	"view_rock": [1, ["rat_nest"]],
+	"collapsed": [1, ["rat_nest"]],
 	"side": [2, ["rat_nest", "puddle"]],
 	"puddle": [4, ["entrance", "side", "fork", "dead_end"]],
 	"dead_end": [1, ["puddle"]],
-	"fork": [4, ["rat_nest", "puddle", "bat_nest", "spider_gate"]],
-	"bat_nest": [3, ["fork", "nest_back", "junction"]],
+	"fork": [5, ["rat_nest", "puddle", "bat_nest", "spider_gate", "shelter"]],
+	"shelter": [1, ["fork"]],
+	"bat_nest": [4, ["fork", "nest_back", "bat_lower", "junction"]],
 	"nest_back": [1, ["bat_nest"]],
-	"spider_gate": [2, ["fork", "web"]],
+	"bat_lower": [1, ["bat_nest"]],
+	"spider_gate": [3, ["fork", "web", "spider_side"]],
 	"web": [2, ["spider_gate", "egg"]],
-	"egg": [2, ["web", "junction"]],
-	"junction": [4, ["bat_nest", "egg", "light_room", "cave_mouth"]],
+	"spider_side": [2, ["spider_gate", "egg"]],
+	"egg": [4, ["web", "spider_side", "junction", "mud"]],
+	"junction": [5, ["bat_nest", "egg", "junction_side", "light_room", "cave_mouth"]],
+	"junction_side": [1, ["junction"]],
 	"light_room": [2, ["junction", "cave_mouth"]],
-	"cave_mouth": [2, ["junction", "light_room"]],
+	"mud": [2, ["egg", "cave_mouth"]],
+	"cave_mouth": [3, ["junction", "light_room", "mud"]],
 }
 ## 설계 문서 "좁은 길목 8곳": 2칸 길목이 있어야 하는 통로 (양 끝 굴 역할). 다른 통로에는 길목이 없어야 한다
 const CHOKE_PAIRS: Array = [
@@ -60,7 +68,7 @@ const CHOKE_PAIRS: Array = [
 ## 굴 가운데에서 이 거리 안이면 닿은 것으로 본다 (픽셀)
 const ARRIVE_DISTANCE: float = 16.0
 ## 한 구간을 걷는 최대 시간 (프레임). 도착 지점 → 동굴 입구 전체도 한 구간이다
-const WALK_TIMEOUT_FRAMES: int = 60 * 200
+const WALK_TIMEOUT_FRAMES: int = 60 * 300
 const SETTLE_FRAMES: int = 6
 const SCENE_TIMEOUT_FRAMES: int = 300
 const TILE: float = 32.0
@@ -93,8 +101,10 @@ const BOAR_PATH: String = "res://data/monsters/boar.tres"
 const BOAR_LANE_MAX: float = 13.0
 ## 11. 탈출 지점에 선 뒤 거점에 가기를 기다리는 최대 프레임 (탈출 3초 + 여유)
 const ESCAPE_WAIT_FRAMES: int = 60 * 5
-## 8방향 (곧은 길 찾기)
-const DIRECTIONS_8: Array[Vector2i] = [Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1), Vector2i(1, -1)]
+## 7. 멧돼지 굴 곧은 길은 가로·세로만 본다 (대각선은 기준에서 뺌, 사용자 결정 2026-11-08)
+const LANE_DIRECTIONS: Array[Vector2i] = [Vector2i(1, 0), Vector2i(0, 1)]
+## 7. 곧은 길과 직각으로 트인 폭이 이 이하인 칸은 문으로 보고 줄을 끊는다 (칸)
+const LANE_DOOR_SPAN: int = 5
 
 var _layout: MapLayout
 ## 굴 역할 → 굴 번호 (_find_roles)
@@ -214,13 +224,18 @@ func _find_roles() -> bool:
 	for room: int in _rooms_with("escape"):
 		if _layout.rooms[base].neighbors.has(room):
 			_roles.entrance = room
+		elif _layout.rooms[room].entrances == 1:
+			_roles.shelter = room
 		else:
 			_roles.junction = room
 	if _roles.has("entrance"):
 		_roles.fork = _find_fork(_roles.entrance)
 	var bat_rooms: Array[int] = _rooms_with("bat")
-	if not bat_rooms.is_empty():
-		_roles.bat_nest = bat_rooms[0]
+	for room: int in bat_rooms:
+		if _layout.rooms[room].entrances > 1:
+			_roles.bat_nest = room
+		else:
+			_roles.bat_lower = room
 	var view: Vector2i = load(VIEW_ROCK_SETUP).spot(_layout)
 	if view.x >= 0:
 		_roles.view_rock = _layout.room_at(view)
@@ -230,20 +245,26 @@ func _find_roles() -> bool:
 				continue
 			if _layout.rooms[room].neighbors.has(_roles.view_rock):
 				_roles.rat_nest = room
-			else:
+			elif _layout.rooms[room].neighbors.has(_roles.get("fork", -1)):
 				_roles.puddle = room
+			else:
+				_roles.mushroom = room
 	if _roles.has("rat_nest") and _roles.has("puddle"):
 		for room: int in _layout.rooms[_roles.rat_nest].neighbors:
 			if _layout.rooms[_roles.puddle].neighbors.has(room) and _layout.rooms[room].entrances == 2:
 				_roles.side = room
-	var chest_rooms: Array[int] = _rooms_with("chest")
-	for room: int in chest_rooms:
-		if _layout.rooms[room].neighbors.size() == 1:
-			var only: int = _layout.rooms[room].neighbors[0]
-			if only == _roles.get("puddle", -1):
-				_roles.dead_end = room
-			elif only == _roles.get("bat_nest", -1):
-				_roles.nest_back = room
+	for room: int in _layout.rooms.size():
+		if _layout.rooms[room].neighbors.size() != 1 or room == _roles.get("view_rock", -1):
+			continue
+		var only: int = _layout.rooms[room].neighbors[0]
+		if only == _roles.get("puddle", -1):
+			_roles.dead_end = room
+		elif only == _roles.get("rat_nest", -1):
+			_roles.collapsed = room
+		elif only == _roles.get("bat_nest", -1) and not bat_rooms.has(room):
+			_roles.nest_back = room
+		elif only == _roles.get("junction", -1):
+			_roles.junction_side = room
 	var spider_rooms: Array[int] = _rooms_with("spider")
 	for room: int in spider_rooms:
 		if _layout.rooms[room].neighbors.has(_roles.get("fork", -1)):
@@ -252,12 +273,20 @@ func _find_roles() -> bool:
 			_roles.egg = room
 		else:
 			_roles.web = room
+	for room: int in _layout.rooms.size():
+		var neighbors: Array = _layout.rooms[room].neighbors
+		if not spider_rooms.has(room) and neighbors.has(_roles.get("spider_gate", -1)) and neighbors.has(_roles.get("egg", -1)):
+			_roles.spider_side = room
 	var mouth_rooms: Array[int] = _rooms_with("light")
 	if not mouth_rooms.is_empty():
 		_roles.cave_mouth = mouth_rooms[0]
 	for room: int in _rooms_with("boar"):
-		if room != _roles.get("cave_mouth", -1):
+		if room == _roles.get("cave_mouth", -1):
+			continue
+		if _layout.rooms[room].neighbors.has(_roles.get("junction", -1)):
 			_roles.light_room = room
+		else:
+			_roles.mud = room
 	var missing: PackedStringArray = []
 	for role: String in EXPECTED_ROOMS:
 		if not _roles.has(role) or _roles[role] < 0:
@@ -375,7 +404,8 @@ func _view_rock() -> bool:
 	var view: Rect2 = _visible_world_rect()
 	var bats: Array[Node2D] = []
 	for node: Node in get_nodes_in_group(&"monsters"):
-		if (node as Monster).data.id == &"bat":
+		# 두 번째 무리(박쥐 아래 굴)는 전망 바위에서 보는 대상이 아니다.
+		if (node as Monster).data.id == &"bat" and _layout.room_at(Vector2i(((node as Node2D).global_position / TILE).floor())) == _roles.bat_nest:
 			bats.append(node as Node2D)
 	var seen: int = bats.filter(func(b: Node2D) -> bool: return view.has_point(b.global_position)).size()
 	# 전망 자리에서 박쥐 둥지의 가장 가까운 칸까지, 다듬은 바닥을 따라 걷는 걸음 수와 곧은 거리
@@ -390,7 +420,8 @@ func _view_rock() -> bool:
 	var straight: float = Vector2(nearest).distance_to(Vector2(spot))
 	var blocked: bool = nearest.x >= 0 and nearest_steps >= straight * VIEW_DETOUR_RATIO and not _layout.rooms[_roles.view_rock].neighbors.has(_roles.bat_nest)
 	await wait_frames(1)
-	return _check("전망 바위에서 박쥐 둥지가 보임", bats.size() > 0 and seen == bats.size() and blocked, "전망 자리 칸 %s, 화면 %s 안의 박쥐 %d / %d, 박쥐 둥지 가장 가까운 칸 %s까지 곧은 거리 %.0f칸, 걸어서 %d걸음 (%.0f배 이상이어야 바로 못 감), 두 굴이 이어지지 않음 %s" % [
+	# 2배 맵에서는 전망 자리에서 박쥐가 보이는 자리와 박쥐 길 규칙을 맞는 자리가 겹치지 않는다. 박쥐가 화면 안인지는 출력만 하고 3D 이전 때 맵과 함께 다시 정한다 (사용자 결정, 2026-11-10).
+	return _check("전망 바위에서 박쥐 둥지로 바로 못 감", bats.size() > 0 and blocked, "전망 자리 칸 %s, 화면 %s 안의 박쥐 %d / %d (판정 안 함), 박쥐 둥지 가장 가까운 칸 %s까지 곧은 거리 %.0f칸, 걸어서 %d걸음 (%.0f배 이상이어야 바로 못 감), 두 굴이 이어지지 않음 %s" % [
 		spot, view, seen, bats.size(), nearest, straight, nearest_steps, VIEW_DETOUR_RATIO, not _layout.rooms[_roles.view_rock].neighbors.has(_roles.bat_nest)])
 
 
@@ -497,9 +528,8 @@ func _wide_bat_nest() -> bool:
 	for room: int in widest:
 		if room == nest:
 			continue
-		ok = ok and widest[room] < widest[nest] and open_cells.get(room, 0) < open_cells.get(nest, 0)
 		others.append("%s %d칸/%.1f" % [role_of.get(room, str(room)), open_cells.get(room, 0), widest[room]])
-	return _check("박쥐 둥지가 유일한 넓은 방", ok, "다듬은 뒤, 반지름 %.1f칸(도는 반경 최대 %.0f + 박쥐 몸 %.0f px) 원이 벽에 닿지 않는 자리 / 가장 큰 원 반지름(칸): 박쥐 둥지 %d칸/%.1f, 다른 굴 %s" % [
+	return _check("박쥐 둥지에 박쥐가 돌 공간이 있음", ok, "다듬은 뒤, 반지름 %.1f칸(도는 반경 최대 %.0f + 박쥐 몸 %.0f px) 원이 벽에 닿지 않는 자리 / 가장 큰 원 반지름(칸): 박쥐 둥지 %d칸/%.1f, 다른 굴 %s" % [
 		need, dive.orbit_radius_max, maxf(bat_half.x, bat_half.y), open_cells.get(nest, 0), widest[nest], ", ".join(others)])
 
 
@@ -529,8 +559,8 @@ func _boar_lanes() -> bool:
 			for x: int in smoothed.size.x:
 				if smoothed.room_at(Vector2i(x, y)) != room_after:
 					continue
-				for direction: Vector2i in DIRECTIONS_8:
-					best = maxf(best, _lane_length(smoothed, Vector2i(x, y), direction))
+				for direction: Vector2i in LANE_DIRECTIONS:
+					best = maxf(best, _lane_length(smoothed, Vector2i(x, y), direction, room_after))
 		ok = ok and best >= need and best <= BOAR_LANE_MAX
 		results.append("굴 %d 가장 긴 곧은 길 %.1f칸" % [room, best])
 	return _check("멧돼지 굴에 곧고 트인 길", ok and not results.is_empty(), "3칸 폭(가운데 칸 둘레 3×3이 바닥)으로 곧게 이어지는 길, 돌진 최대 %.0f + 지나치는 %.0f px = %.1f칸 이상, %.0f칸 이하여야 함: %s" % [
@@ -538,13 +568,26 @@ func _boar_lanes() -> bool:
 
 
 ## start에서 direction으로, 칸 둘레 3×3이 모두 바닥인 칸이 이어지는 길이 (칸, 대각선은 √2배)
-func _lane_length(layout: MapLayout, start: Vector2i, direction: Vector2i) -> float:
+## 문(길과 직각으로 트인 폭이 LANE_DOOR_SPAN칸 이하인 곳)을 만나면 끊는다. 방 나누기의 3~4칸 문을 지나는 줄은 기준에서 뺀다 (사용자 결정).
+func _lane_length(layout: MapLayout, start: Vector2i, direction: Vector2i, room: int) -> float:
 	var count: int = 0
 	var cell: Vector2i = start
-	while _open_3x3(layout, cell):
+	var across: Vector2i = Vector2i(direction.y, direction.x)
+	while _open_3x3(layout, cell) and layout.room_at(cell) == room and _open_span(layout, cell, across, room) > LANE_DOOR_SPAN:
 		count += 1
 		cell += direction
 	return maxf(count - 1, 0) * Vector2(direction).length()
+
+
+## cell에서 direction 양쪽으로, 같은 굴의 벽 아닌 칸이 이어진 수
+func _open_span(layout: MapLayout, cell: Vector2i, direction: Vector2i, room: int) -> int:
+	var count: int = 1
+	for sign: int in [1, -1]:
+		var p: Vector2i = cell + direction * sign
+		while not layout.is_wall(p) and layout.room_at(p) == room:
+			count += 1
+			p += direction * sign
+	return count
 
 
 func _open_3x3(layout: MapLayout, cell: Vector2i) -> bool:
