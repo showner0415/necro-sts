@@ -139,6 +139,11 @@ func _draw() -> void:
 	draw_circle(Vector2(0, -_arc_offset()), placeholder_radius, placeholder_color)
 
 
+## 3D 화면 층이 쓰는 지금 높이 (픽셀): 던진 높이 + 포물선
+func get_view_height() -> float:
+	return ground_offset + _arc_offset()
+
+
 ## 포물선 그림의 지금 높이 (충돌과 상관없이 그림만 올린다)
 func _arc_offset() -> float:
 	if arc_height <= 0.0 or max_distance <= 0.0:

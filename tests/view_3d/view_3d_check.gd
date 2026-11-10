@@ -17,6 +17,13 @@ func open_layer() -> RegionView3D:
 	return view
 
 
+## 시야가 있는 지역이면 끈다 (색·위치 검사에서 시야 밖 몸이 숨지 않게).
+func disable_vision() -> void:
+	var vision: Vision = current_scene.call(&"get_vision")
+	if vision != null:
+		vision.set_active(false)
+
+
 func capture() -> Image:
 	await RenderingServer.frame_post_draw
 	return root.get_texture().get_image()

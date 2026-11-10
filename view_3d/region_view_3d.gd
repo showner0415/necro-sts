@@ -2,7 +2,9 @@ class_name RegionView3D
 extends Node3D
 ## 2D 규칙 세계를 읽어서 3D로 그리는 층. 규칙(이동, 충돌, 시야 판정)은 2D 그대로이고, 이 층은 규칙에 조준 위치와 이동 입력의 회전만 돌려준다.
 ## 지역 데이터의 view_3d가 켜진 지역에 Region이 붙인다. 헤드리스(테스트·측정)에서는 붙이지 않는다.
-## 지금은 카메라, 조준 변환, 화면 기준 이동, 지형, 몸, 앞벽 처리까지 있다. 바닥 표시·탄·시야는 이전 단계마다 여기에 더한다. 그때까지 2D 세계는 숨겨 둔다.
+## 지금은 카메라, 조준 변환, 화면 기준 이동, 지형, 몸, 앞벽 처리, 바닥 표시, 탄, 스태미나 도넛까지 있다. 시야는 다음 단계에서 더한다. 2D 세계는 숨겨 둔다.
+## - 바닥 표시: GroundMarks가 2D 그리기 코드를 캔버스에 그려 바닥에 입힌다
+## - 도넛·키 안내: ScreenAnchors가 화면 픽셀 그대로 몸 곁에 놓는다
 ## - 지형: 임시 벽·바닥과 같은 칸과 색으로 구역별 메시를 만든다 (TerrainCells, TerrainMesher). 빛은 시야 단계에서 넣고, 지금은 원래 색 그대로 그린다
 ## - 몸: BodyLayer가 2D 노드를 읽어 카메라를 정면으로 보는 사각형으로 그린다
 ## - 앞벽: FrontWalls가 플레이어·조준점 앞은 잘라내고, 보이는 몸 앞은 반투명하게 한다
@@ -11,6 +13,7 @@ extends Node3D
 ## - 앞서 가기: 카메라가 마우스의 화면 위치 쪽으로 움직여 보는 쪽을 더 넓게 보여 준다 (AimLead)
 
 const TERRAIN_SHADER: String = "res://view_3d/terrain.gdshader"
+const STAMINA_RING_PATH: String = "StaminaRing"
 
 ## 카메라가 아래로 기운 각도 (도)
 @export var pitch_degrees: float = 60.0
@@ -39,6 +42,8 @@ var _camera: Camera3D
 ## 카메라 방향. 프레임마다 노드에서 다시 읽으면 값이 마지막 비트만큼 흔들려서, 회전을 바꿀 때 한 번만 읽는다
 var _camera_basis: Basis = Basis.IDENTITY
 var _bodies: BodyLayer
+var _marks: GroundMarks
+var _anchors: ScreenAnchors
 var _front_walls: FrontWalls
 ## 카메라가 지금 앞서 간 양 (화면 픽셀)
 var _lead_offset: Vector2 = Vector2.ZERO
@@ -65,8 +70,14 @@ func _ready() -> void:
 	_update_camera(0.0)
 	var terrain_material: ShaderMaterial = _build_terrain()
 	_bodies = BodyLayer.new()
-	_bodies.setup(_necromancer.get_parent() as Node2D, self)
+	_bodies.setup(self)
 	add_child(_bodies)
+	_marks = GroundMarks.new()
+	add_child(_marks)
+	_anchors = ScreenAnchors.new()
+	_anchors.setup(self)
+	add_child(_anchors)
+	_anchors.adopt(_necromancer.get_node(STAMINA_RING_PATH), _necromancer)
 	_front_walls = FrontWalls.new()
 	_front_walls.setup(self, _bodies, _necromancer, terrain_material)
 	add_child(_front_walls)
@@ -77,7 +88,10 @@ func _process(delta: float) -> void:
 	if not is_instance_valid(_necromancer):
 		return
 	_update_camera(delta)
-	_bodies.sync_bodies()
+	var nodes: Array[Node2D] = _world_nodes()
+	_bodies.sync_bodies(nodes)
+	_marks.sync_marks(nodes, aim_from_screen(get_viewport().get_visible_rect().size * 0.5))
+	_anchors.sync_anchors(nodes)
 	_front_walls.update_walls(delta)
 
 
@@ -161,6 +175,16 @@ func get_terrain_build_usec() -> int:
 	return _terrain_build_usec
 
 
+## 3D로 그릴 수 있는 2D 노드들: Actors의 자식과 지역의 직접 자식 (상자, 탈출 지점 등)
+func _world_nodes() -> Array[Node2D]:
+	var nodes: Array[Node2D] = []
+	for holder: Node in [_necromancer.get_parent(), get_parent()]:
+		for child: Node in holder.get_children():
+			if child is Node2D:
+				nodes.append(child as Node2D)
+	return nodes
+
+
 ## 지역의 임시 바닥·벽마다 구역별 메시를 만든다. 지형 재질을 돌려준다.
 func _build_terrain() -> ShaderMaterial:
 	var started: int = Time.get_ticks_usec()
@@ -190,7 +214,10 @@ func _build_terrain() -> ShaderMaterial:
 ## 2D 세계는 2D 카메라 기준이라 3D 화면과 맞지 않으므로 숨긴다. 규칙은 그대로 돈다. HUD와 창은 CanvasLayer라 그대로 보인다.
 func _hide_2d_world() -> void:
 	for child: Node in get_parent().get_children():
-		if child is Node2D:
+		if child is InteractZone or child is EscapePoint:
+			# 3D 층이 이 노드의 보임을 읽으므로 visible은 그대로 두고 자기 2D 그림만 투명하게 한다.
+			(child as CanvasItem).self_modulate.a = 0.0
+		elif child is Node2D:
 			(child as Node2D).visible = false
 
 

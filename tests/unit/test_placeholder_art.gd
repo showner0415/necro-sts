@@ -46,6 +46,22 @@ func test_box_sits_on_feet() -> void:
 	assert_eq(art.texture.get_size(), Vector2(6, 4), "크기")
 
 
+func test_disc_is_centered() -> void:
+	var art: PlaceholderArt = PlaceholderArt.for_disc(3.0)
+	assert_eq(art.offset, Vector2(-3, -3), "가운데가 기준점")
+	assert_eq(art.texture.get_size(), Vector2(6, 6), "지름")
+
+
+func test_chest_has_lid_and_box_colors() -> void:
+	var lid: Color = Color(0.7607843, 0.52156866, 0.4117647, 1)
+	var box: Color = Color(0.4509804, 0.24313726, 0.22352941, 1)
+	var art: PlaceholderArt = PlaceholderArt.for_chest(Vector2(18, 12), 4.0, box, lid)
+	var image: Image = art.texture.get_image()
+	assert_eq(art.offset, Vector2(-9, -12), "아래 가운데가 기준점")
+	assert_true(image.get_pixel(9, 1).is_equal_approx(lid), "위쪽은 뚜껑")
+	assert_true(image.get_pixel(9, 8).is_equal_approx(box), "아래쪽은 몸통")
+
+
 func test_same_shape_reuses_art() -> void:
 	var data: MonsterData = _data(MonsterData.PlaceholderShape.CIRCLE, 5.0)
 	assert_true(PlaceholderArt.for_body(data, 1.0, false) == PlaceholderArt.for_body(data, 1.0, false), "같은 모양은 같은 그림")

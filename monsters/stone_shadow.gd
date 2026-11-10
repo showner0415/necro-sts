@@ -12,5 +12,10 @@ var radius: float = 0.0
 var color: Color = Color.WHITE
 
 
+## canvas에 원을 그린다. 2D에서는 자기 자신에, 3D 화면 층에서는 바닥 캔버스에 그린다.
+func draw_ground_marks(canvas: CanvasItem) -> void:
+	canvas.draw_arc(Vector2.ZERO, radius, 0.0, TAU, POINTS, color, LINE_WIDTH)
+
+
 func _draw() -> void:
-	draw_arc(Vector2.ZERO, radius, 0.0, TAU, POINTS, color, LINE_WIDTH)
+	draw_ground_marks(self)

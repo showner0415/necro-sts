@@ -47,17 +47,19 @@ func _run() -> void:
 		fail_step("지형", "사각형 %d (기대 %d), 구역 %d, 2D 바닥 보임 %s" % [view.get_terrain_quads(), expected_quads, view.get_terrain_chunks().size(), ground.visible])
 		return
 	pass_step("지형", "바닥 %d칸 = 사각형 %d, 구역 %d개, 2D 바닥은 숨김" % [expected_quads, view.get_terrain_quads(), view.get_terrain_chunks().size()])
+	await wait_frames(SETTLE_FRAMES)
 	var monsters: int = get_nodes_in_group(&"monsters").size()
-	if view.get_bodies().get_bodies().size() != monsters + 1:
-		fail_step("몸", "그리는 몸 %d (기대: 몬스터 %d + 네크로맨서)" % [view.get_bodies().get_bodies().size(), monsters])
+	var chests: int = current_scene.find_children("*", "LootChest", true, false).size()
+	if view.get_bodies().get_bodies().size() != monsters + chests + 1:
+		fail_step("몸", "그리는 몸 %d (기대: 몬스터 %d + 상자 %d + 네크로맨서)" % [view.get_bodies().get_bodies().size(), monsters, chests])
 		return
 	var victim: Node = get_nodes_in_group(&"monsters")[0]
 	victim.free()
 	await wait_frames(SETTLE_FRAMES)
-	if view.get_bodies().get_bodies().size() != monsters:
-		fail_step("몸", "몬스터가 사라졌는데 그리는 몸 %d (기대 %d)" % [view.get_bodies().get_bodies().size(), monsters])
+	if view.get_bodies().get_bodies().size() != monsters + chests:
+		fail_step("몸", "몬스터가 사라졌는데 그리는 몸 %d (기대 %d)" % [view.get_bodies().get_bodies().size(), monsters + chests])
 		return
-	pass_step("몸", "몬스터 %d + 네크로맨서를 그림, 사라진 몬스터는 지움" % monsters)
+	pass_step("몸", "몬스터 %d + 상자 %d + 네크로맨서를 그림, 사라진 몬스터는 지움" % [monsters, chests])
 	var center: Vector2 = root.get_visible_rect().size * 0.5
 	var feet_screen: Vector2 = view.world_to_screen(necromancer.global_position, 0.0)
 	if feet_screen.distance_to(center) > CENTER_TOLERANCE:

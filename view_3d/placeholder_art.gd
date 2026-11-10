@@ -35,6 +35,28 @@ static func for_box(size: Vector2) -> PlaceholderArt:
 	return _cache[key]
 
 
+## 가운데가 기준점인 채운 원 (탄, 돌)
+static func for_disc(radius: float) -> PlaceholderArt:
+	var key: String = "disc:%s" % radius
+	if not _cache.has(key):
+		_cache[key] = _make(Vector2.ONE * radius, 0.0, false)
+	return _cache[key]
+
+
+## 바닥 위의 상자: 몸통과 뚜껑 색을 그림에 넣는다. 아래 가운데가 기준점이다.
+static func for_chest(size: Vector2, lid_height: float, box_color: Color, lid_color: Color) -> PlaceholderArt:
+	var key: String = "chest:%s:%s:%s:%s" % [size, lid_height, box_color, lid_color]
+	if not _cache.has(key):
+		var image: Image = Image.create_empty(ceili(size.x), ceili(size.y), false, Image.FORMAT_RGBA8)
+		image.fill(box_color)
+		image.fill_rect(Rect2i(0, 0, ceili(size.x), ceili(lid_height)), lid_color)
+		var art: PlaceholderArt = PlaceholderArt.new()
+		art.texture = ImageTexture.create_from_image(image)
+		art.offset = (Vector2(-size.x / 2.0, -size.y)).floor()
+		_cache[key] = art
+	return _cache[key]
+
+
 ## half: 가로세로 반지름, center_y: 발밑에서 도형 가운데까지 (위가 음수)
 static func _make(half: Vector2, center_y: float, is_diamond: bool) -> PlaceholderArt:
 	var width: int = ceili(half.x * 2.0)

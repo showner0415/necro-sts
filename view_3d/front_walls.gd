@@ -83,7 +83,8 @@ func _update_see_weights(step: float, feet: Vector2) -> Array[Node2D]:
 			_see_weights.erase(node)
 	var seen: Array[Node2D] = []
 	for body: Node2D in bodies:
-		if body == _necromancer or body.is_queued_for_deletion():
+		# 상자는 지형처럼 늘 보이는 것이고, 탄·돌은 잠깐 지나가므로 벽을 반투명하게 하지 않는다.
+		if body == _necromancer or body.is_queued_for_deletion() or body is InteractZone or body is Bolt or body is Stone:
 			continue
 		var wanted: float = 0.0
 		if enabled and see_through_on:

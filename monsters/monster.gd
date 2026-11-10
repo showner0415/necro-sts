@@ -277,9 +277,14 @@ func get_placeholder_tint() -> Color:
 	return _behavior.get_body_color(data.placeholder_color)
 
 
+## 바닥의 예고 표시를 canvas에 그린다. 2D에서는 자기 자신에, 3D 화면 층에서는 바닥 캔버스에 그린다.
+func draw_ground_marks(canvas: CanvasItem) -> void:
+	_behavior.draw_overlay(canvas, indicator_color)
+
+
 func _draw() -> void:
 	# 바닥의 예고 표시를 먼저 그리고, 기준점(발밑) 위에 몸을 그린다. 그림이 있으면 몸은 그림(_sprite)이고, 없으면 임시 도형이다.
-	_behavior.draw_overlay(self, indicator_color)
+	draw_ground_marks(self)
 	if _sprite == null:
 		PlaceholderBody.draw(self, data, get_placeholder_tint(), PlaceholderBody.center(data))
 

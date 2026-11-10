@@ -14,12 +14,16 @@ const NEAR_CELLS: float = 4.0
 const FLOOR_MAX_ROW_SPAN: int = 3
 const POSE_FRAMES: int = 3
 const FADE_FRAMES: int = 30
+## 지형 셰이더의 smoothstep 시작: 자리 반지름의 이 비율 안은 완전히 잘린다
+const CUT_CORE: float = 0.7
 
 var _view: RegionView3D
 var _necromancer: Necromancer
 var _cells: TerrainCells
 ## 벽 윗면·앞면에 쓰인 색들
 var _wall_colors: Array[Color] = []
+## 둘레 안 바닥 점을 나눈 것: 이름 → (점 수, 가린 수)
+var _detail: Dictionary = {}
 
 
 func get_start_scene() -> String:
@@ -55,7 +59,24 @@ func _on_scene_ready() -> void:
 			await wait_frames(FADE_FRAMES)
 			var ratio: Vector2 = await _measure(floors)
 			print("[측정] 화면 회전 %d도, 앞벽 처리 %s: 가린 바닥 화면 전체 %.1f%%, 둘레 %d칸 %.1f%%" % [int(yaw), "켬" if front_walls else "끔", ratio.x * 100.0, int(NEAR_CELLS), ratio.y * 100.0])
+			for key: String in _detail.keys():
+				var entry: Vector2 = _detail[key]
+				print("  둘레 %d칸 안, %s: 바닥 점 %d개, 가림 %d개 (%.1f%%)" % [int(NEAR_CELLS), key, int(entry.x), int(entry.y), 100.0 * entry.y / maxf(entry.x, 1.0)])
 	finish(true)
+
+
+## 바닥 점을 잘라내기 자리와의 관계로 나눈다: 화면에서 자리 안쪽(완전히 잘림)·가장자리(점무늬)·밖, 그리고 플레이어보다 카메라 쪽 바닥인지.
+## 플레이어보다 먼 쪽 바닥을 가리는 벽은 플레이어 뒤쪽 벽이라 잘리지 않는다 (앞벽 처리는 플레이어·조준점보다 카메라 쪽 벽만 자른다).
+func _detail_key(world: Vector2, pixel: Vector2) -> String:
+	var walls: FrontWalls = _view.get_front_walls()
+	var feet: Vector2 = _necromancer.global_position
+	var player: float = pixel.distance_to(_view.world_to_screen(feet, walls.player_zone_height)) / walls.cut_radius_player
+	var aim: float = pixel.distance_to(_view.world_to_screen(feet, _view.get_aim_height())) / walls.cut_radius_aim
+	var nearest: float = minf(player, aim)
+	var zone: String = "잘라내기 안쪽" if nearest < CUT_CORE else ("점무늬 가장자리" if nearest <= 1.0 else "자리 밖")
+	var back: Vector3 = _view.get_camera().global_transform.basis.z
+	var side: String = "카메라 쪽 바닥" if (world - feet).dot(Vector2(back.x, back.z)) > 0.0 else "먼 쪽 바닥"
+	return "%s, %s" % [zone, side]
 
 
 func _is_wall_color(color: Color) -> bool:
@@ -69,6 +90,7 @@ func _is_wall_color(color: Color) -> bool:
 func _measure(floors: Array[Vector2i]) -> Vector2:
 	var random: RandomNumberGenerator = RandomNumberGenerator.new()
 	random.seed = POSE_SEED
+	_detail.clear()
 	var counts: Vector4 = Vector4.ZERO
 	var tile: float = _cells.tile_size
 	for pose: int in POSES:
@@ -95,4 +117,8 @@ func _measure(floors: Array[Vector2i]) -> Vector2:
 				counts.y += 1.0 if hidden else 0.0
 				counts.z += 1.0 if near else 0.0
 				counts.w += 1.0 if near and hidden else 0.0
+				if near:
+					var key: String = _detail_key(point * tile + _cells.origin, Vector2(pixel))
+					var entry: Vector2 = _detail.get(key, Vector2.ZERO)
+					_detail[key] = entry + Vector2(1.0, 1.0 if hidden else 0.0)
 	return Vector2(counts.y / maxf(counts.x, 1.0), counts.w / maxf(counts.z, 1.0))
