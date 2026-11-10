@@ -4,4 +4,4 @@
 
 [resource]
 script = ExtResource("1_approach")
-attack_windup = 0.1
+attack_windup = 0.0
