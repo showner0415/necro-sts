@@ -159,11 +159,17 @@ func check_fight_start(scene_path: String, expected_monsters: int) -> bool:
 func aim_mouse_at(world_position: Vector2) -> void:
 	var event: InputEventMouseMotion = InputEventMouseMotion.new()
 	# 월드 좌표 → 뷰포트 좌표 → 창 좌표
-	event.position = root.get_final_transform() * (root.get_canvas_transform() * world_position)
+	event.position = root.get_final_transform() * _aim_to_viewport(world_position)
 	event.global_position = event.position
 	_last_mouse_window_position = event.position
 	# root.push_input()은 헤드리스에서 마우스 위치가 반영되지 않아 실제 입력과 같은 경로로 보낸다.
 	Input.parse_input_event(event)
+
+
+## 이 월드 좌표를 조준하려면 마우스를 둘 뷰포트 좌표. 3D 화면 층이 있으면 그 층의 변환을 쓴다.
+func _aim_to_viewport(world_position: Vector2) -> Vector2:
+	var view: RegionView3D = current_scene.call(&"get_view_3d") as RegionView3D if current_scene != null and current_scene.has_method(&"get_view_3d") else null
+	return view.screen_from_aim(world_position) if view != null else root.get_canvas_transform() * world_position
 
 
 ## UI 좌표(CanvasLayer 기준, 640×360 안)를 창 좌표로 바꾼다.
