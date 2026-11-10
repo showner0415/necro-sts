@@ -11,7 +11,7 @@ const SETTLE_FRAMES: int = 10
 const HIT_TIMEOUT_FRAMES: int = 90
 const SHOT_DISTANCE: float = 110.0
 const DIRECTIONS: int = 8
-## 쥐 그림의 몸 가운데: 발밑에서 화면으로 이만큼(픽셀) 위. 평면 높이로는 cos(각도)로 나눈다
+## 쥐 그림의 몸 가운데: 발밑에서 화면으로 이만큼(픽셀) 위
 const RAT_SCREEN_CENTER: float = 8.0
 const AGREE_TARGET: float = 0.95
 ## 밝기 비율이 이보다 크면 빛을 받은 것으로 본다 (팔레트를 끄고 잰다)
@@ -49,10 +49,16 @@ func _on_scene_ready() -> void:
 	_rat.disable_mode = CollisionObject2D.DISABLE_MODE_KEEP_ACTIVE
 	_rat.process_mode = Node.PROCESS_MODE_DISABLED
 	await wait_frames(SETTLE_FRAMES)
+	if OS.get_cmdline_user_args().has("--wall-touch"):
+		await _check_wall_touch()
+		finish(true)
+		return
 	if OS.get_cmdline_user_args().has("--pixels"):
 		for entry: Array in [["원근 30 45도", true, 45.0], ["직교 45도", false, 45.0]]:
 			_set_camera(entry[1], 30.0, entry[2])
 			await _check_pixels(entry[0])
+		_set_camera(true, 30.0, 45.0)
+		await _check_wall_depth()
 		finish(true)
 		return
 	if OS.get_cmdline_user_args().has("--crawl-mouse"):
@@ -69,6 +75,7 @@ func _on_scene_ready() -> void:
 	await _check_aim()
 	_view.palette_on = false
 	_view.call(&"_apply_view_mode")
+	await _check_wall_depth()
 	await _check_vision("앞서 가기 없음")
 	await _check_front_walls()
 	await _check_frame_time()
@@ -156,7 +163,6 @@ func _check_sprite_positions(name_text: String) -> void:
 		_rat.global_position = center + (entry[1] as Vector2) * View3D.TILE
 		await wait_frames(12)
 		var image: Image = await _capture()
-		var scale_now: Vector2 = _view.get_sprite_scale(_rat)
 		var source: Image = sprite.sprite_frames.get_frame_texture(sprite.animation, sprite.frame).get_image()
 		source.convert(Image.FORMAT_RGBA8)
 		var feet: Vector2 = _view.world_to_screen(_rat.global_position, 0.0).round()
@@ -177,8 +183,8 @@ func _check_sprite_positions(name_text: String) -> void:
 						if at.x >= 0 and at.y >= 0 and at.x < image.get_width() and at.y < image.get_height() and _close(image.get_pixelv(at), expected, 0.012):
 							same += 1
 				best = maxi(best, same)
-		lines.append("%s: 가로 %.2f 세로 %.2f, 같은 픽셀 %.0f%%" % [entry[0], scale_now.x, scale_now.y, 100.0 * best / maxf(compared, 1)])
-	print("[측정] %s 쥐 그림 (화면 위치별): %s" % [name_text, " / ".join(lines)])
+		lines.append("%s %.0f%%" % [entry[0], 100.0 * best / maxf(compared, 1)])
+	print("[측정] %s 쥐 그림이 원본과 같은 픽셀 (화면 위치별): %s" % [name_text, " / ".join(lines)])
 	_view.front_walls_on = true
 	vision.set_active(true)
 	_rat.global_position = Vector2(100, 100) * View3D.TILE
@@ -223,7 +229,6 @@ func _match(a: Image, b: Image, region: Rect2i, shift: Vector2i) -> float:
 func _check_aim() -> void:
 	var center: Vector2 = Vector2(14.5, 5.0) * View3D.TILE
 	_rat.global_position = center
-	var height: float = RAT_SCREEN_CENTER / cos(deg_to_rad(_view.pitch_degrees))
 	var results: PackedStringArray = []
 	var hits: int = 0
 	for i: int in DIRECTIONS:
@@ -232,7 +237,7 @@ func _check_aim() -> void:
 		_rat.health = 1000.0
 		_necromancer.mana.current = _necromancer.mana.maximum
 		await wait_frames(4)
-		_view.aim_override = _view.aim_from_screen(_view.world_to_screen(_rat.global_position, height))
+		_view.aim_override = _view.aim_from_screen(_view.world_to_screen(_rat.global_position, 0.0) - Vector2(0, RAT_SCREEN_CENTER))
 		var before: float = _rat.health
 		press_mouse(true)
 		var frames: int = 0
@@ -286,6 +291,167 @@ func _check_vision(name_text: String) -> void:
 	_view.front_walls_on = true
 	var ratio: float = float(agree) / maxf(total, 1)
 	_report("시야 판정과 화면 밝기 일치 (%s)" % name_text, ratio >= AGREE_TARGET, "%.1f%% (기준 %.0f%%), 칸 %d개" % [ratio * 100.0, AGREE_TARGET * 100.0, total])
+
+
+## 앞뒤 판정: 뒤쪽 벽(화면 위쪽)에 붙어도 그림이 파묻히지 않고, 앞쪽 벽(화면 아래쪽)에는 앞벽 처리를 끄면 가려진다.
+func _check_wall_depth() -> void:
+	_rat.global_position = Vector2(100, 100) * View3D.TILE
+	(current_scene.call(&"get_vision") as Vision).set_active(false)
+	_view.front_walls_on = false
+	var back: float = await _necromancer_same_ratio(Vector2(6.5, 2.4) * View3D.TILE)
+	var front: float = await _necromancer_same_ratio(Vector2(6.5, 14.8) * View3D.TILE)
+	_view.front_walls_on = true
+	(current_scene.call(&"get_vision") as Vision).set_active(true)
+	_report("그림 앞뒤 판정", back >= 0.95 and front < 0.9, "뒤쪽 벽에 붙음: 보이는 픽셀 %.0f%% (95%% 이상), 앞쪽 벽에 붙음: %.0f%% (가려져서 90%% 미만)" % [back * 100.0, front * 100.0])
+
+
+## position에 네크로맨서를 세웠을 때 그림 중 원본대로 보이는 픽셀 비율
+func _necromancer_same_ratio(position: Vector2) -> float:
+	_necromancer.global_position = position
+	_view.aim_override = position + Vector2(0, 200)
+	await wait_frames(30)
+	var sprite: FacingSprite = _necromancer.get_node("Sprite")
+	var image: Image = await _capture()
+	var source: Image = sprite.sprite_frames.get_frame_texture(sprite.animation, sprite.frame).get_image()
+	source.convert(Image.FORMAT_RGBA8)
+	var feet: Vector2 = _view.world_to_screen(_necromancer.global_position, 0.0).round()
+	var best: int = 0
+	var compared: int = 0
+	for offset_y: int in range(-1, 2):
+		for offset_x: int in range(-1, 2):
+			var top_left: Vector2i = Vector2i(feet + sprite.offset) + Vector2i(offset_x, offset_y)
+			var same: int = 0
+			compared = 0
+			for y: int in source.get_height():
+				for x: int in source.get_width():
+					var expected: Color = source.get_pixel(x, y)
+					if expected.a < 1.0:
+						continue
+					compared += 1
+					var at: Vector2i = top_left + Vector2i(x, y)
+					if at.x >= 0 and at.y >= 0 and at.x < image.get_width() and at.y < image.get_height() and _close(image.get_pixelv(at), expected, 0.012):
+						same += 1
+			best = maxi(best, same)
+	return float(best) / maxf(compared, 1)
+
+
+## 벽 바로 앞에 선 몸의 그림이 파묻히거나 잘리지 않는지. 화면 위쪽에 있는 벽(북쪽·서쪽, 기둥의 남쪽 면)에 몸이 닿을 만큼 붙인다.
+## --out=<PNG>를 주면 자리마다 잘라 3배로 키운 그림을 모아 저장한다 (왼쪽 위부터 포즈 순서).
+func _check_wall_touch() -> void:
+	_set_camera(true, 30.0, 45.0)
+	_view.palette_on = false
+	_view.call(&"_apply_view_mode")
+	(current_scene.call(&"get_vision") as Vision).set_active(false)
+	var tile: float = View3D.TILE
+	var rat_half: Vector2 = _rat.data.get_placeholder_half_size()
+	var necro_radius: float = _necromancer.body_radius
+	var far_away: Vector2 = Vector2(30.0, 8.0) * tile
+	var poses: Array[Array] = [
+		["네크로맨서, 북쪽 벽", _necromancer, Vector2(6.5 * tile, 2.0 * tile + necro_radius * 2.0)],
+		["네크로맨서, 서쪽 벽", _necromancer, Vector2(2.0 * tile + necro_radius, 8.5 * tile)],
+		["네크로맨서, 북서 모서리", _necromancer, Vector2(2.0 * tile + necro_radius, 2.0 * tile + necro_radius * 2.0)],
+		["네크로맨서, 기둥 남쪽 면", _necromancer, Vector2(11.5 * tile, 10.0 * tile + necro_radius * 2.0)],
+		["쥐, 북쪽 벽", _rat, Vector2(6.5 * tile, 2.0 * tile + rat_half.y * 2.0)],
+		["쥐, 서쪽 벽", _rat, Vector2(2.0 * tile + rat_half.x, 8.5 * tile)],
+		["쥐, 북서 모서리", _rat, Vector2(2.0 * tile + rat_half.x, 2.0 * tile + rat_half.y * 2.0)],
+		["쥐, 기둥 남쪽 면", _rat, Vector2(11.5 * tile, 10.0 * tile + rat_half.y * 2.0)],
+	]
+	var out_path: String = ""
+	for arg: String in OS.get_cmdline_user_args():
+		if arg.begins_with("--out="):
+			out_path = arg.trim_prefix("--out=")
+	const CROP: int = 72
+	const ZOOM: int = 3
+	const COLUMNS: int = 4
+	var sheet: Image = Image.create((CROP * ZOOM + 4) * COLUMNS, (CROP * ZOOM + 4) * 2, false, Image.FORMAT_RGB8)
+	sheet.fill(Color.WHITE)
+	var lowest: float = 1.0
+	var lines: PackedStringArray = []
+	for i: int in poses.size():
+		var pose: Array = poses[i]
+		var body: Node2D = pose[1]
+		# 재는 몸이 아닌 쪽은 멀리 치운다. 네크로맨서를 치우면 카메라가 따라가므로 쥐를 잴 때는 네크로맨서를 쥐 남동쪽 가까이에 둔다.
+		if body == _necromancer:
+			_rat.global_position = far_away
+			_necromancer.global_position = pose[2]
+		else:
+			_rat.global_position = pose[2]
+			_necromancer.global_position = (pose[2] as Vector2) + Vector2(70, 70)
+		_view.aim_override = _necromancer.get_body_center() + Vector2(0, 300)
+		await wait_frames(30)
+		var image: Image = await _capture()
+		var ratio: float = _same_ratio_in(image, body)
+		lowest = minf(lowest, ratio)
+		lines.append("%s %.0f%%" % [pose[0], ratio * 100.0])
+		var center: Vector2i = Vector2i(_view.world_to_screen(body.global_position, 0.0)) - Vector2i(CROP / 2, CROP * 2 / 3)
+		var crop: Image = image.get_region(Rect2i(center, Vector2i(CROP, CROP)))
+		crop.convert(Image.FORMAT_RGB8)
+		crop.resize(CROP * ZOOM, CROP * ZOOM, Image.INTERPOLATE_NEAREST)
+		sheet.blit_rect(crop, Rect2i(0, 0, CROP * ZOOM, CROP * ZOOM), Vector2i((CROP * ZOOM + 4) * (i % COLUMNS), (CROP * ZOOM + 4) * (i / COLUMNS)))
+	if not out_path.is_empty():
+		sheet.save_png(out_path)
+	# 쥐는 벽 없는 곳의 값(_rat_open_ratio)과 비교해야 하므로 포즈별 값을 그대로 출력한다.
+	_rat.global_position = Vector2(9.0, 11.0) * tile
+	_necromancer.global_position = Vector2(14.5, 11.0) * tile
+	_view.aim_override = _necromancer.get_body_center() + Vector2(0, 300)
+	await wait_frames(30)
+	var open_image: Image = await _capture()
+	var open_ratio: float = _same_ratio_in(open_image, _rat)
+	_print_rat_mismatch(open_image)
+	print("[측정] 벽 앞 그림이 원본대로 보이는 픽셀: %s (쥐는 벽 없는 곳에서 %.0f%%)" % [", ".join(lines), open_ratio * 100.0])
+
+
+## image에서 body의 그림 중 원본과 같은 픽셀 비율 (위치 ±1픽셀은 봐준다)
+func _same_ratio_in(image: Image, body: Node2D) -> float:
+	var sprite: FacingSprite = body.get_children().filter(func(n: Node) -> bool: return n is FacingSprite).front()
+	var source: Image = sprite.sprite_frames.get_frame_texture(sprite.animation, sprite.frame).get_image()
+	source.convert(Image.FORMAT_RGBA8)
+	var feet: Vector2 = _view.world_to_screen(body.global_position, 0.0).round()
+	var best: int = 0
+	var compared: int = 0
+	for offset_y: int in range(-1, 2):
+		for offset_x: int in range(-1, 2):
+			var top_left: Vector2i = Vector2i(feet + sprite.offset) + Vector2i(offset_x, offset_y)
+			var same: int = 0
+			compared = 0
+			for y: int in source.get_height():
+				for x: int in source.get_width():
+					var expected: Color = source.get_pixel(x, y)
+					if expected.a < 1.0:
+						continue
+					compared += 1
+					var at: Vector2i = top_left + Vector2i(x, y)
+					if at.x >= 0 and at.y >= 0 and at.x < image.get_width() and at.y < image.get_height() and _close(image.get_pixelv(at), expected, 0.012):
+						same += 1
+			best = maxi(best, same)
+	return float(best) / maxf(compared, 1)
+
+
+## 쥐 그림에서 원본과 다른 픽셀의 색을 출력한다 (93%의 원인 확인용).
+func _print_rat_mismatch(image: Image) -> void:
+	var sprite: FacingSprite = _rat.get_children().filter(func(n: Node) -> bool: return n is FacingSprite).front()
+	var source: Image = sprite.sprite_frames.get_frame_texture(sprite.animation, sprite.frame).get_image()
+	source.convert(Image.FORMAT_RGBA8)
+	var feet: Vector2 = _view.world_to_screen(_rat.global_position, 0.0).round()
+	var top_left: Vector2i = Vector2i(feet + sprite.offset)
+	var differences: Dictionary = {}
+	var opaque: int = 0
+	var semi: int = 0
+	for y: int in source.get_height():
+		for x: int in source.get_width():
+			var expected: Color = source.get_pixel(x, y)
+			if expected.a > 0.0 and expected.a < 1.0:
+				semi += 1
+			if expected.a < 1.0:
+				continue
+			opaque += 1
+			var actual: Color = image.get_pixelv(top_left + Vector2i(x, y))
+			if not _close(actual, expected, 0.012):
+				var key: String = "%s → %s" % [expected.to_html(false), actual.to_html(false)]
+				differences[key] = differences.get(key, 0) + 1
+	var keys: Array = differences.keys()
+	keys.sort_custom(func(a: String, b: String) -> bool: return differences[a] > differences[b])
+	print("[측정] 쥐 그림: %s 프레임 %d, 불투명 %d, 반투명 %d, 다른 픽셀 색(원본 → 화면): %s" % [sprite.animation, sprite.frame, opaque, semi, ", ".join(keys.slice(0, 8).map(func(k: String) -> String: return "%s ×%d" % [k, differences[k]]))])
 
 
 ## 앞벽 반투명: 시야 안 물체만 벽을 반투명하게 하고, 세기가 한 프레임에 튀지 않는다.

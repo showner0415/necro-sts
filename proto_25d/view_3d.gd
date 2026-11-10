@@ -3,7 +3,7 @@ extends Node3D
 ## 시제품: 2D 규칙 세계를 읽어서 3D로 그리는 층. 규칙(이동, 충돌, 시야 판정)은 2D 그대로이고, 이 층은 규칙에 조준 위치만 돌려준다.
 ## - 좌표: 2D (x, y) → 3D (x / 32, 높이, y / 32). 타일 한 칸 = 3D 1단위
 ## - 지형: PlaceholderWalls의 벽 격자에서 바닥·벽 메시를 만든다. 그림자는 그림자 전용 메시가 맡는다 (앞벽을 잘라도 그림자는 그대로)
-## - 몸: 숨긴 2D 스프라이트의 애니메이션·프레임을 3D 스프라이트에 그대로 옮긴다. 수직으로 세우고, 세로 크기는 프레임마다 화면에서 그림 높이만큼의 픽셀이 되게 맞춘다 (원근에서는 화면 위치에 따라 납작해지거나 늘어나므로)
+## - 몸: 숨긴 2D 스프라이트의 그림을 카메라를 정면으로 보는 사각형으로 그린다 (그림 1픽셀 = 화면 1픽셀, 기울지 않음). 앞뒤 판정은 발밑에 세운 판의 깊이를 쓴다 (sprite.gdshader)
 ## - 시야: 낮은 전방향 빛 하나가 벽 그림자를 만들고, 부채꼴과 둘레 원은 지형 셰이더가 2D 규칙과 같은 모양으로 계산한다. 지형만 받고 몸은 원래 색이다. 몬스터가 보이는지는 2D 판정(Vision)의 투명도를 그대로 쓴다
 ## - 조준: 화면 광선과 탄 높이 평면의 교점을 2D 위치로 바꾼다
 ## - 앞벽: 플레이어와 조준점 앞의 벽은 잘라내고, 시야에 보이는 물체(몬스터·물건·언데드) 앞의 벽은 반투명이다. 세기가 서서히 바뀐다
@@ -31,8 +31,8 @@ const LEAD_SPEEDS: Array[float] = [6.0, 3.0, 12.0]
 const LEAD_STRENGTHS: Array[float] = [1.0, 0.5, 0.0]
 ## 셰이더의 반투명 자리 수와 같다
 const SEE_ZONES: int = 16
-## 그림 세로 크기를 맞출 때 되풀이하는 횟수
-const HEIGHT_FIT_STEPS: int = 2
+## 몸 사각형이 카메라 밖으로 잘못 잘리지 않게 두는 여유 (단위)
+const SPRITE_CULL_MARGIN: float = 4.0
 ## 앞벽을 잘라낸 자리의 낮은 윗면 높이 (단위). 셰이더의 cut_keep_height(0.2)보다 조금 낮다
 const CUT_CAP_HEIGHT: float = 0.19
 ## 시야 빛의 범위 (칸). 범위 끝에서 어두워지는 구간이 보는 거리(14칸) 안에 들어오지 않을 만큼 크게 둔다
@@ -66,6 +66,8 @@ const LIGHT_RANGE_TILES: float = 30.0
 ## 자리 가운데를 잡을 높이 (평면 높이, 픽셀): 플레이어 몸 가운데, 물체 몸 가운데
 @export var player_zone_height: float = 32.0
 @export var object_zone_height: float = 24.0
+## 몸 그림의 깊이만 카메라 쪽으로 당기는 양 (단위). 발밑보다 아래로 그려지는 부분이 바닥에 가리지 않게 한다
+@export var sprite_depth_bias: float = 0.3
 
 var front_walls_on: bool = true
 var perspective: bool = true
@@ -400,16 +402,17 @@ func _make_visual(node: Node2D) -> Node3D:
 	var result: Node3D
 	var sprite: FacingSprite = _sprite_of(node)
 	if sprite != null:
-		var sprite_3d: AnimatedSprite3D = AnimatedSprite3D.new()
-		sprite_3d.sprite_frames = sprite.sprite_frames
-		sprite_3d.pixel_size = 1.0 / TILE
-		sprite_3d.centered = false
-		sprite_3d.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
-		sprite_3d.shaded = false
-		sprite_3d.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-		sprite_3d.alpha_cut = SpriteBase3D.ALPHA_CUT_OPAQUE_PREPASS
-		sprite_3d.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		result = sprite_3d
+		var quad: MeshInstance3D = MeshInstance3D.new()
+		var quad_mesh: QuadMesh = QuadMesh.new()
+		quad_mesh.size = Vector2.ONE
+		quad.mesh = quad_mesh
+		var sprite_material: ShaderMaterial = ShaderMaterial.new()
+		sprite_material.shader = load("res://proto_25d/sprite.gdshader")
+		sprite_material.set_shader_parameter(&"depth_bias", sprite_depth_bias)
+		quad.material_override = sprite_material
+		quad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		quad.extra_cull_margin = SPRITE_CULL_MARGIN
+		result = quad
 	else:
 		var mesh: MeshInstance3D = MeshInstance3D.new()
 		var material: StandardMaterial3D = StandardMaterial3D.new()
@@ -443,45 +446,17 @@ func _update_visual(node: Node2D, visual: Node3D) -> void:
 		visual.visible = node.visible
 		return
 	sprite.view_rotation = deg_to_rad(yaw_degrees)
-	var sprite_3d: AnimatedSprite3D = visual as AnimatedSprite3D
-	if sprite_3d.animation != sprite.animation:
-		sprite_3d.animation = sprite.animation
-	sprite_3d.frame = sprite.frame
-	var height: float = sprite.sprite_frames.get_frame_texture(sprite.animation, sprite.frame).get_height()
-	# 2D offset은 왼쪽 위 기준(아래가 +y), 3D offset은 왼쪽 아래 기준(위가 +y)이다.
-	sprite_3d.offset = Vector2(sprite.offset.x, -(height + sprite.offset.y))
-	sprite_3d.global_position = _snap_to_pixels(_to_3d(node.global_position, 0.0))
-	sprite_3d.scale.y = _height_scale(sprite_3d.global_position, -sprite.offset.y)
-	sprite_3d.modulate = Color(1, 1, 1, node.modulate.a)
-	sprite_3d.visible = node.visible
-
-
-## 발밑 위쪽 texels만큼의 그림이 화면에서 정확히 그만큼의 픽셀이 되는 세로 배율. 카메라가 움직인 뒤에 부른다.
-func _height_scale(feet: Vector3, texels: float) -> float:
-	var nominal: float = 1.0 / cos(deg_to_rad(pitch_degrees))
-	if texels <= 0.0:
-		return nominal
-	var result: float = nominal
-	for i: int in HEIGHT_FIT_STEPS:
-		var span: float = _camera.unproject_position(feet + Vector3.UP * (texels / TILE) * result).distance_to(_camera.unproject_position(feet))
-		if span <= 0.0:
-			return nominal
-		result *= texels / span
-	return result
-
-
-## 확인용: 이 몸의 그림 한 픽셀이 화면에서 몇 픽셀인지 (가로, 세로). 그림이 없으면 ZERO
-func get_sprite_scale(node: Node2D) -> Vector2:
-	var visual: AnimatedSprite3D = _visuals.get(node) as AnimatedSprite3D
-	var sprite: FacingSprite = _sprite_of(node)
-	if visual == null or sprite == null:
-		return Vector2.ZERO
-	var feet: Vector3 = visual.global_position
-	var screen_feet: Vector2 = _camera.unproject_position(feet)
-	var texels: float = -sprite.offset.y
-	var height: float = _camera.unproject_position(feet + Vector3.UP * (texels / TILE) * visual.scale.y).distance_to(screen_feet) / texels
-	var width: float = _camera.unproject_position(feet + _camera.global_transform.basis.x * (texels / TILE)).distance_to(screen_feet) / texels
-	return Vector2(width, height)
+	var quad: MeshInstance3D = visual as MeshInstance3D
+	var sprite_material: ShaderMaterial = quad.material_override as ShaderMaterial
+	var texture: Texture2D = sprite.sprite_frames.get_frame_texture(sprite.animation, sprite.frame)
+	var size: Vector2 = texture.get_size()
+	sprite_material.set_shader_parameter(&"sprite_texture", texture)
+	sprite_material.set_shader_parameter(&"sprite_size", size)
+	# 2D offset은 왼쪽 위 기준(아래가 +y), 셰이더는 왼쪽 아래 기준(위가 +y)이다.
+	sprite_material.set_shader_parameter(&"sprite_offset", Vector2(sprite.offset.x, -(size.y + sprite.offset.y)))
+	sprite_material.set_shader_parameter(&"alpha", node.modulate.a)
+	quad.global_position = _snap_to_pixels(_to_3d(node.global_position, 0.0))
+	quad.visible = node.visible
 
 
 ## 바닥 위의 점을 화면 픽셀에 맞춘다: 화면 위치를 정수로 반올림한 뒤 그 픽셀이 가리키는 같은 높이의 점으로 되돌린다 (직교·원근 모두).
