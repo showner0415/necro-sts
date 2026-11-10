@@ -5,6 +5,13 @@ render_mode cull_back, specular_disabled, ambient_light_disabled;
 
 #include "res://view_3d/sight.gdshaderinc"
 
+// 예고 자리 (돌진 선, 돌 떨어질 원): 화면의 선분(a.xy, b.xy), 같은 선분의 월드 위치(칸), 화면 반지름, 세기. 원은 a와 b가 같다.
+const int MARK_ZONES = 8;
+uniform vec4 mark_screen[MARK_ZONES];
+uniform vec4 mark_world[MARK_ZONES];
+uniform float mark_radius[MARK_ZONES];
+uniform float mark_weights[MARK_ZONES];
+
 // 잘라내기 자리: 화면 위치(xy), 반지름(z, 화면 픽셀), 세기(w, 0~1). 월드 위치는 앞벽(카메라 쪽 벽)인지 가릴 때 쓴다.
 // 반투명 자리: 그림의 화면 사각형 가운데(xy)와 반폭(zw, 화면 픽셀). 세기는 see_weights
 const int CUT_ZONES = 2;
@@ -46,6 +53,24 @@ float see_strength(vec4 rect, float weight, vec2 zone_world, vec2 frag, vec2 gro
 	return weight * (1.0 - smoothstep(0.0, see_feather, length(outside)));
 }
 
+// 이 벽 조각이 예고 표시의 가장 가까운 점보다 카메라 쪽이고 화면에서 선분 가까이 있으면 세기를 돌려준다.
+float mark_strength(int index, vec2 frag, vec2 ground) {
+	float weight = mark_weights[index];
+	if (weight <= 0.0) {
+		return 0.0;
+	}
+	vec4 screen = mark_screen[index];
+	vec2 along = screen.zw - screen.xy;
+	float length_squared = dot(along, along);
+	float t = length_squared > 0.0 ? clamp(dot(frag - screen.xy, along) / length_squared, 0.0, 1.0) : 0.0;
+	vec4 world = mark_world[index];
+	if (dot(ground - mix(world.xy, world.zw, t), toward_camera) <= 0.0) {
+		return 0.0;
+	}
+	float outside = max(length(frag - (screen.xy + along * t)) - mark_radius[index], 0.0);
+	return weight * (1.0 - smoothstep(0.0, see_feather, outside));
+}
+
 // 4×4 무늬의 문턱값 (0~1). 세기가 커질수록 빠지는 픽셀이 조금씩 늘어나 부드럽게 바뀐다.
 float dither(vec2 frag) {
 	const float PATTERN[16] = float[16](0.03125, 0.53125, 0.15625, 0.65625, 0.78125, 0.28125, 0.90625, 0.40625, 0.21875, 0.71875, 0.09375, 0.59375, 0.96875, 0.46875, 0.84375, 0.34375);
@@ -66,6 +91,9 @@ void fragment() {
 		}
 		for (int i = 0; i < SEE_ZONES; i++) {
 			see = max(see, see_strength(see_zones[i], see_weights[i], see_world[i], FRAGCOORD.xy, world_position.xz));
+		}
+		for (int i = 0; i < MARK_ZONES; i++) {
+			see = max(see, mark_strength(i, FRAGCOORD.xy, world_position.xz));
 		}
 		if (max(cut, see * see_through_strength) > dither(FRAGCOORD.xy)) {
 			discard;

@@ -307,6 +307,12 @@ func get_body_color(base: Color) -> Color:
 	return base
 
 
+func get_warning_segment(origin: Vector2) -> PackedVector2Array:
+	if _state != State.WINDUP:
+		return PackedVector2Array()
+	return PackedVector2Array([origin, origin + _direction * get_charge_length(origin)])
+
+
 func draw_overlay(canvas: CanvasItem, indicator_color: Color) -> void:
 	if _state == State.WINDUP:
 		# 선 길이는 지금 돌진하면 달릴 거리다.

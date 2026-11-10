@@ -277,6 +277,11 @@ func get_placeholder_tint() -> Color:
 	return _behavior.get_body_color(data.placeholder_color)
 
 
+## 지금 바닥에 그리는 예고 선의 양 끝 (없으면 빈 배열). 3D 화면 층이 읽는다.
+func get_warning_segment() -> PackedVector2Array:
+	return _behavior.get_warning_segment(global_position)
+
+
 ## 바닥의 예고 표시를 canvas에 그린다. 2D에서는 자기 자신에, 3D 화면 층에서는 바닥 캔버스에 그린다.
 func draw_ground_marks(canvas: CanvasItem) -> void:
 	_behavior.draw_overlay(canvas, indicator_color)

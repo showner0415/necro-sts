@@ -4,10 +4,13 @@ extends Node
 ## - 세기는 zone_fade_time에 걸쳐 서서히 바뀌어 깜빡이지 않는다
 ## - 몸은 시야 판정(Vision)이 정한 투명도를 따르므로, 시야 밖 몸은 벽을 반투명하게 만들지 않는다. 언데드는 늘 보인다
 ## - 네크로맨서는 잘라내기 자리가 맡으므로 반투명 대상에서 뺀다. 상자는 시야 안에 있을 때 반투명하게 한다
+## - 예고 표시(돌진 선, 돌 떨어질 원)가 앞벽 뒤 바닥에 있으면 그 자리의 앞벽을 반투명하게 한다
 ## - 개발 빌드에서 [ ] 키로 플레이어, - = 키로 조준점 잘라내기 반경을 바꾼다
 
 ## 셰이더의 반투명 자리 수와 같다
 const SEE_ZONES: int = 16
+## 셰이더의 예고 자리 수와 같다
+const MARK_ZONES: int = 8
 ## 반경 값을 보여 주는 글자 자리 (화면 픽셀)
 const RADIUS_LABEL_POSITION: Vector2 = Vector2(180, 8)
 
@@ -18,6 +21,8 @@ const RADIUS_LABEL_POSITION: Vector2 = Vector2(180, 8)
 @export var zone_fade_time: float = 0.2
 ## 잘라내기 자리의 가운데를 잡을 높이 (평면 높이, 픽셀): 플레이어 몸 가운데
 @export var player_zone_height: float = 32.0
+## 예고 표시 둘레로 앞벽을 더 반투명하게 하는 폭 (화면 픽셀)
+@export var mark_margin: float = 6.0
 @export_group("개발용 키")
 ## 잘라내기 반경을 바꾸는 키 (개발 빌드에서만)
 @export var player_radius_down_key: Key = KEY_BRACKETLEFT
@@ -41,6 +46,8 @@ var _material: ShaderMaterial
 var _player_weight: float = 1.0
 var _aim_weight: float = 1.0
 var _see_weights: Dictionary = {}
+## 예고 표시 노드 → 앞벽 반투명 세기
+var _mark_weights: Dictionary = {}
 var _radius_label: Label
 var _radius_label_left: float = 0.0
 
@@ -85,7 +92,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 
-func update_walls(delta: float) -> void:
+func update_walls(delta: float, nodes: Array[Node2D]) -> void:
+	_update_mark_zones(delta / zone_fade_time, nodes)
 	if _radius_label_left > 0.0:
 		_radius_label_left -= delta
 		_radius_label.visible = _radius_label_left > 0.0
@@ -119,6 +127,63 @@ func update_walls(delta: float) -> void:
 	_material.set_shader_parameter(&"toward_camera", toward.normalized())
 	# 그림의 깊이를 당긴 만큼은 벽이 그림을 가리지 않으므로 반투명하게 하지 않는다.
 	_material.set_shader_parameter(&"see_min_front", _bodies.get_depth_bias() * toward.length())
+
+
+## 예고 표시(돌진 선, 돌 떨어질 원)가 있는 자리의 앞벽을 반투명하게 한다. 몸과 따로 MARK_ZONES개까지, 플레이어에게 가까운 것부터 쓴다.
+func _update_mark_zones(step: float, nodes: Array[Node2D]) -> void:
+	var feet: Vector2 = _necromancer.global_position
+	var active: Array[Dictionary] = []
+	for node: Node2D in nodes:
+		if node.is_queued_for_deletion():
+			continue
+		var segment: PackedVector2Array = _warning_segment(node)
+		var wanted: float = _warning_weight(node) if enabled and see_through_on and not segment.is_empty() else 0.0
+		_mark_weights[node] = move_toward(_mark_weights.get(node, 0.0), wanted, step)
+		if _mark_weights[node] > 0.0 and not segment.is_empty():
+			active.append({"node": node, "segment": segment})
+	for node: Variant in _mark_weights.keys():
+		if not is_instance_valid(node) or not nodes.has(node):
+			_mark_weights.erase(node)
+	active.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return (a.node as Node2D).global_position.distance_squared_to(feet) < (b.node as Node2D).global_position.distance_squared_to(feet))
+	var screens: PackedVector4Array = PackedVector4Array()
+	var worlds: PackedVector4Array = PackedVector4Array()
+	var radii: PackedFloat32Array = PackedFloat32Array()
+	var weights: PackedFloat32Array = PackedFloat32Array()
+	screens.resize(MARK_ZONES)
+	worlds.resize(MARK_ZONES)
+	radii.resize(MARK_ZONES)
+	weights.resize(MARK_ZONES)
+	for i: int in mini(active.size(), MARK_ZONES):
+		var node: Node2D = active[i].node
+		var segment: PackedVector2Array = active[i].segment
+		var a: Vector2 = _view.world_to_screen(segment[0], 0.0)
+		var b: Vector2 = _view.world_to_screen(segment[1], 0.0)
+		screens[i] = Vector4(a.x, a.y, b.x, b.y)
+		worlds[i] = Vector4(segment[0].x, segment[0].y, segment[1].x, segment[1].y) / ViewSpace.TILE
+		radii[i] = (node as StoneShadow).radius + mark_margin if node is StoneShadow else mark_margin
+		weights[i] = _mark_weights[node]
+	_material.set_shader_parameter(&"mark_screen", screens)
+	_material.set_shader_parameter(&"mark_world", worlds)
+	_material.set_shader_parameter(&"mark_radius", radii)
+	_material.set_shader_parameter(&"mark_weights", weights)
+
+
+## 예고 표시의 선분 (월드 좌표, 원은 양 끝이 같다). 없으면 빈 배열.
+func _warning_segment(node: Node2D) -> PackedVector2Array:
+	if node is StoneShadow:
+		return PackedVector2Array([node.global_position, node.global_position])
+	if node is Monster:
+		return (node as Monster).get_warning_segment()
+	if node is Undead:
+		return (node as Undead).get_warning_segment()
+	return PackedVector2Array()
+
+
+## 돌 원은 시야와 상관없이 늘 보인다. 돌진 선은 몸이 보일 때만 보인다.
+func _warning_weight(node: Node2D) -> float:
+	if node is StoneShadow or node.is_in_group(&"undead"):
+		return 1.0
+	return node.modulate.a if node.visible else 0.0
 
 
 ## 확인용: 이 몸 앞 벽의 반투명 세기 (0~1)

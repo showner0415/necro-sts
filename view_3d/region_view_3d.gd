@@ -101,7 +101,7 @@ func _process(delta: float) -> void:
 	_bodies.sync_bodies(nodes, delta)
 	_marks.sync_marks(nodes, aim_from_screen(get_viewport().get_visible_rect().size * 0.5))
 	_anchors.sync_anchors(nodes)
-	_front_walls.update_walls(delta)
+	_front_walls.update_walls(delta, nodes)
 	_sight_lights.update_sights()
 
 

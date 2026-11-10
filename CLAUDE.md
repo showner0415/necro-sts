@@ -30,7 +30,7 @@
 - Godot 4.7 (4.7.2 stable), GDScript만 사용한다. C#은 쓰지 않는다.
 - 타입을 명시한다: `var speed: float = 3.0`, `func take_damage(amount: float) -> void:`
 - Godot 3 문법 금지: `export var`, `onready var`, `yield`, `KinematicBody2D/3D`, `connect("signal", self, "method")` 등.
-- 시점은 2D 탑다운으로 확정했다 (`docs/art-direction.md`). 노드는 2D 계열(`Node2D`, `CharacterBody2D` 등)을 쓴다.
+- 시점은 2.5D로 확정했다 (`docs/art-direction.md`). 게임 규칙(몸, 이동, 충돌, 길찾기, 시야 판정)의 노드는 2D 계열(`Node2D`, `CharacterBody2D` 등)을 쓰고, 보이는 것은 `view_3d/`의 3D 층이 2D 노드를 읽어서 그린다. 3D 층은 규칙에 조준 위치와 이동 입력의 회전만 돌려준다. 헤드리스(테스트·측정)에서는 3D 층을 붙이지 않는다.
 
 ## 코드 구조
 
