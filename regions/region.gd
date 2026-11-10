@@ -65,6 +65,8 @@ func _ready() -> void:
 	_hud.hotbar_view.bind(GameState.hotbar, _necromancer.summoner.roster)
 	if data != null and data.limit_vision:
 		_add_vision()
+	if wants_view_3d():
+		add_view_3d()
 
 	for node: Node in find_children("*", "EscapePoint", true, false):
 		var point: EscapePoint = node as EscapePoint
@@ -198,3 +200,22 @@ func _add_vision() -> void:
 ## 확인용: 이 지역의 시야 (시야 제한이 없는 지역이면 null)
 func get_vision() -> Vision:
 	return get_node_or_null("Vision") as Vision
+
+
+## 이 지역을 3D 화면 층으로 그릴지. 헤드리스(테스트·측정)에서는 규칙만 돌리므로 그리지 않는다.
+func wants_view_3d() -> bool:
+	return data != null and data.view_3d and DisplayServer.get_name() != "headless"
+
+
+## 3D 화면 층을 붙인다.
+func add_view_3d() -> RegionView3D:
+	var view: RegionView3D = RegionView3D.new()
+	view.name = "RegionView3D"
+	view.setup(_necromancer)
+	add_child(view)
+	return view
+
+
+## 이 지역의 3D 화면 층 (없으면 null)
+func get_view_3d() -> RegionView3D:
+	return get_node_or_null("RegionView3D") as RegionView3D
