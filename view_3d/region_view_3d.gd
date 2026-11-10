@@ -17,7 +17,7 @@ const TERRAIN_SHADER: String = "res://view_3d/terrain.gdshader"
 const STAMINA_RING_PATH: String = "StaminaRing"
 
 ## 카메라가 아래로 기운 각도 (도)
-@export var pitch_degrees: float = 70.0
+@export var pitch_degrees: float = 60.0
 ## 화면이 맵 기준으로 돌아간 각도 (도)
 @export var yaw_degrees: float = 45.0
 ## 화각 (도)
@@ -27,7 +27,7 @@ const STAMINA_RING_PATH: String = "StaminaRing"
 ## 카메라 깊이를 맞출 격자 (단위, 0이면 맞추지 않음). 몸 위치의 아주 작은 흔들림이 벽 경계 픽셀을 뒤집지 않게 한다
 @export var depth_step: float = 1.0 / 256.0
 ## 벽 높이 (픽셀)
-@export var wall_height_px: float = 96.0
+@export var wall_height_px: float = 128.0
 ## 앞벽을 잘라낸 자리에 보이는 낮은 윗면 높이 (픽셀). 지형 셰이더의 cut_keep_height(0.2칸 = 6.4픽셀)보다 조금 낮다
 @export var cut_cap_height_px: float = 6.08
 ## 지형 구역 한 변의 칸 수
