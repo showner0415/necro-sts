@@ -33,6 +33,18 @@ func _cells(rows: Array[String]) -> TerrainCells:
 	return cells
 
 
+func test_interior_wall_tops_merge_in_a_row() -> void:
+	mesher.build(_cells(["#####", "#####", "#####"]), CHUNK, WALL_HEIGHT)
+	assert_eq(mesher.quad_count, 12 + 1 + 16, "가장자리 윗면 12 + 사방이 벽인 3칸은 하나 + 바깥 앞면 16")
+
+
+func test_interior_runs_break_on_a_different_color() -> void:
+	var cells: TerrainCells = _cells(["#####", "#####", "#####"])
+	cells.top_colors[cells.index_of(2, 1)] = FLOOR_COLOR
+	mesher.build(cells, CHUNK, WALL_HEIGHT)
+	assert_eq(mesher.quad_count, 12 + 3 + 16, "가운데 칸 색이 다르면 합치지 않음")
+
+
 func test_caps_merge_runs_of_same_colored_walls() -> void:
 	mesher.build(_cells(["###", ".#."]), CHUNK, WALL_HEIGHT, 6.0)
 	var without_caps: int = TerrainMesher.new().build(_cells(["###", ".#."]), CHUNK, WALL_HEIGHT).size()
@@ -98,10 +110,14 @@ func test_triangles_face_their_normals() -> void:
 	var arrays: Array = mesher.build(_cells(["#."]), CHUNK, WALL_HEIGHT)[0].surface_get_arrays(0)
 	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
 	var wrong: int = 0
-	for i: int in range(0, vertices.size(), 3):
+	for i: int in range(0, indices.size(), 3):
+		var a: Vector3 = vertices[indices[i]]
+		var b: Vector3 = vertices[indices[i + 1]]
+		var c: Vector3 = vertices[indices[i + 2]]
 		# Godot의 앞면은 시계 방향이다: (b - a) × (c - a)가 법선의 반대쪽이어야 한다.
-		if (vertices[i + 1] - vertices[i]).cross(vertices[i + 2] - vertices[i]).dot(normals[i]) >= 0.0:
+		if (b - a).cross(c - a).dot(normals[indices[i]]) >= 0.0:
 			wrong += 1
 	assert_eq(wrong, 0, "모든 삼각형이 법선 쪽에서 앞면")
 

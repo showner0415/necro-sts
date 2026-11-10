@@ -47,6 +47,8 @@ var rules: VisionRules = VisionRules.new()
 var active: bool = true
 ## 확인용: ZERO가 아니면 마우스 대신 이 방향을 바라본다 (스크린샷·시나리오)
 var facing_override: Vector2 = Vector2.ZERO
+## true면 2D 벽 그림자 모양을 만들지 않는다. 3D 화면 층을 쓰는 지역이면 트리에 넣기 전에 켠다
+var skip_2d_shapes: bool = false
 ## 확인용: 마지막 프레임 처리에 걸린 시간 (마이크로초)
 var last_update_usec: int = 0
 ## 확인용: 벽 그림자 모양 수 (합치기 전 칸 수, 합친 뒤 사각형 수)와 준비(_ready)에 걸린 시간 (마이크로초)
@@ -81,7 +83,9 @@ func _ready() -> void:
 	rules.view_range = light_radius
 	if _walls != null:
 		rules.set_walls(_walls.wall_grid(), _walls.grid_size(), _walls.tile_size, _walls.global_position)
-		occluder_counts = _walls.add_light_occluders(wall_rim, occluder_depth, terrain_light_mask)
+		# 3D 화면에서는 벽 그림자를 3D 빛이 만든다. 2D 그림자 모양은 2배 맵에서 만드는 데 오래 걸린다.
+		if not skip_2d_shapes:
+			occluder_counts = _walls.add_light_occluders(wall_rim, occluder_depth, terrain_light_mask)
 	for item: CanvasItem in _terrain:
 		_set_light_mask(item)
 	_light = _make_light(_light_texture(light_radius, full_angle, total_angle, near_radius, near_fade), 1.0)

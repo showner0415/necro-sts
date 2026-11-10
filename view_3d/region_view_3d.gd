@@ -3,6 +3,7 @@ extends Node3D
 ## 2D 규칙 세계를 읽어서 3D로 그리는 층. 규칙(이동, 충돌, 시야 판정)은 2D 그대로이고, 이 층은 규칙에 조준 위치와 이동 입력의 회전만 돌려준다.
 ## 지역 데이터의 view_3d가 켜진 지역에 Region이 붙인다. 헤드리스(테스트·측정)에서는 붙이지 않는다.
 ## 2D 세계는 숨겨 둔다.
+## - 팔레트: PalettePass가 3D 화면의 색을 팔레트로 맞춘다
 ## - 시야: SightLights가 플레이어·언데드 빛으로 지형을 밝힌다. 무엇이 보이는지는 2D 판정(Vision)이 정한다
 ## - 바닥 표시: GroundMarks가 2D 그리기 코드를 캔버스에 그려 바닥에 입힌다
 ## - 도넛·키 안내: ScreenAnchors가 화면 픽셀 그대로 몸 곁에 놓는다
@@ -43,6 +44,7 @@ var mouse_override: Vector2 = Vector2.INF
 var _necromancer: Necromancer
 var _vision: Vision
 var _sight_lights: SightLights
+var _palette: PalettePass
 var _camera: Camera3D
 ## 카메라 방향. 프레임마다 노드에서 다시 읽으면 값이 마지막 비트만큼 흔들려서, 회전을 바꿀 때 한 번만 읽는다
 var _camera_basis: Basis = Basis.IDENTITY
@@ -56,6 +58,8 @@ var _lead_offset: Vector2 = Vector2.ZERO
 var _terrain_chunks: Array[MeshInstance3D] = []
 var _terrain_quads: int = 0
 var _terrain_build_usec: int = 0
+## 그중 칸을 읽고 메시를 만들 때까지 걸린 시간
+var _terrain_mesh_usec: int = 0
 
 
 ## add_child 전에 부른다. vision은 시야가 없는 지역이면 null이다.
@@ -92,6 +96,8 @@ func _ready() -> void:
 	add_child(_sight_lights)
 	if _vision != null:
 		_vision.disable_2d_lights()
+	_palette = PalettePass.new()
+	add_child(_palette)
 	_hide_2d_world()
 
 
@@ -168,6 +174,10 @@ func get_front_walls() -> FrontWalls:
 	return _front_walls
 
 
+func get_palette() -> PalettePass:
+	return _palette
+
+
 ## 시야 (시야가 없는 지역이면 null)
 func get_vision() -> Vision:
 	return _vision
@@ -208,6 +218,11 @@ func _world_nodes() -> Array[Node2D]:
 	return nodes
 
 
+## 확인용: 지형 메시를 만드는 데 걸린 시간 (마이크로초, 노드 만들기 제외)
+func get_terrain_mesh_usec() -> int:
+	return _terrain_mesh_usec
+
+
 ## 지역의 임시 바닥·벽마다 구역별 메시를 만든다. 지형 재질을 돌려준다.
 func _build_terrain() -> ShaderMaterial:
 	var started: int = Time.get_ticks_usec()
@@ -225,7 +240,9 @@ func _build_terrain() -> ShaderMaterial:
 			cells = TerrainCells.from_walls(child as PlaceholderWalls)
 		if cells == null:
 			continue
-		for mesh: ArrayMesh in mesher.build(cells, chunk_cells, wall_height_px, cut_cap_height_px):
+		var meshes: Array[ArrayMesh] = mesher.build(cells, chunk_cells, wall_height_px, cut_cap_height_px)
+		_terrain_mesh_usec += Time.get_ticks_usec() - started
+		for mesh: ArrayMesh in meshes:
 			var chunk: MeshInstance3D = MeshInstance3D.new()
 			chunk.mesh = mesh
 			chunk.material_override = material

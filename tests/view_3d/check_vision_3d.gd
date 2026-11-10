@@ -7,7 +7,8 @@ extends View3DCheck
 ## 4. 상자: 시야 밖이면 어둡고 앞벽을 반투명하게 하지 않으며, 시야 안이면 밝고 반투명하게 한다
 ## 5. 잘라내기 반경을 키로 바꾼다
 ## 6. [측정] 앞벽 뒤 바닥의 예고 표시가 몇 픽셀 보이는지 (--marks만 주면 이것만 잰다)
-## 7. [측정] 언데드 0마리·8마리의 프레임 시간
+## 7. 팔레트 후처리를 켜면 모든 픽셀이 팔레트 안의 색이다
+## 8. [측정] 트인 곳과 벽이 촘촘한 곳의 언데드 0마리·8마리 프레임 시간
 
 const SCENE: String = "res://regions/shallow_cave.tscn"
 const SETTLE_FRAMES: int = 20
@@ -24,6 +25,10 @@ const BRIGHTNESS_TOLERANCE: float = 0.04
 ## 측정: 화면에서 밝기를 볼 거리 (월드 픽셀)
 const FAN_POINT: float = 96.0
 const UNDEAD_COUNT: int = 8
+## 벽이 촘촘한 곳 찾기: 바닥 칸을 건너뛰는 간격, 둘레 반지름과 표본 간격 (칸)
+const DENSE_STEP: int = 7
+const DENSE_RADIUS: int = 12
+const DENSE_SAMPLE: int = 2
 const FRAME_SAMPLES: int = 240
 const CHEST_FADE_FRAMES: int = 30
 ## 앞벽 뒤 예고 측정: 시제품 굴의 남쪽 벽(15줄부터) 바로 위 바닥 자리들 (칸)
@@ -85,6 +90,7 @@ func _on_scene_ready() -> void:
 	await _check_agreement()
 	await _check_brightness()
 	await _check_chest()
+	await _check_palette()
 	await _check_radius_keys()
 	await _measure_frame_time()
 	finish(true)
@@ -266,6 +272,54 @@ func _check_radius_keys() -> void:
 	pass_step("반경 키", "] 로 플레이어 %.0f → %.0f, - 로 조준점 %.0f → %.0f" % [player_before, front_walls.cut_radius_player, aim_before, front_walls.cut_radius_aim])
 
 
+## 팔레트 후처리를 켜면 화면(HUD 숨김)의 모든 픽셀이 팔레트 + 어두운 단계 안의 색이다.
+func _check_palette() -> void:
+	var palette: PalettePass = _view.get_palette()
+	palette.set_enabled(true)
+	await _set_pose(_open_floor(), Vector2.RIGHT)
+	var image: Image = await capture()
+	palette.set_enabled(false)
+	var allowed: Array[Color] = palette.get_colors()
+	var used: Dictionary = {}
+	var outside: int = 0
+	var checked_colors: Dictionary = {}
+	for y: int in image.get_height():
+		for x: int in image.get_width():
+			var pixel: Color = image.get_pixel(x, y)
+			var key: int = pixel.to_rgba32()
+			if not checked_colors.has(key):
+				var inside: bool = false
+				for color: Color in allowed:
+					if colors_close(pixel, color):
+						inside = true
+						break
+				checked_colors[key] = inside
+			if not checked_colors[key]:
+				outside += 1
+			used[key] = true
+	if outside > 0:
+		fail_step("팔레트", "팔레트 밖 픽셀 %d개" % outside)
+		return
+	pass_step("팔레트", "모든 픽셀이 팔레트 안, 화면에 쓰인 색 %d가지 / 팔레트 %d가지" % [used.size(), allowed.size()])
+
+
+## 둘레에 벽이 가장 많은 바닥 칸 (그림자 빛이 가장 무거운 자리)
+func _dense_floor() -> Vector2:
+	var best: Vector2i = _floors[0]
+	var best_count: int = -1
+	for i: int in range(0, _floors.size(), DENSE_STEP):
+		var cell: Vector2i = _floors[i]
+		var count: int = 0
+		for dy: int in range(-DENSE_RADIUS, DENSE_RADIUS + 1, DENSE_SAMPLE):
+			for dx: int in range(-DENSE_RADIUS, DENSE_RADIUS + 1, DENSE_SAMPLE):
+				if _cells.is_wall(cell.x + dx, cell.y + dy):
+					count += 1
+		if count > best_count:
+			best_count = count
+			best = cell
+	return _cell_center(best)
+
+
 func _median_frame_usec() -> float:
 	var samples: Array[int] = []
 	var last: int = Time.get_ticks_usec()
@@ -281,21 +335,24 @@ func _median_frame_usec() -> float:
 func _measure_frame_time() -> void:
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
 	Engine.max_fps = 0
-	var open: Vector2 = _open_floor()
-	await _set_pose(open, Vector2.RIGHT)
-	var alone: float = await _median_frame_usec()
-	var undead_list: Array[Undead] = []
-	for i: int in UNDEAD_COUNT:
-		var undead: Undead = _spawn_undead(open + Vector2.from_angle(i * TAU / UNDEAD_COUNT) * 40.0)
-		undead.process_mode = Node.PROCESS_MODE_DISABLED
-		undead.facing = Vector2.from_angle(i * TAU / UNDEAD_COUNT)
-		undead_list.append(undead)
-	await wait_frames(SETTLE_FRAMES)
-	var with_undead: float = await _median_frame_usec()
-	for undead: Undead in undead_list:
-		undead.free()
-	print("[측정] 프레임 시간 중앙값: 플레이어 빛만 %.2fms, 언데드 %d마리 %.2fms (+%.2fms)" % [alone / 1000.0, UNDEAD_COUNT, with_undead / 1000.0, (with_undead - alone) / 1000.0])
-	await wait_frames(2)
+	_view.get_palette().set_enabled(true)
+	for spot: Array in [["트인 곳", _open_floor()], ["벽이 촘촘한 곳", _dense_floor()]]:
+		var at: Vector2 = spot[1]
+		await _set_pose(at, Vector2.RIGHT)
+		var alone: float = await _median_frame_usec()
+		var undead_list: Array[Undead] = []
+		for i: int in UNDEAD_COUNT:
+			var undead: Undead = _spawn_undead(at + Vector2.from_angle(i * TAU / UNDEAD_COUNT) * 40.0)
+			undead.process_mode = Node.PROCESS_MODE_DISABLED
+			undead.facing = Vector2.from_angle(i * TAU / UNDEAD_COUNT)
+			undead_list.append(undead)
+		await wait_frames(SETTLE_FRAMES)
+		var with_undead: float = await _median_frame_usec()
+		for undead: Undead in undead_list:
+			undead.free()
+		print("[측정] 프레임 시간 중앙값 (%s, 팔레트 켬): 플레이어 빛만 %.2fms, 언데드 %d마리 %.2fms (+%.2fms)" % [spot[0], alone / 1000.0, UNDEAD_COUNT, with_undead / 1000.0, (with_undead - alone) / 1000.0])
+		await wait_frames(2)
+	_view.get_palette().set_enabled(false)
 
 
 ## 앞벽(남쪽 벽) 바로 뒤 바닥의 돌진 선과 돌 원이 몇 자리나 보이는지 잰다. 잘라내기가 닿지 않게 네크로맨서는 멀리 둔다.

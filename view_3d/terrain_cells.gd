@@ -22,16 +22,24 @@ static func from_walls(source: PlaceholderWalls) -> TerrainCells:
 	cells.tile_size = source.tile_size
 	cells.face_color = source.face_color
 	cells._allocate()
+	# 2배 맵은 칸이 11만 개라 글자 대신 글자 코드로 찾는다.
+	var wall_colors: Dictionary = {}
+	for c: String in source.wall_colors.keys():
+		wall_colors[c.unicode_at(0)] = source.wall_colors[c]
+	var floor_colors: Dictionary = {}
+	for c: String in source.floor_colors.keys():
+		floor_colors[c.unicode_at(0)] = source.floor_colors[c]
+	var grid: PackedByteArray = source.wall_grid()
 	for y: int in cells.size.y:
-		for x: int in cells.size.x:
-			var cell: Vector2i = Vector2i(x, y)
-			var c: String = source.get_char(cell)
+		var line: String = source.layout[y]
+		for x: int in line.length():
 			var index: int = cells.index_of(x, y)
-			if source.is_wall(cell):
+			var code: int = line.unicode_at(x)
+			if grid[index] == 1:
 				cells.walls[index] = 1
-				cells.top_colors[index] = source.wall_colors.get(c, source.top_color)
-			elif source.floor_colors.has(c):
-				var pair: PackedColorArray = source.floor_colors[c]
+				cells.top_colors[index] = wall_colors.get(code, source.top_color)
+			elif floor_colors.has(code):
+				var pair: PackedColorArray = floor_colors[code]
 				cells.top_colors[index] = pair[(x + y) % pair.size()]
 	return cells
 

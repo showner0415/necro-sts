@@ -13,6 +13,8 @@ func open_layer() -> RegionView3D:
 	if proto != null:
 		proto.free()
 	var view: RegionView3D = current_scene.call(&"add_view_3d")
+	# 색을 2D 색과 비교하는 검사들이므로 팔레트 후처리는 끈다 (팔레트 자체는 check_vision_3d.gd가 본다).
+	view.get_palette().set_enabled(false)
 	(current_scene.get_node("HUD") as CanvasLayer).visible = false
 	return view
 
