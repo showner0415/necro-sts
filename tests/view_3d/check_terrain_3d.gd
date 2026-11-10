@@ -34,6 +34,10 @@ func _on_scene_ready() -> void:
 	_necromancer.process_mode = Node.PROCESS_MODE_DISABLED
 	for node: Node in get_nodes_in_group(&"monsters"):
 		node.process_mode = Node.PROCESS_MODE_DISABLED
+	# 칸 색을 2D 색과 비교하므로 시야로 어두워지지 않게 끈다.
+	var vision: Vision = current_scene.call(&"get_vision") if current_scene.has_method(&"get_vision") else null
+	if vision != null:
+		vision.set_active(false)
 	_view = current_scene.call(&"add_view_3d")
 	_view.aim_lead.strength = 0.0
 	(current_scene.get_node("HUD") as CanvasLayer).visible = false

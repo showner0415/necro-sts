@@ -2,10 +2,11 @@ class_name RegionView3D
 extends Node3D
 ## 2D 규칙 세계를 읽어서 3D로 그리는 층. 규칙(이동, 충돌, 시야 판정)은 2D 그대로이고, 이 층은 규칙에 조준 위치와 이동 입력의 회전만 돌려준다.
 ## 지역 데이터의 view_3d가 켜진 지역에 Region이 붙인다. 헤드리스(테스트·측정)에서는 붙이지 않는다.
-## 지금은 카메라, 조준 변환, 화면 기준 이동, 지형, 몸, 앞벽 처리, 바닥 표시, 탄, 스태미나 도넛까지 있다. 시야는 다음 단계에서 더한다. 2D 세계는 숨겨 둔다.
+## 2D 세계는 숨겨 둔다.
+## - 시야: SightLights가 플레이어·언데드 빛으로 지형을 밝힌다. 무엇이 보이는지는 2D 판정(Vision)이 정한다
 ## - 바닥 표시: GroundMarks가 2D 그리기 코드를 캔버스에 그려 바닥에 입힌다
 ## - 도넛·키 안내: ScreenAnchors가 화면 픽셀 그대로 몸 곁에 놓는다
-## - 지형: 임시 벽·바닥과 같은 칸과 색으로 구역별 메시를 만든다 (TerrainCells, TerrainMesher). 빛은 시야 단계에서 넣고, 지금은 원래 색 그대로 그린다
+## - 지형: 임시 벽·바닥과 같은 칸과 색으로 구역별 메시를 만든다 (TerrainCells, TerrainMesher). 그림자는 같은 메시를 그림자 전용으로 한 번 더 쓴다 (앞벽을 잘라도 그림자는 그대로)
 ## - 몸: BodyLayer가 2D 노드를 읽어 카메라를 정면으로 보는 사각형으로 그린다
 ## - 앞벽: FrontWalls가 플레이어·조준점 앞은 잘라내고, 보이는 몸 앞은 반투명하게 한다
 ## - 조준: 화면 광선과 탄 높이 평면의 교점을 2D 위치로 바꾼다
@@ -38,6 +39,8 @@ var aim_lead: AimLead = AimLead.new()
 var aim_override: Vector2 = Vector2.INF
 
 var _necromancer: Necromancer
+var _vision: Vision
+var _sight_lights: SightLights
 var _camera: Camera3D
 ## 카메라 방향. 프레임마다 노드에서 다시 읽으면 값이 마지막 비트만큼 흔들려서, 회전을 바꿀 때 한 번만 읽는다
 var _camera_basis: Basis = Basis.IDENTITY
@@ -53,9 +56,10 @@ var _terrain_quads: int = 0
 var _terrain_build_usec: int = 0
 
 
-## add_child 전에 부른다.
-func setup(necromancer: Necromancer) -> void:
+## add_child 전에 부른다. vision은 시야가 없는 지역이면 null이다.
+func setup(necromancer: Necromancer, vision: Vision) -> void:
 	_necromancer = necromancer
+	_vision = vision
 
 
 func _ready() -> void:
@@ -81,6 +85,11 @@ func _ready() -> void:
 	_front_walls = FrontWalls.new()
 	_front_walls.setup(self, _bodies, _necromancer, terrain_material)
 	add_child(_front_walls)
+	_sight_lights = SightLights.new()
+	_sight_lights.setup(_vision, _necromancer, [terrain_material, _marks.get_material()] as Array[ShaderMaterial])
+	add_child(_sight_lights)
+	if _vision != null:
+		_vision.disable_2d_lights()
 	_hide_2d_world()
 
 
@@ -89,10 +98,11 @@ func _process(delta: float) -> void:
 		return
 	_update_camera(delta)
 	var nodes: Array[Node2D] = _world_nodes()
-	_bodies.sync_bodies(nodes)
+	_bodies.sync_bodies(nodes, delta)
 	_marks.sync_marks(nodes, aim_from_screen(get_viewport().get_visible_rect().size * 0.5))
 	_anchors.sync_anchors(nodes)
 	_front_walls.update_walls(delta)
+	_sight_lights.update_sights()
 
 
 ## 화면 회전을 바꾼다. 이동 입력도 같이 돌아간다 (8방향 그림은 BodyLayer가 프레임마다 맞춘다).
@@ -150,6 +160,11 @@ func get_front_walls() -> FrontWalls:
 	return _front_walls
 
 
+## 시야 (시야가 없는 지역이면 null)
+func get_vision() -> Vision:
+	return _vision
+
+
 ## 몸 그림이 화면에서 차지하는 사각형 (검사용)
 func get_see_rect(node: Node2D) -> Rect2:
 	return _bodies.get_see_rect(node)
@@ -190,6 +205,9 @@ func _build_terrain() -> ShaderMaterial:
 	var started: int = Time.get_ticks_usec()
 	var material: ShaderMaterial = ShaderMaterial.new()
 	material.shader = load(TERRAIN_SHADER)
+	var shadow_material: StandardMaterial3D = StandardMaterial3D.new()
+	# 빛 쪽 면을 빼고 그림자를 만들어, 빛을 받는 벽 앞면과 바닥에 얼룩이 지지 않게 한다.
+	shadow_material.cull_mode = BaseMaterial3D.CULL_FRONT
 	var mesher: TerrainMesher = TerrainMesher.new()
 	for child: Node in get_parent().get_children():
 		var cells: TerrainCells = null
@@ -206,6 +224,11 @@ func _build_terrain() -> ShaderMaterial:
 			chunk.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			add_child(chunk)
 			_terrain_chunks.append(chunk)
+			var shadow: MeshInstance3D = MeshInstance3D.new()
+			shadow.mesh = mesh
+			shadow.material_override = shadow_material
+			shadow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+			add_child(shadow)
 		_terrain_quads += mesher.quad_count
 	_terrain_build_usec = Time.get_ticks_usec() - started
 	return material

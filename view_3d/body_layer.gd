@@ -29,7 +29,7 @@ func setup(view: RegionView3D) -> void:
 
 
 ## nodes 중 몸마다 사각형을 하나 두고 프레임마다 옮긴다. 사라진 것은 지운다.
-func sync_bodies(nodes: Array[Node2D]) -> void:
+func sync_bodies(nodes: Array[Node2D], delta: float) -> void:
 	var alive: Dictionary = {}
 	for node: Node2D in nodes:
 		if node.is_queued_for_deletion() or not _is_body(node):
@@ -37,7 +37,7 @@ func sync_bodies(nodes: Array[Node2D]) -> void:
 		alive[node] = true
 		if not _visuals.has(node):
 			_visuals[node] = _make_visual(node)
-		_update_visual(node, _visuals[node])
+		_update_visual(node, _visuals[node], delta)
 	for node: Variant in _visuals.keys():
 		if not alive.has(node):
 			(_visuals[node] as _Visual).quad.queue_free()
@@ -61,6 +61,11 @@ func get_see_rect(node: Node2D) -> Rect2:
 		_used_rects[visual.texture] = image.get_used_rect() if image != null else Rect2i(Vector2i.ZERO, Vector2i(visual.texture.get_size()))
 	var used: Rect2i = _used_rects[visual.texture]
 	return Rect2(feet + visual.offset + Vector2(used.position), Vector2(used.size))
+
+
+## 상자가 시야 안에 있는 정도 (0~1). 앞벽 처리가 쓴다.
+func get_chest_sight(node: Node2D) -> float:
+	return maxf((_visuals[node] as _Visual).sight, 0.0) if _visuals.has(node) else 0.0
 
 
 ## 확인용: 몸의 3D 사각형 (없으면 null)
@@ -96,18 +101,40 @@ func _make_visual(node: Node2D) -> _Visual:
 	return visual
 
 
-func _update_visual(node: Node2D, visual: _Visual) -> void:
+func _update_visual(node: Node2D, visual: _Visual, delta: float) -> void:
 	var tint: Color = _read_art(node, visual)
+	if node is InteractZone:
+		_update_chest_sight(node, visual, delta)
 	var size: Vector2 = visual.texture.get_size()
 	visual.material.set_shader_parameter(&"sprite_texture", visual.texture)
 	visual.material.set_shader_parameter(&"sprite_size", size)
 	# 2D offset은 왼쪽 위 기준(아래가 +y), 셰이더는 왼쪽 아래 기준(위가 +y)이다.
 	visual.material.set_shader_parameter(&"sprite_offset", Vector2(visual.offset.x, -(size.y + visual.offset.y)))
 	# Color로 넘기면 선형으로 바뀌어 들어가므로, 2D와 같은 sRGB 값을 Vector4로 넘긴다.
-	var color: Color = tint * node.modulate
+	# 상자는 지형처럼 시야로 어둡고 밝아진다. 몸은 2D 노드의 투명도·번쩍임을 따른다.
+	var color: Color = tint * _chest_brightness(visual) if node is InteractZone else tint * node.modulate
 	visual.material.set_shader_parameter(&"tint", Vector4(color.r, color.g, color.b, color.a))
 	visual.quad.global_position = _view.snap_to_pixels(_position_3d(node))
 	visual.quad.visible = node.visible
+
+
+## 상자가 시야 안에 있는 정도를 fade_time에 걸쳐 옮긴다. 시야가 없거나 꺼져 있으면 언제나 보인다.
+func _update_chest_sight(node: Node2D, visual: _Visual, delta: float) -> void:
+	var vision: Vision = _view.get_vision()
+	var target: float = 1.0 if vision == null or vision.is_visible_at(node.global_position) else 0.0
+	if visual.sight < 0.0:
+		visual.sight = target
+	elif vision != null and vision.fade_time > 0.0:
+		visual.sight = move_toward(visual.sight, target, delta / vision.fade_time)
+	else:
+		visual.sight = target
+
+
+func _chest_brightness(visual: _Visual) -> Color:
+	var vision: Vision = _view.get_vision()
+	var dark: float = vision.darkness if vision != null and vision.active else 1.0
+	var level: float = lerpf(dark, 1.0, maxf(visual.sight, 0.0))
+	return Color(level, level, level, 1.0)
 
 
 ## 몸을 놓을 3D 위치. 탄·돌은 2D에서 높이만큼 위쪽 자리에 있으므로 되돌리고 그 높이에 놓는다.
@@ -167,3 +194,5 @@ class _Visual:
 	var sprite: FacingSprite
 	var texture: Texture2D
 	var offset: Vector2 = Vector2.ZERO
+	## 상자가 시야 안에 있는 정도 (처음에는 -1)
+	var sight: float = -1.0

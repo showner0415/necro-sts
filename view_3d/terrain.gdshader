@@ -1,7 +1,9 @@
 shader_type spatial;
-// 3D 지형: 정점 색(sRGB) 그대로 칠한다. 빛은 시야 단계에서 넣는다.
+// 3D 지형: 정점 색(sRGB)을 시야로 밝힌다. 빛이 없으면 terrain_dark배로 어둡고, 빛을 받으면 원래 색까지 밝아진다.
 // 앞벽 처리: 플레이어와 조준점 앞의 벽은 잘라내고, 시야에 보이는 물체 앞의 벽은 반투명하다. 세기는 FrontWalls가 서서히 바꿔 넣는다.
-render_mode unshaded, cull_back;
+render_mode cull_back, specular_disabled, ambient_light_disabled;
+
+#include "res://view_3d/sight.gdshaderinc"
 
 // 잘라내기 자리: 화면 위치(xy), 반지름(z, 화면 픽셀), 세기(w, 0~1). 월드 위치는 앞벽(카메라 쪽 벽)인지 가릴 때 쓴다.
 // 반투명 자리: 그림의 화면 사각형 가운데(xy)와 반폭(zw, 화면 픽셀). 세기는 see_weights
@@ -51,12 +53,11 @@ float dither(vec2 frag) {
 	return PATTERN[pixel.y * 4 + pixel.x];
 }
 
-vec3 srgb_to_linear(vec3 color) {
-	return mix(pow((color + vec3(0.055)) / 1.055, vec3(2.4)), color / 12.92, lessThan(color, vec3(0.04045)));
-}
-
 void fragment() {
-	ALBEDO = srgb_to_linear(COLOR.rgb);
+	// 어두운 색은 언제나 있고, 빛은 원래 색과의 차이를 채운다 (빛을 다 받으면 정확히 원래 색).
+	vec3 dim = srgb_to_linear(COLOR.rgb * terrain_dark);
+	EMISSION = dim;
+	ALBEDO = srgb_to_linear(COLOR.rgb) - dim;
 	if (world_position.y > cut_keep_height) {
 		float cut = 0.0;
 		float see = 0.0;
@@ -69,5 +70,11 @@ void fragment() {
 		if (max(cut, see * see_through_strength) > dither(FRAGCOORD.xy)) {
 			discard;
 		}
+	}
+}
+
+void light() {
+	if (dot(NORMAL, LIGHT) > 0.0) {
+		DIFFUSE_LIGHT += vec3(sight_value(LIGHT_COLOR, world_position.xz) * ATTENUATION);
 	}
 }

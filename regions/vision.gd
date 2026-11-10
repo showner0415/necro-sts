@@ -53,6 +53,8 @@ var last_update_usec: int = 0
 var occluder_counts: Vector2i = Vector2i.ZERO
 var setup_usec: int = 0
 
+## false면 2D 빛을 켜지 않는다 (3D 화면 층이 지형을 밝힌다)
+var _draw_2d_lights: bool = true
 var _necromancer: Necromancer
 var _walls: PlaceholderWalls
 var _terrain: Array[CanvasItem] = []
@@ -95,12 +97,34 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+## 3D 화면 층이 지형을 밝히면 2D 빛은 그릴 것이 없으므로 끈다. 보임 판정은 그대로 돈다.
+func disable_2d_lights() -> void:
+	_draw_2d_lights = false
+	_apply_2d_lights()
+
+
+func get_origin() -> Vector2:
+	return _origin
+
+
+func get_facing() -> Vector2:
+	return _facing
+
+
+## 지형을 밝힐 언데드들 (네크로맨서에게 가까운 순서로 limit마리까지)
+func get_lit_undead(limit: int) -> Array[Undead]:
+	var list: Array[Undead] = []
+	for undead: Variant in _undead_lights.keys():
+		if is_instance_valid(undead):
+			list.append(undead as Undead)
+	list.sort_custom(func(a: Undead, b: Undead) -> bool: return a.global_position.distance_squared_to(_origin) < b.global_position.distance_squared_to(_origin))
+	return list.slice(0, limit)
+
+
 ## 시야 규칙을 켜거나 끈다 (끄면 지형이 원래 밝기이고 모두 보인다).
 func set_active(value: bool) -> void:
 	active = value
-	_light.enabled = active
-	for light: PointLight2D in _undead_lights.values():
-		light.enabled = active
+	_apply_2d_lights()
 	_apply_darkness()
 	if not active:
 		for node: Node in _hideable():
@@ -206,8 +230,14 @@ func _make_light(texture: Texture2D, brightness: float) -> PointLight2D:
 	light.shadow_enabled = true
 	light.shadow_filter = Light2D.SHADOW_FILTER_NONE
 	light.shadow_item_cull_mask = terrain_light_mask
-	light.enabled = active
+	light.enabled = active and _draw_2d_lights
 	return light
+
+
+func _apply_2d_lights() -> void:
+	_light.enabled = active and _draw_2d_lights
+	for light: PointLight2D in _undead_lights.values():
+		light.enabled = active and _draw_2d_lights
 
 
 func _hideable() -> Array[Node]:

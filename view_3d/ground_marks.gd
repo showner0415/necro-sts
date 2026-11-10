@@ -6,6 +6,8 @@ extends Node3D
 ## - 2D 선 두께가 1픽셀이어도 비스듬한 바닥에서 끊기지 않게, 월드 1픽셀을 캔버스 texels_per_pixel픽셀로 그린다
 
 const SHADER_PATH: String = "res://view_3d/ground_marks.gdshader"
+## 지형처럼 시야로 밝아지는 표시임을 셰이더에 알리는 알파 (8비트 한 단계 아래)
+const TERRAIN_MARK_ALPHA: float = 254.0 / 255.0
 
 ## 캔버스가 덮는 월드 크기 (픽셀, 한 변). 화면 대각선과 앞서 가기를 덮는다
 @export var world_size: int = 1280
@@ -39,6 +41,10 @@ func _ready() -> void:
 	add_child(_quad)
 
 
+func get_material() -> ShaderMaterial:
+	return _quad.material_override as ShaderMaterial
+
+
 ## nodes 중 표시가 있는 노드를 캔버스에 옮긴다. center: 캔버스 가운데 (월드 좌표, 화면 가운데가 보는 바닥)
 func sync_marks(nodes: Array[Node2D], center: Vector2) -> void:
 	var alive: Dictionary = {}
@@ -53,7 +59,8 @@ func sync_marks(nodes: Array[Node2D], center: Vector2) -> void:
 			_marks[node] = mark
 		var mark: _Mark = _marks[node]
 		mark.global_position = node.global_position
-		mark.modulate = node.modulate
+		# 탈출 지점·출구는 지형처럼 시야로 어둡고 밝아진다 (알파로 표시한다). 예고 표시는 몸의 투명도를 따른다.
+		mark.modulate = Color(1.0, 1.0, 1.0, TERRAIN_MARK_ALPHA) if node is EscapePoint or node is RegionExit else node.modulate
 		mark.visible = node.visible
 		mark.queue_redraw()
 	for node: Variant in _marks.keys():
