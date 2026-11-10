@@ -33,6 +33,8 @@ const STAMINA_RING_PATH: String = "StaminaRing"
 @export var cut_cap_height_px: float = 6.08
 ## 지형 구역 한 변의 칸 수
 @export var chunk_cells: int = 16
+## 새 동굴 지형(CaveTerrainMesher)을 쓸지. 기본은 끔, 켜려면 실행 인자 --cave_terrain이나 스크린샷 설정에서 켠다
+static var use_cave_terrain: bool = OS.get_cmdline_user_args().has("--cave_terrain")
 
 ## 카메라 앞서 가기 값 (나중에 설정에서 strength를 0까지 줄인다)
 var aim_lead: AimLead = AimLead.new()
@@ -240,13 +242,17 @@ func _build_terrain() -> ShaderMaterial:
 			continue
 		var meshes: Array[ArrayMesh] = mesher.build(cells, chunk_cells, wall_height_px, cut_cap_height_px)
 		_terrain_mesh_usec += Time.get_ticks_usec() - started
-		for mesh: ArrayMesh in meshes:
+		var visible_meshes: Array[ArrayMesh] = meshes
+		if use_cave_terrain and child is PlaceholderWalls:
+			visible_meshes = CaveTerrainMesher.build_for(child as PlaceholderWalls, get_parent().scene_file_path, chunk_cells, wall_height_px, cut_cap_height_px, meshes)
+		for mesh: ArrayMesh in visible_meshes:
 			var chunk: MeshInstance3D = MeshInstance3D.new()
 			chunk.mesh = mesh
 			chunk.material_override = material
 			chunk.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			add_child(chunk)
 			_terrain_chunks.append(chunk)
+		for mesh: ArrayMesh in meshes:
 			var shadow: MeshInstance3D = MeshInstance3D.new()
 			shadow.mesh = mesh
 			shadow.material_override = shadow_material
