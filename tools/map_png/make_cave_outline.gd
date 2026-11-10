@@ -45,13 +45,13 @@ func _initialize() -> void:
 	print("양쪽 끝이 있는 좁은 바닥 %d곳. 지나갈 수 있는 폭이 좁은 순서:" % chokes.size())
 	for entry: Dictionary in chokes.slice(0, REPORT_TAIL):
 		print("  칸 %s: %.0fpx (입력 칸 그대로면 %.0fpx)" % [entry.cell, entry.width, entry.png_width])
-	error = maxi(error, _bake(args.scene, data, walls))
+	error = maxi(error, _bake(args.scene, data, walls, args["in"], args.settings))
 	scene.free()
 	quit(0 if error == OK else 1)
 
 
 ## 구역별 메시를 구워 씬 옆에 저장한다.
-func _bake(scene_path: String, data: CaveOutlineData, walls: PlaceholderWalls) -> int:
+func _bake(scene_path: String, data: CaveOutlineData, walls: PlaceholderWalls, png_path: String, settings_path: String) -> int:
 	var view: RegionView3D = RegionView3D.new()
 	var height: float = view.wall_height_px
 	var cap: float = view.cut_cap_height_px
@@ -62,6 +62,9 @@ func _bake(scene_path: String, data: CaveOutlineData, walls: PlaceholderWalls) -
 	bake.meshes = CaveTerrainMesher.new().build(data, cells, walls, CHUNK_CELLS, height, cap)
 	bake.shadow_meshes = TerrainMesher.new().build(cells, CHUNK_CELLS, height, cap)
 	bake.triangles = CaveTerrainMesher.last_triangles
+	bake.source_png = png_path
+	bake.settings_path = settings_path
+	bake.fingerprint = CaveTerrainBake.compute_fingerprint(walls, png_path, data.settings, height, cap)
 	var stats: Dictionary = CaveTerrainMesher.stats
 	print("메시: %dms, 구역 %d, 삼각형 %d, 벽이 윤곽선에서 들어간 가장 큰 거리 %.1fpx, 나누지 못한 다각형 %d" % [Time.get_ticks_msec() - started, bake.meshes.size(), bake.triangles, CaveTerrainMesher.last_max_lean, stats.failed_polygons])
 	print("구간: 바닥 %dms %d삼각형 / 윗면 %dms %d삼각형 / 낮은 윗면 %dms %d삼각형 / 벽 면 %dms %d삼각형 (조각 %d) / 구역 메시 만들기 %dms" % [stats.floor_usec / 1000, stats.floor_tris, stats.top_usec / 1000, stats.top_tris, stats.cap_usec / 1000, stats.cap_tris, stats.face_usec / 1000, stats.face_tris, stats.faces, stats.mesh_usec / 1000])

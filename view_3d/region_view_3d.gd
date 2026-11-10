@@ -241,7 +241,7 @@ func _build_terrain() -> ShaderMaterial:
 		if cells == null:
 			continue
 		# 새 동굴 지형은 도구에서 미리 구운 파일을 불러오기만 한다.
-		var bake: CaveTerrainBake = CaveTerrainBake.load_for(get_parent().scene_file_path) if use_cave_terrain and child is PlaceholderWalls else null
+		var bake: CaveTerrainBake = CaveTerrainBake.load_for(get_parent().scene_file_path, child as PlaceholderWalls, wall_height_px, cut_cap_height_px) if use_cave_terrain and child is PlaceholderWalls else null
 		var meshes: Array[ArrayMesh] = bake.meshes if bake != null else mesher.build(cells, chunk_cells, wall_height_px, cut_cap_height_px)
 		var shadow_meshes: Array[ArrayMesh] = bake.active_shadow_meshes() if bake != null else meshes
 		_terrain_mesh_usec += Time.get_ticks_usec() - started

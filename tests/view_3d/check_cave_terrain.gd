@@ -17,9 +17,10 @@ func _on_scene_ready() -> void:
 	var walls: PlaceholderWalls = current_scene.get_node("Walls")
 	var view: RegionView3D = RegionView3D.new()
 	var height: float = view.wall_height_px
+	var cap: float = view.cut_cap_height_px
 	view.free()
 	var started: int = Time.get_ticks_usec()
-	var bake: CaveTerrainBake = CaveTerrainBake.load_for(SCENE)
+	var bake: CaveTerrainBake = CaveTerrainBake.load_for(SCENE, walls, height, cap)
 	var load_ms: float = (Time.get_ticks_usec() - started) / 1000.0
 	if bake == null:
 		fail_step("메시", "구운 파일이 없음")
