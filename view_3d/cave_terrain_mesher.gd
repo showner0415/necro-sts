@@ -1,58 +1,45 @@
 class_name CaveTerrainMesher
 extends RefCounted
-## 동굴 벽 윤곽(CaveOutlineData)으로 3D 지형 메시를 만든다. TerrainMesher를 대신해 눈에 보이는 메시만 만든다 (그림자 전용 메시는 칸 상자 그대로).
-## - 바닥: 평평하다. 바위뿐인 칸에는 없다
-## - 벽 윗면·낮은 윗면(앞벽을 잘라낸 자리): 윤곽의 마칭 스퀘어 삼각형을 깐다. 줄에서 이어진 바위는 합친다
-## - 벽 면: 윗면 가장자리의 조각마다 세운다. 맨 아래는 윤곽에 붙이고 위로 갈수록 바위 쪽으로만 들어간다
-## - 정점은 격자 값과 월드 위치만으로 정해지므로 구역 경계와 윗면 가장자리에 틈이 생기지 않는다
-## - 법선은 벽 면의 수평 방향(윤곽의 기울기), 윗면은 위쪽이다
+## 동굴 벽 윤곽선(CaveOutlineData.loops)으로 3D 지형 메시를 만든다. 도구(tools/map_png/make_cave_outline.gd)에서 미리 구워 두고, 게임은 불러오기만 한다.
+## - 바닥: 평평하다. 칸 하나에 사각형 하나. 바위뿐인 칸에는 없다
+## - 벽 윗면·낮은 윗면(앞벽을 잘라낸 자리): 윤곽선이 지나는 칸은 칸을 윤곽선으로 잘라 삼각형으로 나누고, 바위뿐인 칸은 줄로 합친다
+## - 벽 면: 윤곽선 조각마다 세운다. 맨 아래는 윤곽선에 붙이고, 위로 갈수록 바위 쪽으로만 들어간다 (최대 max_lean_px). 윗면은 맨 위 줄과 같은 점을 쓴다
+## - 정점은 윤곽선의 점과 월드 위치만으로 정해지므로 구역 경계와 윗면 가장자리에 틈이 생기지 않는다
+## - 법선은 벽 면의 수평 방향, 윗면은 위쪽이다
 
-## 윗면 가장자리에서 윤곽까지 되짚어 갈 때 되풀이하는 횟수
-const BASE_SEARCH_STEPS: int = 5
-## 칸의 네 변 번호 순서로 도는 자리: 왼쪽 위, 위 변, 오른쪽 위, 오른쪽 변, 오른쪽 아래, 아래 변, 왼쪽 아래, 왼쪽 변
-const CORNER_COUNT: int = 4
+## 윤곽선이 지나는 칸을 찾을 때 선을 따라 보는 간격 (픽셀)
+const RASTER_STEP: float = 1.0
+## 이보다 가까운 두 점은 같은 점으로 본다 (픽셀)
+const REPEAT_DISTANCE: float = 0.01
 
-## 마지막으로 만든 메시의 삼각형 수와 만드는 데 걸린 시간 (확인용)
+## 마지막으로 만든 메시의 삼각형 수, 벽이 윤곽선에서 들어간 가장 큰 거리 (픽셀), 구간별 시간·삼각형 수 (확인용)
 static var last_triangles: int = 0
-static var last_usec: int = 0
-## 마지막으로 만든 벽의 가장 큰 기울기 (윗면 가장자리와 윤곽 사이, 픽셀, 확인용)
 static var last_max_lean: float = 0.0
+static var stats: Dictionary = {}
 
 var _data: CaveOutlineData
 var _settings: CaveOutlineSettings
 var _cells: TerrainCells
 var _source: PlaceholderWalls
-var _per: int
-var _sample: float
-var _nodes: Vector2i
 var _threshold: float
 var _origin: Vector2
-var _lean_field: float
-var _lean_noise: FastNoiseLite
 var _row_noise: FastNoiseLite
 var _heights: PackedFloat32Array
 var _top_y: float
 var _cap_y: float
-var _cap_px: float
 var _floor_chars: Dictionary = {}
-
-
-## 지역의 벽에 맞는 윤곽 파일이 있으면 새 지형 메시를 돌려주고, 없으면 fallback을 그대로 돌려준다.
-static func build_for(walls: PlaceholderWalls, scene_path: String, chunk_cells: int, wall_height_px: float, cap_height_px: float, fallback: Array[ArrayMesh]) -> Array[ArrayMesh]:
-	var path: String = "%s_outline.res" % scene_path.get_basename()
-	if not ResourceLoader.exists(path):
-		push_warning("동굴 지형: 윤곽 파일 없음 (%s). 칸 지형을 그대로 쓴다" % path)
-		return fallback
-	var cells: TerrainCells = TerrainCells.from_walls(walls)
-	var data: CaveOutlineData = load(path)
-	if data.cell_count != cells.size:
-		push_warning("동굴 지형: 윤곽 파일의 칸 수 %s가 벽 %s와 다르다. 칸 지형을 그대로 쓴다" % [data.cell_count, cells.size])
-		return fallback
-	var started: int = Time.get_ticks_usec()
-	var mesher: CaveTerrainMesher = CaveTerrainMesher.new()
-	var meshes: Array[ArrayMesh] = mesher.build(data, cells, walls, chunk_cells, wall_height_px, cap_height_px)
-	last_usec = Time.get_ticks_usec() - started
-	return meshes
+var _top_loops: Array[PackedVector2Array] = []
+## 윤곽선 점마다 바위 쪽 방향
+var _inward: Array[PackedVector2Array] = []
+## 윤곽선마다 바닥을 둘러싸는지 (아니면 바닥 속의 바위)
+var _is_floor_loop: Array[bool] = []
+var _loop_bounds: Array[Rect2] = []
+var _top_bounds: Array[Rect2] = []
+## 칸마다 1 = 윤곽선이 지남 (윗면 / 낮은 윗면)
+var _top_mixed: PackedByteArray
+var _base_mixed: PackedByteArray
+## 구역마다 벽 면 조각 [윤곽선 번호, 점 번호]
+var _chunk_faces: Dictionary = {}
 
 
 func build(data: CaveOutlineData, cells: TerrainCells, source: PlaceholderWalls, chunk_cells: int, wall_height_px: float, cap_height_px: float) -> Array[ArrayMesh]:
@@ -60,17 +47,11 @@ func build(data: CaveOutlineData, cells: TerrainCells, source: PlaceholderWalls,
 	_settings = data.settings
 	_cells = cells
 	_source = source
-	_per = data.per_cell()
-	_sample = float(_settings.sample_px)
-	_nodes = data.nodes()
 	_threshold = _settings.threshold
 	_origin = cells.origin
-	_lean_field = data.field_per_px() * _settings.max_lean_px
-	_lean_noise = CaveOutline.make_noise(_settings.noise_seed + 2, _settings.lean_noise_px)
 	_row_noise = CaveOutline.make_noise(_settings.noise_seed + 3, _settings.lean_noise_px)
 	_top_y = wall_height_px
 	_cap_y = cap_height_px
-	_cap_px = cap_height_px
 	_heights = PackedFloat32Array([0.0, _settings.foot_height_px])
 	_heights.append_array(_settings.face_rows_px)
 	_heights.append(wall_height_px)
@@ -78,37 +59,213 @@ func build(data: CaveOutlineData, cells: TerrainCells, source: PlaceholderWalls,
 		_floor_chars[c.unicode_at(0)] = source.floor_colors[c]
 	last_triangles = 0
 	last_max_lean = 0.0
+	stats = {"mesh_usec": 0, "floor_usec": 0, "floor_tris": 0, "top_usec": 0, "top_tris": 0, "cap_usec": 0, "cap_tris": 0, "face_usec": 0, "face_tris": 0, "faces": 0, "failed_polygons": 0}
+	_prepare_loops(chunk_cells)
 	var meshes: Array[ArrayMesh] = []
 	for chunk_y: int in range(0, cells.size.y, chunk_cells):
 		for chunk_x: int in range(0, cells.size.x, chunk_cells):
 			var triangles: _Triangles = _Triangles.new()
-			var end_x: int = mini(chunk_x + chunk_cells, cells.size.x)
-			for y: int in range(chunk_y, mini(chunk_y + chunk_cells, cells.size.y)):
-				_add_cell_row(triangles, chunk_x, end_x, y)
+			_add_chunk(triangles, chunk_x, chunk_y, chunk_cells)
 			if triangles.count > 0:
 				last_triangles += triangles.count
+				var started: int = Time.get_ticks_usec()
 				meshes.append(triangles.build())
+				stats["mesh_usec"] += Time.get_ticks_usec() - started
 	return meshes
 
 
-func _add_cell_row(triangles: _Triangles, from_x: int, to_x: int, y: int) -> void:
-	var x: int = from_x
-	while x < to_x:
-		var state: int = _data.cell_states[y * _cells.size.x + x]
-		if state == 2:
-			# 바위뿐인 칸은 같은 색끼리 윗면과 낮은 윗면을 줄로 합친다.
-			var color: Color = _rock_color(x, y)
-			var run_start: int = x
-			while x < to_x and _data.cell_states[y * _cells.size.x + x] == 2 and _rock_color(x, y) == color:
-				x += 1
-			_add_rect(triangles, Vector2(run_start, y) * _data.cell_px, Vector2(x - run_start, 1) * _data.cell_px, _top_y, color)
-			if _cap_y > 0.0:
-				_add_rect(triangles, Vector2(run_start, y) * _data.cell_px, Vector2(x - run_start, 1) * _data.cell_px, _cap_y, color)
+func _prepare_loops(chunk_cells: int) -> void:
+	_top_mixed.resize(_cells.size.x * _cells.size.y)
+	_top_mixed.fill(0)
+	_base_mixed.resize(_cells.size.x * _cells.size.y)
+	_base_mixed.fill(0)
+	for loop_index: int in _data.loops.size():
+		var loop: PackedVector2Array = _data.loops[loop_index]
+		var inward: PackedVector2Array = PackedVector2Array()
+		var top: PackedVector2Array = PackedVector2Array()
+		var noise: FastNoiseLite = CaveOutline.make_noise(_settings.noise_seed + 2, _settings.lean_noise_px)
+		for point: int in loop.size():
+			var direction: Vector2 = _rock_side(loop[point - 1], loop[point]) + _rock_side(loop[point], loop[(point + 1) % loop.size()])
+			direction = direction.normalized() if direction != Vector2.ZERO else _rock_side(loop[point - 1], loop[point])
+			inward.append(direction)
+			var lean: float = (0.5 + 0.5 * noise.get_noise_2dv(loop[point])) * _settings.max_lean_px
+			last_max_lean = maxf(last_max_lean, lean)
+			top.append(loop[point] + direction * lean)
+		_inward.append(inward)
+		_top_loops.append(top)
+		_is_floor_loop.append(_signed_area(loop) > 0.0)
+		_loop_bounds.append(_bounds(loop))
+		_top_bounds.append(_bounds(top))
+		_mark_cells(loop, _base_mixed)
+		_mark_cells(top, _top_mixed)
+		for point: int in loop.size():
+			var middle: Vector2 = (loop[point] + loop[(point + 1) % loop.size()]) * 0.5
+			var chunk: Vector2i = Vector2i((middle / (float(_data.cell_px) * chunk_cells)).floor())
+			if not _chunk_faces.has(chunk):
+				_chunk_faces[chunk] = []
+			_chunk_faces[chunk].append(Vector2i(loop_index, point))
+
+
+## 윤곽선은 바위를 왼쪽(화면 기준)에 두고 돈다 (CaveOutline._segment_edges).
+static func _rock_side(from: Vector2, to: Vector2) -> Vector2:
+	var along: Vector2 = to - from
+	return Vector2(along.y, -along.x).normalized() if along != Vector2.ZERO else Vector2.ZERO
+
+
+## 양수면 화면에서 시계 방향으로 돈다 (바닥을 둘러싼 윤곽선)
+static func _signed_area(loop: PackedVector2Array) -> float:
+	var area: float = 0.0
+	for index: int in loop.size():
+		var next: Vector2 = loop[(index + 1) % loop.size()]
+		area += loop[index].x * next.y - next.x * loop[index].y
+	return area
+
+
+static func _bounds(polygon: PackedVector2Array) -> Rect2:
+	var rect: Rect2 = Rect2(polygon[0], Vector2.ZERO)
+	for point: Vector2 in polygon:
+		rect = rect.expand(point)
+	return rect
+
+
+func _mark_cells(loop: PackedVector2Array, marks: PackedByteArray) -> void:
+	for index: int in loop.size():
+		var from: Vector2 = loop[index]
+		var to: Vector2 = loop[(index + 1) % loop.size()]
+		var steps: int = maxi(ceili(from.distance_to(to) / RASTER_STEP), 1)
+		for step: int in steps + 1:
+			var cell: Vector2i = Vector2i((from.lerp(to, float(step) / steps) / _data.cell_px).floor())
+			if cell.x >= 0 and cell.y >= 0 and cell.x < _cells.size.x and cell.y < _cells.size.y:
+				marks[cell.y * _cells.size.x + cell.x] = 1
+
+
+func _add_chunk(triangles: _Triangles, chunk_x: int, chunk_y: int, chunk_cells: int) -> void:
+	var end_x: int = mini(chunk_x + chunk_cells, _cells.size.x)
+	var end_y: int = mini(chunk_y + chunk_cells, _cells.size.y)
+	var rect: PackedVector2Array = _rect_polygon(Rect2(Vector2(chunk_x, chunk_y) * _data.cell_px, Vector2(end_x - chunk_x, end_y - chunk_y) * _data.cell_px))
+	var started: int = Time.get_ticks_usec()
+	for y: int in range(chunk_y, end_y):
+		for x: int in range(chunk_x, end_x):
+			if _base_mixed[y * _cells.size.x + x] == 1 or not _center_is_rock(x, y):
+				var color: Color = _floor_color(x, y)
+				if color.a > 0.0:
+					_add_rect(triangles, Vector2(x, y) * _data.cell_px, Vector2.ONE * _data.cell_px, 0.0, color)
+					stats["floor_tris"] += 2
+	stats["floor_usec"] += Time.get_ticks_usec() - started
+	started = Time.get_ticks_usec()
+	var before: int = triangles.count
+	_add_surface(triangles, chunk_x, end_x, chunk_y, end_y, _top_y, _top_mixed, _chunk_parts(rect, _top_loops, _top_bounds))
+	stats["top_tris"] += triangles.count - before
+	stats["top_usec"] += Time.get_ticks_usec() - started
+	if _cap_y > 0.0:
+		started = Time.get_ticks_usec()
+		before = triangles.count
+		_add_surface(triangles, chunk_x, end_x, chunk_y, end_y, _cap_y, _base_mixed, _chunk_parts(rect, _data.loops, _loop_bounds))
+		stats["cap_tris"] += triangles.count - before
+		stats["cap_usec"] += Time.get_ticks_usec() - started
+	started = Time.get_ticks_usec()
+	before = triangles.count
+	for face: Vector2i in _chunk_faces.get(Vector2i(chunk_x, chunk_y) / chunk_cells, []):
+		_add_face(triangles, face.x, face.y)
+		stats["faces"] += 1
+	stats["face_tris"] += triangles.count - before
+	stats["face_usec"] += Time.get_ticks_usec() - started
+
+
+## 윤곽선을 구역으로 잘라 둔다 (칸마다 큰 윤곽선 전체를 자르지 않게). {"floors": [...], "rocks": [...]}, 각 항목은 [다각형, 범위]
+func _chunk_parts(rect: PackedVector2Array, loops: Array[PackedVector2Array], bounds: Array[Rect2]) -> Dictionary:
+	var chunk_bounds: Rect2 = _bounds(rect)
+	var parts: Dictionary = {"floors": [], "rocks": []}
+	for index: int in loops.size():
+		if not bounds[index].intersects(chunk_bounds, true):
 			continue
-		_add_rect(triangles, Vector2(x, y) * _data.cell_px, Vector2.ONE * _data.cell_px, 0.0, _floor_color(x, y))
-		if state == 1:
-			_add_mixed_cell(triangles, x, y)
-		x += 1
+		for piece: PackedVector2Array in Geometry2D.intersect_polygons(rect, loops[index]):
+			parts["floors" if _is_floor_loop[index] else "rocks"].append([piece, _bounds(piece)])
+	return parts
+
+
+func _rect_polygon(rect: Rect2) -> PackedVector2Array:
+	return PackedVector2Array([rect.position, rect.position + Vector2(rect.size.x, 0), rect.end, rect.position + Vector2(0, rect.size.y)])
+
+
+func _center_is_rock(x: int, y: int) -> bool:
+	var per: int = _data.per_cell()
+	return CaveOutlineData.decode(_data.values[(y * per + per / 2) * _data.nodes().x + x * per + per / 2]) >= _threshold
+
+
+## 한 높이의 표면: 윤곽선이 지나는 칸은 잘라서 깔고, 바위뿐인 칸은 줄로 합친다.
+func _add_surface(triangles: _Triangles, from_x: int, to_x: int, from_y: int, to_y: int, height: float, mixed: PackedByteArray, parts: Dictionary) -> void:
+	for y: int in range(from_y, to_y):
+		var x: int = from_x
+		while x < to_x:
+			if mixed[y * _cells.size.x + x] == 1:
+				_add_cut_cell(triangles, x, y, height, parts)
+				x += 1
+			elif _center_is_rock(x, y):
+				var color: Color = _rock_color(x, y)
+				var run_start: int = x
+				while x < to_x and mixed[y * _cells.size.x + x] == 0 and _center_is_rock(x, y) and _rock_color(x, y) == color:
+					x += 1
+				_add_rect(triangles, Vector2(run_start, y) * _data.cell_px, Vector2(x - run_start, 1) * _data.cell_px, height, color)
+			else:
+				x += 1
+
+
+## 칸에서 바닥을 잘라 낸 나머지(와 바닥 속의 바위)를 삼각형으로 나눠 깐다.
+func _add_cut_cell(triangles: _Triangles, x: int, y: int, height: float, parts: Dictionary) -> void:
+	var rect: Rect2 = Rect2(Vector2(x, y) * _data.cell_px, Vector2.ONE * _data.cell_px)
+	var cell: PackedVector2Array = _rect_polygon(rect)
+	var pieces: Array[PackedVector2Array] = [cell]
+	for part: Array in parts["floors"]:
+		var bounds: Rect2 = part[1]
+		# 칸 안에 통째로 들어가는 조각은 구멍이 되는데, 작은 구멍은 윤곽 단계에서 없앴다.
+		if not bounds.intersects(rect, true) or rect.grow(-0.001).encloses(bounds):
+			continue
+		var remaining: Array[PackedVector2Array] = []
+		for piece: PackedVector2Array in pieces:
+			remaining.append_array(Geometry2D.clip_polygons(piece, part[0]))
+		pieces = remaining
+	for part: Array in parts["rocks"]:
+		if (part[1] as Rect2).intersects(rect, true):
+			pieces.append_array(Geometry2D.intersect_polygons(cell, part[0]))
+	var color: Color = _rock_color(x, y)
+	for piece: PackedVector2Array in pieces:
+		var cleaned: PackedVector2Array = _without_repeats(piece)
+		if cleaned.size() < 3:
+			continue
+		var indices: PackedInt32Array = _triangulate(cleaned)
+		if indices.is_empty():
+			stats["failed_polygons"] += 1
+			continue
+		triangles.add_triangles(cleaned, indices, _origin, height, color)
+
+
+## 자르면서 생긴 거의 같은 점을 뺀다 (삼각형 나누기가 실패한다).
+static func _without_repeats(polygon: PackedVector2Array) -> PackedVector2Array:
+	var result: PackedVector2Array = PackedVector2Array()
+	for point: Vector2 in polygon:
+		if result.is_empty() or result[-1].distance_to(point) > REPEAT_DISTANCE:
+			result.append(point)
+	if result.size() > 1 and result[0].distance_to(result[-1]) <= REPEAT_DISTANCE:
+		result.remove_at(result.size() - 1)
+	return result
+
+
+## 다각형을 삼각형으로 나눈다. 귀 자르기가 실패하면(한 직선 위의 점 등) 들로네로 나눠 다각형 안의 삼각형만 남긴다.
+static func _triangulate(polygon: PackedVector2Array) -> PackedInt32Array:
+	var indices: PackedInt32Array = Geometry2D.triangulate_polygon(polygon)
+	if not indices.is_empty():
+		return indices
+	var candidates: PackedInt32Array = Geometry2D.triangulate_delaunay(polygon)
+	for corner: int in range(0, candidates.size(), 3):
+		var a: Vector2 = polygon[candidates[corner]]
+		var b: Vector2 = polygon[candidates[corner + 1]]
+		var c: Vector2 = polygon[candidates[corner + 2]]
+		if Geometry2D.is_point_in_polygon((a + b + c) / 3.0, polygon):
+			indices.append(candidates[corner])
+			indices.append(candidates[corner + 1])
+			indices.append(candidates[corner + 2])
+	return indices
 
 
 func _rock_color(x: int, y: int) -> Color:
@@ -116,11 +273,13 @@ func _rock_color(x: int, y: int) -> Color:
 	return _cells.top_colors[index] if _cells.walls[index] == 1 else _source.top_color
 
 
-## 이 칸의 바닥 색. 지금 벽인 칸(윤곽이 물러난 곳)은 가장 가까운 바닥 칸의 종류로 체크무늬를 잇는다.
+## 이 칸의 바닥 색. 지금 벽인 칸(윤곽이 물러난 곳)은 가장 가까운 바닥 칸의 종류로 체크무늬를 잇는다. 바닥을 그리지 않는 씬이면 투명.
 func _floor_color(x: int, y: int) -> Color:
 	var index: int = _cells.index_of(x, y)
 	if _cells.walls[index] != 1 and _cells.top_colors[index].a > 0.0:
 		return _cells.top_colors[index]
+	if _floor_chars.is_empty():
+		return Color.TRANSPARENT
 	for radius: int in range(1, 6):
 		for dy: int in range(-radius, radius + 1):
 			for dx: int in range(-radius, radius + 1):
@@ -135,176 +294,34 @@ func _floor_color(x: int, y: int) -> Color:
 
 
 func _add_rect(triangles: _Triangles, position: Vector2, size: Vector2, height: float, color: Color) -> void:
-	triangles.add_polygon([_world(position, height), _world(position + Vector2(size.x, 0), height), _world(position + size, height), _world(position + Vector2(0, size.y), height)], Vector3.UP, color)
+	triangles.add_triangles(_rect_polygon(Rect2(position, size)), PackedInt32Array([0, 1, 2, 0, 2, 3]), _origin, height, color)
 
 
 func _world(position: Vector2, height: float) -> Vector3:
 	return ViewSpace.to_3d(_origin + position, height)
 
 
-## 윤곽이 지나는 칸: 벽 윗면(기울어 들어간 윤곽)과 낮은 윗면(윤곽)을 격자 칸마다 깔고, 윗면 가장자리마다 벽 면을 세운다.
-func _add_mixed_cell(triangles: _Triangles, cell_x: int, cell_y: int) -> void:
-	var color: Color = _rock_color(cell_x, cell_y)
-	var base_i: int = cell_x * _per
-	var base_k: int = cell_y * _per
-	var top: PackedFloat32Array = PackedFloat32Array()
-	var ground: PackedFloat32Array = PackedFloat32Array()
-	top.resize((_per + 1) * (_per + 1))
-	ground.resize((_per + 1) * (_per + 1))
-	for k: int in _per + 1:
-		for i: int in _per + 1:
-			var value: float = _value(base_i + i, base_k + k)
-			ground[k * (_per + 1) + i] = value
-			top[k * (_per + 1) + i] = _top_value(value, Vector2(base_i + i, base_k + k) * _sample)
-	_add_surface(triangles, top, base_i, base_k, _top_y, color, true)
-	if _cap_y > 0.0:
-		_add_surface(triangles, ground, base_i, base_k, _cap_y, color, false)
-
-
-func _value(i: int, k: int) -> float:
-	return CaveOutlineData.decode(_data.values[k * _nodes.x + i])
-
-
-## 벽 윗면의 값: 윤곽보다 바위 쪽으로 들어가도록, 위치로 정해지는 만큼 뺀다.
-func _top_value(value: float, position: Vector2) -> float:
-	if value < _threshold or value > _threshold + _lean_field:
-		return value
-	return value - (0.5 + 0.5 * _lean_noise.get_noise_2dv(position)) * _lean_field
-
-
-## 격자 칸마다 표면을 깐다. 줄에서 이어진 바위는 사각형 하나로 합친다. with_faces면 윗면 가장자리마다 벽 면을 세운다.
-func _add_surface(triangles: _Triangles, values: PackedFloat32Array, base_i: int, base_k: int, height: float, color: Color, with_faces: bool) -> void:
-	var line: int = _per + 1
-	for k: int in _per:
-		var i: int = 0
-		while i < _per:
-			var a: float = values[k * line + i]
-			var b: float = values[k * line + i + 1]
-			var c: float = values[(k + 1) * line + i + 1]
-			var d: float = values[(k + 1) * line + i]
-			if a >= _threshold and b >= _threshold and c >= _threshold and d >= _threshold:
-				var run_start: int = i
-				while i < _per and values[k * line + i] >= _threshold and values[k * line + i + 1] >= _threshold and values[(k + 1) * line + i + 1] >= _threshold and values[(k + 1) * line + i] >= _threshold:
-					i += 1
-				_add_rect(triangles, Vector2(base_i + run_start, base_k + k) * _sample, Vector2(i - run_start, 1) * _sample, height, color)
-				continue
-			if a >= _threshold or b >= _threshold or c >= _threshold or d >= _threshold:
-				_add_contour_cell(triangles, base_i + i, base_k + k, a, b, c, d, height, color, with_faces)
-			i += 1
-
-
-## 윤곽이 지나는 격자 칸 하나. 둘레를 시계 방향으로 돌며 바위인 모서리와 윤곽이 지나는 변의 점을 모아 다각형을 만든다.
-func _add_contour_cell(triangles: _Triangles, i: int, k: int, a: float, b: float, c: float, d: float, height: float, color: Color, with_faces: bool) -> void:
-	var corners: Array[Vector2] = [Vector2(i, k) * _sample, Vector2(i + 1, k) * _sample, Vector2(i + 1, k + 1) * _sample, Vector2(i, k + 1) * _sample]
-	var values: Array[float] = [a, b, c, d]
-	# 네 변의 점. 같은 변을 쓰는 옆 칸과 같은 값이 나오도록 늘 왼쪽·위쪽 점에서 잰다.
-	var crossings: Array[Vector2] = [_crossing(corners[0], a, corners[1], b), _crossing(corners[1], b, corners[2], c), _crossing(corners[3], d, corners[2], c), _crossing(corners[0], a, corners[3], d)]
-	var diagonal_a: bool = a >= _threshold and c >= _threshold and b < _threshold and d < _threshold
-	var diagonal_b: bool = b >= _threshold and d >= _threshold and a < _threshold and c < _threshold
-	if (diagonal_a or diagonal_b) and (a + b + c + d) * 0.25 < _threshold:
-		# 안장점에서 가운데가 바닥이면 바위 모서리 둘이 따로 있다.
-		var first: int = 0 if diagonal_a else 1
-		_emit_polygon(triangles, [crossings[(first + 3) % CORNER_COUNT], corners[first], crossings[first]], [true, false, true], height, color, with_faces)
-		_emit_polygon(triangles, [crossings[(first + 1) % CORNER_COUNT], corners[(first + 2) % CORNER_COUNT], crossings[(first + 2) % CORNER_COUNT]], [true, false, true], height, color, with_faces)
-		return
-	var points: Array[Vector2] = []
-	var on_contour: Array[bool] = []
-	for corner: int in CORNER_COUNT:
-		var rock: bool = values[corner] >= _threshold
-		if rock:
-			points.append(corners[corner])
-			on_contour.append(false)
-		if rock != (values[(corner + 1) % CORNER_COUNT] >= _threshold):
-			points.append(crossings[corner])
-			on_contour.append(true)
-	_emit_polygon(triangles, points, on_contour, height, color, with_faces)
-
-
-func _crossing(from: Vector2, from_value: float, to: Vector2, to_value: float) -> Vector2:
-	if (from_value >= _threshold) == (to_value >= _threshold):
-		return from
-	return from.lerp(to, (_threshold - from_value) / (to_value - from_value))
-
-
-func _emit_polygon(triangles: _Triangles, points: Array[Vector2], on_contour: Array[bool], height: float, color: Color, with_faces: bool) -> void:
-	var world: Array[Vector3] = []
-	for point: Vector2 in points:
-		world.append(_world(point, height))
-	triangles.add_polygon(world, Vector3.UP, color)
-	if not with_faces:
-		return
-	for index: int in points.size():
-		var next: int = (index + 1) % points.size()
-		if on_contour[index] and on_contour[next]:
-			_add_face(triangles, points[index], points[next])
-
-
-## 격자 값을 위치로 읽는다 (양선형)
-func _field(position: Vector2) -> float:
-	var grid: Vector2 = position / _sample
-	var i: int = clampi(floori(grid.x), 0, _nodes.x - 2)
-	var k: int = clampi(floori(grid.y), 0, _nodes.y - 2)
-	var fx: float = grid.x - i
-	var fy: float = grid.y - k
-	return lerpf(lerpf(_value(i, k), _value(i + 1, k), fx), lerpf(_value(i, k + 1), _value(i + 1, k + 1), fx), fy)
-
-
-## 값이 커지는 쪽 (바위 쪽)
-func _rock_direction(position: Vector2) -> Vector2:
-	var gradient: Vector2 = Vector2(_field(position + Vector2(_sample, 0)) - _field(position - Vector2(_sample, 0)), _field(position + Vector2(0, _sample)) - _field(position - Vector2(0, _sample)))
-	return gradient.normalized() if gradient != Vector2.ZERO else Vector2.RIGHT
-
-
-## 윗면 가장자리의 점에서 바닥 쪽으로 윤곽까지 되짚어 간 점. 벽의 맨 아래다.
-func _foot_of(top: Vector2) -> Vector2:
-	var limit: float = _settings.max_lean_px * 2.0
-	var point: Vector2 = top
-	var travelled: float = 0.0
-	for step: int in BASE_SEARCH_STEPS:
-		var excess: float = _field(point) - _threshold
-		if excess <= 0.0 or travelled >= limit:
-			break
-		var distance: float = minf(excess / _data.field_per_px(), limit - travelled)
-		point -= _rock_direction(point) * distance
-		travelled += distance
-	return point
-
-
-## 이 높이에서 벽 면이 있는 자리: 맨 아래는 윤곽, 맨 위는 윗면 가장자리, 그 사이는 위로 갈수록 바위 쪽으로 울퉁불퉁하게
-func _face_point(top: Vector2, foot: Vector2, height: float) -> Vector2:
+## 이 높이에서 벽 면이 있는 자리: 맨 아래는 윤곽선, 맨 위는 윗면 가장자리, 그 사이는 위로 갈수록 바위 쪽으로 울퉁불퉁하게
+func _face_point(loop: int, point: int, height: float) -> Vector2:
+	var foot: Vector2 = _data.loops[loop][point]
 	if height <= _settings.foot_height_px:
 		return foot
 	if height >= _top_y:
-		return top
+		return _top_loops[loop][point]
 	var ramp: float = (height - _settings.foot_height_px) / (_top_y - _settings.foot_height_px)
 	var lean: float = (0.5 + 0.5 * _row_noise.get_noise_3d(foot.x, height, foot.y)) * _settings.max_lean_px * ramp
-	return foot + _rock_direction(foot) * minf(lean, _settings.max_lean_px)
+	return foot + _inward[loop][point] * lean
 
 
-func _add_face(triangles: _Triangles, a: Vector2, b: Vector2) -> void:
-	var foot_a: Vector2 = _foot_of(a)
-	var foot_b: Vector2 = _foot_of(b)
-	last_max_lean = maxf(last_max_lean, a.distance_to(foot_a))
-	var normal_a: Vector2 = -_rock_direction(a)
-	var normal_b: Vector2 = -_rock_direction(b)
-	# 앞면에서 볼 때 시계 방향이 되도록 a → b의 방향을 고른다 (벽은 바닥 쪽을 본다).
-	var along: Vector2 = b - a
-	if Vector2(along.y, -along.x).dot(normal_a + normal_b) < 0.0:
-		var swap: Vector2 = a
-		a = b
-		b = swap
-		swap = foot_a
-		foot_a = foot_b
-		foot_b = swap
-		swap = normal_a
-		normal_a = normal_b
-		normal_b = swap
-	var normal_3d_a: Vector3 = Vector3(normal_a.x, 0.0, normal_a.y)
-	var normal_3d_b: Vector3 = Vector3(normal_b.x, 0.0, normal_b.y)
+## 윤곽선 조각 하나의 벽 면. 윤곽선은 바위를 왼쪽에 두고 돌므로 뒤 점에서 앞 점 쪽으로 깔아야 바닥 쪽을 본다.
+func _add_face(triangles: _Triangles, loop: int, point: int) -> void:
+	var next: int = (point + 1) % _data.loops[loop].size()
+	var normal_next: Vector2 = -_inward[loop][next]
+	var normal_point: Vector2 = -_inward[loop][point]
 	for row: int in _heights.size() - 1:
 		var low: float = _heights[row]
 		var high: float = _heights[row + 1]
-		triangles.add_quad(_world(_face_point(a, foot_a, low), low), _world(_face_point(b, foot_b, low), low), _world(_face_point(b, foot_b, high), high), _world(_face_point(a, foot_a, high), high), normal_3d_a, normal_3d_b, _cells.face_color)
+		triangles.add_quad(_world(_face_point(loop, next, low), low), _world(_face_point(loop, point, low), low), _world(_face_point(loop, point, high), high), _world(_face_point(loop, next, high), high), Vector3(normal_next.x, 0.0, normal_next.y), Vector3(normal_point.x, 0.0, normal_point.y), _cells.face_color)
 
 
 ## 삼각형을 모아 메시를 만든다.
@@ -315,20 +332,27 @@ class _Triangles:
 	var _colors: PackedColorArray = PackedColorArray()
 	var _indices: PackedInt32Array = PackedInt32Array()
 
-	## 볼록한 다각형을 부채꼴로. 앞면에서 볼 때 시계 방향 순서여야 한다.
-	func add_polygon(points: Array[Vector3], normal: Vector3, color: Color) -> void:
+	## 바닥과 나란한 삼각형들. 위에서 볼 때 앞면이 되도록 삼각형마다 도는 방향을 맞춘다.
+	func add_triangles(points: PackedVector2Array, indices: PackedInt32Array, origin: Vector2, height: float, color: Color) -> void:
 		var base: int = _vertices.size()
-		for point: Vector3 in points:
-			_vertices.append(point)
-			_normals.append(normal)
+		for point: Vector2 in points:
+			_vertices.append(ViewSpace.to_3d(origin + point, height))
+			_normals.append(Vector3.UP)
 			_colors.append(color)
-		for index: int in range(1, points.size() - 1):
-			_indices.append(base)
-			_indices.append(base + index)
-			_indices.append(base + index + 1)
+		for corner: int in range(0, indices.size(), 3):
+			var a: int = indices[corner]
+			var b: int = indices[corner + 1]
+			var c: int = indices[corner + 2]
+			if (points[b] - points[a]).cross(points[c] - points[a]) < 0.0:
+				var swap: int = b
+				b = c
+				c = swap
+			_indices.append(base + a)
+			_indices.append(base + b)
+			_indices.append(base + c)
 			count += 1
 
-	## a, b(아래), c, d(위) 순서의 벽 면 하나. 왼쪽·오른쪽 법선을 따로 준다.
+	## a, b(아래), c, d(위) 순서의 벽 면 하나. a·d와 b·c의 법선을 따로 준다.
 	func add_quad(a: Vector3, b: Vector3, c: Vector3, d: Vector3, normal_left: Vector3, normal_right: Vector3, color: Color) -> void:
 		var base: int = _vertices.size()
 		for point: Vector3 in [a, b, c, d]:

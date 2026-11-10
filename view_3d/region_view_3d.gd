@@ -240,19 +240,19 @@ func _build_terrain() -> ShaderMaterial:
 			cells = TerrainCells.from_walls(child as PlaceholderWalls)
 		if cells == null:
 			continue
-		var meshes: Array[ArrayMesh] = mesher.build(cells, chunk_cells, wall_height_px, cut_cap_height_px)
+		# 새 동굴 지형은 도구에서 미리 구운 파일을 불러오기만 한다.
+		var bake: CaveTerrainBake = CaveTerrainBake.load_for(get_parent().scene_file_path) if use_cave_terrain and child is PlaceholderWalls else null
+		var meshes: Array[ArrayMesh] = bake.meshes if bake != null else mesher.build(cells, chunk_cells, wall_height_px, cut_cap_height_px)
+		var shadow_meshes: Array[ArrayMesh] = bake.active_shadow_meshes() if bake != null else meshes
 		_terrain_mesh_usec += Time.get_ticks_usec() - started
-		var visible_meshes: Array[ArrayMesh] = meshes
-		if use_cave_terrain and child is PlaceholderWalls:
-			visible_meshes = CaveTerrainMesher.build_for(child as PlaceholderWalls, get_parent().scene_file_path, chunk_cells, wall_height_px, cut_cap_height_px, meshes)
-		for mesh: ArrayMesh in visible_meshes:
+		for mesh: ArrayMesh in meshes:
 			var chunk: MeshInstance3D = MeshInstance3D.new()
 			chunk.mesh = mesh
 			chunk.material_override = material
 			chunk.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			add_child(chunk)
 			_terrain_chunks.append(chunk)
-		for mesh: ArrayMesh in meshes:
+		for mesh: ArrayMesh in shadow_meshes:
 			var shadow: MeshInstance3D = MeshInstance3D.new()
 			shadow.mesh = mesh
 			shadow.material_override = shadow_material

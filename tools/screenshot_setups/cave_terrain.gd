@@ -37,7 +37,7 @@ static func run(scene: Node) -> void:
 		(scene as Region).get_vision().set_active(false)
 	if args.get("collision", "0") == "1":
 		view.add_child(_collision_lines(scene.get_node("Walls") as PlaceholderWalls))
-	print("동굴 지형: 사용 %s, 삼각형 %d, 만드는 시간 %dms (칸 지형 %dms), 가장 큰 기울기 %.1fpx, 지형 구역 %d, 사각형 %d" % [RegionView3D.use_cave_terrain, CaveTerrainMesher.last_triangles, CaveTerrainMesher.last_usec / 1000, view.get_terrain_mesh_usec() / 1000, CaveTerrainMesher.last_max_lean, view.get_terrain_chunks().size(), view.get_terrain_quads()])
+	print("지형: 새 지형 %s, 준비 시간 %dms, 구역 %d" % [RegionView3D.use_cave_terrain, view.get_terrain_build_usec() / 1000, view.get_terrain_chunks().size()])
 
 
 ## 벽 칸과 바닥 칸 사이의 변마다 선을 긋는다.

@@ -1,7 +1,7 @@
 extends ScenarioTest
-## 새 동굴 지형(CaveTerrainMesher) 검사. 창 없이 메시를 직접 만들어 본다. run_all.sh에는 넣지 않는다.
+## 구워 둔 동굴 지형(CaveTerrainBake) 검사. 창 없이 파일을 읽어 본다. run_all.sh에는 넣지 않는다.
+## - 불러오는 시간, 삼각형 수
 ## - 구역 경계: 이웃한 두 구역이 경계선에서 윗면을 같은 길이만큼 덮는지 (한쪽만 덮으면 틈이다)
-## - 삼각형 수, 만드는 시간, 벽의 가장 큰 기울기
 ## 실행: bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/view_3d/check_cave_terrain.gd
 
 const SCENE: String = "res://regions/shallow_cave.tscn"
@@ -17,19 +17,17 @@ func _on_scene_ready() -> void:
 	var walls: PlaceholderWalls = current_scene.get_node("Walls")
 	var view: RegionView3D = RegionView3D.new()
 	var height: float = view.wall_height_px
-	var cap: float = view.cut_cap_height_px
 	view.free()
-	var started: int = Time.get_ticks_msec()
-	var old: Array[ArrayMesh] = TerrainMesher.new().build(TerrainCells.from_walls(walls), CHUNK_CELLS, height, cap)
-	var old_ms: int = Time.get_ticks_msec() - started
-	var meshes: Array[ArrayMesh] = CaveTerrainMesher.build_for(walls, SCENE, CHUNK_CELLS, height, cap, [])
-	if meshes.is_empty():
-		fail_step("메시", "윤곽 파일이 없음")
+	var started: int = Time.get_ticks_usec()
+	var bake: CaveTerrainBake = CaveTerrainBake.load_for(SCENE)
+	var load_ms: float = (Time.get_ticks_usec() - started) / 1000.0
+	if bake == null:
+		fail_step("메시", "구운 파일이 없음")
 		return
-	pass_step("메시", "구역 %d, 삼각형 %d, 만드는 시간 %dms (칸 지형 %dms, 구역 %d), 벽의 가장 큰 기울기 %.1fpx" % [meshes.size(), CaveTerrainMesher.last_triangles, CaveTerrainMesher.last_usec / 1000, old_ms, old.size(), CaveTerrainMesher.last_max_lean])
+	pass_step("메시", "불러오기 %.0fms, 구역 %d, 삼각형 %d, 파일 %d KB" % [load_ms, bake.meshes.size(), bake.triangles, FileAccess.get_file_as_bytes(CaveTerrainBake.file_for(SCENE)).size() / 1024])
 	var unit: float = float(walls.tile_size) * CHUNK_CELLS / ViewSpace.TILE
 	var seams: Dictionary = {}
-	for mesh: ArrayMesh in meshes:
+	for mesh: ArrayMesh in bake.meshes:
 		_collect(mesh, unit, height / ViewSpace.TILE, seams)
 	var compared: int = 0
 	var worst: float = 0.0

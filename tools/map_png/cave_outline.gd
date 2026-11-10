@@ -92,6 +92,26 @@ func deepest_cover_px(only_protected: bool = false) -> float:
 	return deepest
 
 
+## 메시가 쓰는 윤곽선(단순화함)이 입력 칸의 바닥 안으로 들어간 가장 깊은 곳 (입력 칸의 벽에서 떨어진 거리, 픽셀). only_protected면 좁은 길목 보호 구역 안만 본다.
+func deepest_loop_cover_px(data: CaveOutlineData, only_protected: bool = false) -> float:
+	var deepest: float = 0.0
+	var reach: int = ceili(settings.blur_sigma_px * BLUR_RANGE / CELL_PX) + 1
+	for loop: PackedVector2Array in data.loops:
+		for point: Vector2 in loop:
+			var cell: Vector2i = Vector2i((point / CELL_PX).floor())
+			if is_wall_cell(cell.x, cell.y) or (only_protected and _zone[cell.y * _size.x + cell.x] == 0):
+				continue
+			var best: float = float(reach * CELL_PX)
+			for cy: int in range(cell.y - reach, cell.y + reach + 1):
+				for cx: int in range(cell.x - reach, cell.x + reach + 1):
+					if is_wall_cell(cx, cy):
+						var dx: float = maxf(maxf(cx * CELL_PX - point.x, 0.0), point.x - (cx + 1) * CELL_PX)
+						var dy: float = maxf(maxf(cy * CELL_PX - point.y, 0.0), point.y - (cy + 1) * CELL_PX)
+						best = minf(best, sqrt(dx * dx + dy * dy))
+			deepest = maxf(deepest, best)
+	return deepest
+
+
 ## 좁은 바닥 덩어리(양쪽 끝이 있는 곳)마다 지나갈 수 있는 가장 넓은 폭 (픽셀): {"cell": 덩어리의 첫 칸, "width": 폭}
 func choke_widths() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
@@ -103,7 +123,7 @@ func choke_widths() -> Array[Dictionary]:
 			var group: Array[Vector2i] = _flood_narrow(Vector2i(x, y), seen)
 			var width: float = _bottleneck(group)
 			if width >= 0.0:
-				result.append({"cell": group[0], "width": width})
+				result.append({"cell": group[0], "width": width, "png_width": _bottleneck(group, true)})
 	return result
 
 
@@ -238,6 +258,8 @@ func _protect_narrow() -> void:
 	for k: int in _nodes.y:
 		for i: int in _nodes.x:
 			var index: int = k * _nodes.x + i
+			if _node_in_zone(i, k, _zone):
+				_field[index] -= settings.protect_field_bias
 			if _field[index] >= settings.threshold and _node_in_zone(i, k, _zone) and _wall_distance(i, k, reach) > settings.protect_guard_px:
 				_field[index] = settings.threshold - FLIP_MARGIN
 
@@ -471,7 +493,7 @@ func _flood_narrow(start: Vector2i, seen: Dictionary) -> Array[Vector2i]:
 
 
 ## 좁은 바닥 덩어리의 양쪽 끝 사이를 지나갈 수 있는 가장 넓은 폭 (픽셀). 끝이 둘 안 되면(구석 등) -1.
-func _bottleneck(group: Array[Vector2i]) -> float:
+func _bottleneck(group: Array[Vector2i], png_only: bool = false) -> float:
 	var low: Vector2i = group[0]
 	var high: Vector2i = group[0]
 	var in_group: Dictionary = {}
@@ -486,7 +508,7 @@ func _bottleneck(group: Array[Vector2i]) -> float:
 	if ends.size() < 2 or ends[1].size() < MIN_END_CELLS:
 		return -1.0
 	var area: Rect2i = Rect2i(window.position * _per, window.size * _per + Vector2i.ONE)
-	var distances: PackedFloat32Array = _chamfer(area)
+	var distances: PackedFloat32Array = _chamfer(area, png_only)
 	var best: float = 0.0
 	var radius_low: float = 0.0
 	var radius_high: float = float(CELL_PX * 3)
@@ -526,7 +548,7 @@ func _window_ends(window: Rect2i, in_group: Dictionary) -> Array[Dictionary]:
 
 
 ## 창 안의 격자 점마다 가장 가까운 바위까지의 거리 (픽셀, 두 번 훑는 근사)
-func _chamfer(area: Rect2i) -> PackedFloat32Array:
+func _chamfer(area: Rect2i, png_only: bool = false) -> PackedFloat32Array:
 	var distances: PackedFloat32Array = PackedFloat32Array()
 	distances.resize(area.size.x * area.size.y)
 	var diagonal: float = settings.sample_px * sqrt(2.0)
@@ -535,7 +557,8 @@ func _chamfer(area: Rect2i) -> PackedFloat32Array:
 	for k: int in area.size.y:
 		for i: int in line:
 			var index: int = k * line + i
-			var value: float = 0.0 if is_rock(area.position + Vector2i(i, k)) else 1.0e6
+			var node: Vector2i = area.position + Vector2i(i, k)
+			var value: float = 0.0 if (_on_wall_cell(node.x, node.y) if png_only else is_rock(node)) else 1.0e6
 			if i > 0:
 				value = minf(value, distances[index - 1] + straight)
 			if k > 0:
