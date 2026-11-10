@@ -94,8 +94,6 @@ func _ready() -> void:
 	_sight_lights = SightLights.new()
 	_sight_lights.setup(_vision, _necromancer, [terrain_material, _marks.get_material()] as Array[ShaderMaterial])
 	add_child(_sight_lights)
-	if _vision != null:
-		_vision.disable_2d_lights()
 	_palette = PalettePass.new()
 	add_child(_palette)
 	_hide_2d_world()

@@ -50,7 +50,7 @@ func _on_scene_ready() -> void:
 	_view.get_front_walls().enabled = false
 	_view.get_palette().set_enabled(false)
 	if vision != null:
-		print("시야 준비 시간 %.0fms (2D 그림자 모양 %d개)" % [vision.setup_usec / 1000.0, vision.occluder_counts.y])
+		print("시야 준비 시간 %.0fms" % (vision.setup_usec / 1000.0))
 	(current_scene.get_node("HUD") as CanvasLayer).visible = false
 	for child: Node in current_scene.get_children():
 		if child is PlaceholderGround:

@@ -12,7 +12,7 @@ extends Node2D
 ## - 지역 데이터의 limit_vision이 켜져 있으면 플레이어 시야를 제한한다 (Vision, 거점은 끔)
 ## 다른 씬으로 갈 때 소환 중인 언데드는 일반 해제된다. 네크로맨서는 새 씬에서 새로 만들어지므로 체력·마나가 가득 찬다.
 
-## 3D 층을 켜지 않고 2D로 그리는 실행 인자 (전후 비교용)
+## 3D 층을 켜지 않고 평면으로 그리는 실행 인자 (디버그 보기)
 const VIEW_2D_ARG: String = "--view_2d"
 
 ## 이 지역
@@ -187,18 +187,14 @@ func _on_necromancer_died() -> void:
 	travel_to(death_destination)
 
 
-## 시야 제한(Vision)을 붙인다. 몸(Actors)보다 앞에 있는 그림(바닥·벽·상자·탈출 지점 등)을 지형으로 넘겨 어둡게 한다.
+## 시야 제한(Vision)을 붙인다. 평면 보기(--view_2d)에서는 어둡게 할 빛이 없으므로 시야를 꺼서 전부 보이게 한다.
 func _add_vision() -> void:
 	var vision: Vision = Vision.new()
 	vision.name = "Vision"
-	var actors: Node = _necromancer.get_parent()
-	var terrain: Array[CanvasItem] = []
-	for child: Node in get_children():
-		if child.get_index() < actors.get_index() and child is CanvasItem:
-			terrain.append(child as CanvasItem)
-	vision.setup(_necromancer, get_node_or_null("Walls") as PlaceholderWalls, terrain)
-	vision.skip_2d_shapes = wants_view_3d()
+	vision.setup(_necromancer, get_node_or_null("Walls") as PlaceholderWalls)
 	add_child(vision)
+	if OS.get_cmdline_user_args().has(VIEW_2D_ARG):
+		vision.set_active(false)
 
 
 ## 확인용: 이 지역의 시야 (시야 제한이 없는 지역이면 null)
@@ -207,9 +203,9 @@ func get_vision() -> Vision:
 
 
 ## 이 지역을 3D 화면 층으로 그릴지. 헤드리스(테스트·측정)에서는 규칙만 돌리므로 그리지 않는다.
-## 2D 화면과 비교하려면 실행 인자 --view_2d를 준다. 시제품 층(View3D)이 있는 씬은 그 층을 쓴다.
+## 규칙과 화면이 어긋날 때 평면으로 보려면 실행 인자 --view_2d를 준다 (시야 없이 전부 보이는 디버그 보기).
 func wants_view_3d() -> bool:
-	return data != null and data.view_3d and DisplayServer.get_name() != "headless" and not OS.get_cmdline_user_args().has(VIEW_2D_ARG) and get_node_or_null("View3D") == null
+	return data != null and data.view_3d and DisplayServer.get_name() != "headless" and not OS.get_cmdline_user_args().has(VIEW_2D_ARG)
 
 
 ## 3D 화면 층을 붙인다. 이미 있으면 그것을 돌려준다.

@@ -2,7 +2,7 @@ extends View3DCheck
 ## 벽 가림을 실제로 그린 화면에서 잰다. 창을 띄운다. run_all.sh에는 넣지 않는다.
 ## bash tools/godot.sh --fixed-fps 60 --path . -s tests/view_3d/check_wall_occlusion.gd
 ## 얕은 굴에서 네크로맨서를 무작위 바닥 칸에 세우고, 화면에 든 바닥 점이 벽 색으로 보이면 가린 것으로 센다.
-## 화면 회전 0도·45도, 앞벽 처리 끔·켬으로 잰다. 계산으로 잰 값은 tests/proto/check_view_3d.gd의 --occlusion.
+## 화면 회전 0도·45도, 앞벽 처리 끔·켬으로 잰다.
 
 const SCENE: String = "res://regions/shallow_cave.tscn"
 const POSES: int = 40

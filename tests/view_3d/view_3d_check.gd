@@ -3,15 +3,12 @@ extends ScenarioTest
 ## 창을 띄워 3D 층의 화면을 재는 검사들의 공통 부분.
 
 const COLOR_TOLERANCE: float = 1.5 / 255.0
-## 시제품 굴: 벽과 쥐가 있는 작은 씬. 시제품 층을 지우고 새 층을 붙여서 쓴다
-const PROTO_CAVE_SCENE: String = "res://proto_25d/proto_cave.tscn"
+## 벽과 쥐가 있는 작은 시험 씬
+const TEST_CAVE_SCENE: String = "res://tests/view_3d/wall_test_cave.tscn"
 
 
-## 지금 씬에 3D 층을 붙인다. 시제품 층이 있으면 먼저 지운다. HUD는 화면 비교에 방해되므로 숨긴다.
+## 지금 씬에 3D 층을 붙인다 (이미 있으면 그 층). HUD는 화면 비교에 방해되므로 숨긴다.
 func open_layer() -> RegionView3D:
-	var proto: Node = current_scene.get_node_or_null("View3D")
-	if proto != null:
-		proto.free()
 	var view: RegionView3D = current_scene.call(&"add_view_3d")
 	# 색을 2D 색과 비교하는 검사들이므로 팔레트 후처리는 끈다 (팔레트 자체는 check_vision_3d.gd가 본다).
 	view.get_palette().set_enabled(false)

@@ -66,7 +66,7 @@ var _marks_only: bool = false
 
 func get_start_scene() -> String:
 	_marks_only = OS.get_cmdline_user_args().has("--marks")
-	return PROTO_CAVE_SCENE if _marks_only else SCENE
+	return TEST_CAVE_SCENE if _marks_only else SCENE
 
 
 func _on_scene_ready() -> void:
