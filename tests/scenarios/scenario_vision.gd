@@ -1,6 +1,6 @@
 extends ScenarioTest
 ## 시나리오: 플레이어 시야 (Vision). 시험 통로(regions/test_corridor.tscn, limit_vision 켬)에서 시작한다.
-## 1. 시야가 붙어 있고, 지형(바닥·벽·탈출 지점)만 어둡게 칠하며 벽 그림자 모양이 있다. 몸은 원래 밝기
+## 1. 시야가 붙어 있다 (지형을 어둡게 그리는 것은 창 검사 tests/view_3d/check_vision_3d.gd가 본다)
 ## 2. 마우스를 동쪽으로 두면: 정면 쥐는 보이고, 부채꼴 안이어도 벽 뒤 쥐·뒤쪽 쥐·부채꼴 밖 쥐는 안 보이며, 몸 바로 뒤(둘레 원 안) 쥐는 보인다
 ## 3. 마우스를 서쪽으로 돌리면 정면이던 쥐는 안 보이고 뒤쪽이던 쥐가 보인다
 ## 4. 내 언데드는 부채꼴 밖에서도 보인다
@@ -60,8 +60,7 @@ func _run() -> void:
 	await wait_frames(2)
 	var vision: Vision = current_scene.call(&"get_vision")
 	var actors: Node2D = find_necromancer().get_parent()
-	var ground: CanvasItem = current_scene.get_node("Ground")
-	if not _check("시야가 붙음", vision != null and _walls.modulate.r < 1.0 and ground.modulate.r < 1.0 and actors.modulate.r == 1.0 and vision.occluder_counts.y > 0, "Vision %s, 벽·바닥 밝기 %.2f·%.2f, Actors 밝기 %.2f, 그림자 모양 (칸 %d → 사각형 %d)" % [vision, _walls.modulate.r, ground.modulate.r, actors.modulate.r, vision.occluder_counts.x if vision != null else 0, vision.occluder_counts.y if vision != null else 0]):
+	if not _check("시야가 붙음", vision != null and vision.active, "Vision %s, 켜짐 %s" % [vision, vision.active if vision != null else false]):
 		return
 	var necro: Necromancer = find_necromancer()
 	necro.global_position = _tile(NECRO_TILE)
@@ -108,7 +107,7 @@ func _run() -> void:
 	sighted.facing = Vector2.RIGHT
 	await wait_frames(SETTLE_FRAMES)
 	var front: Vector2 = (_rats["정면"] as Node2D).global_position
-	if not _check("언데드가 보는 쪽은 보임", _seen()["정면"] and not vision.is_visible_to_player(front) and vision.get_undead_light_count() == 1, "정면 쥐 보임 %s, 플레이어 시야 안 %s, 언데드 빛 %d개" % [_seen()["정면"], vision.is_visible_to_player(front), vision.get_undead_light_count()]):
+	if not _check("언데드가 보는 쪽은 보임", _seen()["정면"] and not vision.is_visible_to_player(front) and vision.get_undead_sight_count() == 1, "정면 쥐 보임 %s, 플레이어 시야 안 %s, 언데드 시야 %d개" % [_seen()["정면"], vision.is_visible_to_player(front), vision.get_undead_sight_count()]):
 		return
 	var behind_wall: Vector2 = (_rats["벽 뒤"] as Node2D).global_position
 	sighted.facing = sighted.get_sight_origin().direction_to(behind_wall)
@@ -118,13 +117,13 @@ func _run() -> void:
 	sighted.facing = Vector2.RIGHT
 	necro.summoner.toggle_selected()
 	await wait_frames(SETTLE_FRAMES)
-	if not _check("언데드를 해제하면 다시 안 보임", not _seen()["정면"] and vision.get_undead_light_count() == 0, "정면 쥐 보임 %s, 언데드 빛 %d개" % [_seen()["정면"], vision.get_undead_light_count()]):
+	if not _check("언데드를 해제하면 다시 안 보임", not _seen()["정면"] and vision.get_undead_sight_count() == 0, "정면 쥐 보임 %s, 언데드 시야 %d개" % [_seen()["정면"], vision.get_undead_sight_count()]):
 		return
 	vision.set_active(false)
 	await wait_frames(SETTLE_FRAMES)
 	var off: Dictionary = _seen()
 	var all_seen: bool = off.values().all(func(v: bool) -> bool: return v)
-	if not _check("시야를 끄면 모두 보임", all_seen and _walls.modulate.r == 1.0, "보임 %s, 벽 밝기 %.2f" % [off, _walls.modulate.r]):
+	if not _check("시야를 끄면 모두 보임", all_seen, "보임 %s" % off):
 		return
 	vision.set_active(true)
 	var worst: int = 0
@@ -134,7 +133,7 @@ func _run() -> void:
 		await wait_frames(1)
 		worst = maxi(worst, vision.last_update_usec)
 		total += vision.last_update_usec
-	pass_step("시야 처리 시간", "%d프레임 평균 %.3fms, 가장 길 때 %.3fms (빛 옮기기 + 물체 판정, 그리기 제외)" % [TIMING_FRAMES, total / 1000.0 / TIMING_FRAMES, worst / 1000.0])
+	pass_step("시야 처리 시간", "%d프레임 평균 %.3fms, 가장 길 때 %.3fms (물체 판정, 그리기 제외)" % [TIMING_FRAMES, total / 1000.0 / TIMING_FRAMES, worst / 1000.0])
 	current_scene.call(&"travel_to", load(BASE_REGION))
 	var frames: int = 0
 	while frames < 300 and (current_scene == null or current_scene.scene_file_path == CORRIDOR_SCENE or not current_scene.is_node_ready()):

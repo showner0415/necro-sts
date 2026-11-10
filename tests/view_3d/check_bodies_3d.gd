@@ -49,7 +49,7 @@ var _vision: Vision
 
 
 func get_start_scene() -> String:
-	return PROTO_CAVE_SCENE
+	return TEST_CAVE_SCENE
 
 
 func _on_scene_ready() -> void:

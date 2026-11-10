@@ -104,8 +104,8 @@ res://
   - 헤드리스 실행에서는 창이 64×64라 UI 좌표 공간이 640×640이 된다(`aspect=expand`). 시나리오에서 UI 좌표가 360보다 커도 이상한 것이 아니다.
   - 저장한 PNG를 직접 열어 보고, 무엇이 보였는지 보고한다. 기대한 것이 안 보이면 확인했다고 하지 않는다.
   - 두 PNG 비교: `bash tools/godot.sh --headless --path . -s tools/compare_images.gd -- <a.png> <b.png>` (달라진 픽셀 수·범위. 같으면 종료 코드 0)
-  - 지역 데이터의 `view_3d`가 켜진 지역은 창에서 3D로 그린다. 2D로 그리려면 사용자 인자에 `--view_2d`를 더한다. 2D 기준 화면(`docs/plans/2.5d_shots/baseline_2d_shallow_cave.png`)과 비교: `-- --view_2d --seconds=2 --scene=res://regions/shallow_cave.tscn --setup=res://tools/screenshot_setups/vision_preview.gd`
-  - 3D 층 화면 (조준 고정): `--setup=res://tools/screenshot_setups/view_3d_on.gd`, 2D 기준 화면과 같은 자리: `--scene=res://regions/shallow_cave.tscn --setup=res://tools/screenshot_setups/view_3d_preview.gd`
+  - 지역 데이터의 `view_3d`가 켜진 지역은 창에서 3D로 그린다. 사용자 인자에 `--view_2d`를 더하면 평면 디버그 보기다 (시야 없이 전부 보임, 규칙과 화면이 어긋날 때 비교용).
+  - 3D 층 화면 (조준 고정): `--setup=res://tools/screenshot_setups/view_3d_on.gd`, 쥐 굴 바위 앞: `--scene=res://regions/shallow_cave.tscn --setup=res://tools/screenshot_setups/view_3d_preview.gd`
 - **테스트 전체 실행**: `bash tests/run_all.sh`
   - 임포트 → 단위 테스트 전부(코드·씬·데이터의 색이 팔레트 안인지 보는 `test_palette_colors.gd` 포함) → 에셋 팔레트 검사(`tools/check_palette.gd`) → 시나리오 테스트 하나씩 순서로 돌린다. 종료 코드가 0이 아니거나 출력에 `SCRIPT ERROR`·`ERROR:` 줄(종료 시 누수 경고 포함)이 있으면 실패로 센다. 하나라도 실패하면 종료 코드 1, 마지막 줄은 `전체 결과: 통과` 또는 `전체 결과: 실패 (<실패한 것>)`.
   - 게임 코드(`necromancer/`, `monsters/`, `items/`, `ui/`, `regions/`, `data/` 등)를 바꾼 뒤에는 항상 실행한다.
@@ -141,12 +141,12 @@ res://
   - `scenario_storage.gd`: 상자에서 F → 인벤토리(가운데 왼쪽)·창고(오른쪽) 나란히 → 핫바 머리뼈를 창고로(핫바 빔) → 뼈 합치기 → 소환 중인 머리뼈는 못 옮김 → 창고 메뉴 "인벤토리로 옮기기" → Shift+좌클릭 빠른 옮기기(양방향, 뼈 합치기, 소환 중·인벤토리 가득 참 안내) → 휠 스크롤로 100번째 칸 → 창고 클릭이 공격으로 안 넘어감 → 멀어지면·Esc로 닫힘 → 지역엔 창고 없음
   - `scenario_stamina.gd`: 가득 차면 도넛 숨김 → Shift+이동으로 뛰기(속도, 스태미나가 줄기만 함, 도넛 보임) → 멈추면 회복 → 가득 차면 숨김 → Space로 구르기(이동 방향·거리·비용, 앞부분 무적, 구르는 중 회복 없음) → 0까지 뛰면 걷기로 돌아가고 구르기 불가 → 언데드는 멀어지면 뛰는 속도로 따라옴 → 메뉴가 열린 채 Space면 구르기만 되고 메뉴는 그대로(씬의 모든 UI가 키보드 포커스를 받지 않음)
   - `scenario_summon.gd`: 숫자키로 핫바 선택(선택 테두리) → G로 소환(처음 소환 뼈·마나, 소환 중 테두리) → 언데드가 쥐를 잡음(피해마다 내구도 -1) → G로 해제(체력 유지) → R로 뼈를 써서 회복
-  - `scenario_vision.gd`: 시험 통로에서 시야가 붙고 지형(벽·바닥)만 어두움·벽 그림자 모양 있음 → 마우스를 동쪽에 두면 정면 쥐 보임, 벽 뒤·뒤쪽·부채꼴 밖 쥐 안 보임, 몸 바로 뒤(둘레 원) 쥐 보임 → 서쪽으로 돌리면 바뀜 → 언데드는 부채꼴 밖에서도 보임 → 언데드 시야: 플레이어가 반대쪽을 봐도 언데드가 보는 쪽의 쥐는 보임, 언데드 시야도 벽 뒤는 안 보임, 해제하면 다시 안 보임 → 시야를 끄면 모두 보이고 지형이 원래 밝기 → 시야 처리 시간 출력 → 거점에는 시야 없음 (쥐는 데이터 복사로 고정)
+  - `scenario_vision.gd`: 시험 통로에서 시야가 붙음 → 마우스를 동쪽에 두면 정면 쥐 보임, 벽 뒤·뒤쪽·부채꼴 밖 쥐 안 보임, 몸 바로 뒤(둘레 원) 쥐 보임 → 서쪽으로 돌리면 바뀜 → 언데드는 부채꼴 밖에서도 보임 → 언데드 시야: 플레이어가 반대쪽을 봐도 언데드가 보는 쪽의 쥐는 보임, 언데드 시야도 벽 뒤는 안 보임, 해제하면 다시 안 보임 → 시야를 끄면 모두 보임 → 시야 처리 시간 출력 → 거점에는 시야 없음 (쥐는 데이터 복사로 고정)
   - `scenario_view_3d_boundary.gd`: 헤드리스에서는 지역 데이터의 `view_3d`를 켜도 3D 층이 붙지 않고 2D 조준 → 층을 붙이면 조준·이동 입력이 층을 거침 → 임시 바닥이 지형 메시가 되고 2D 바닥은 숨음 → 몸마다 3D 사각형이 생기고 사라지면 지움 → 카메라가 네크로맨서를 화면 가운데에 둠 → 16자리를 흉내 낸 마우스로 조준한 자리가 일치 → W는 화면 위로 걸음 → 앞서 가기를 켜면 카메라가 마우스 쪽으로 움직임 (실제로 그린 화면은 보증하지 않음)
   - `scenario_undead_targeting.gd`: 가까이 쥐가 있어도 언데드가 먼저 공격하지 않음 → 네크로맨서가 쥐 A를 맞히면 A로 감 → 언데드 공격 반경에 들어오면 고정 → 네크로맨서가 B를 맞혀도 A 그대로 → A가 죽으면 최근에 맞은 B로 바로 감 → 네크로맨서를 노리며 다가오는 쥐는 네크로맨서 공격 반경(160) 안에서 고름 → 언데드를 노리는 쥐는 언데드 공격 반경 안에서 반격 (쥐는 데이터 복사로 고정)
   - 새 핵심 흐름(소환, 퀘스트 등)이 생기면 그 흐름의 시나리오를 추가할지 제안한다.
 - **3D 화면 검사 전체** (창이 번갈아 뜸, 약 3분): `bash tests/run_view_3d.sh`. `view_3d/`나 게임 그리기를 바꾼 뒤에 돌린다. 마지막 줄은 `화면 검사 결과: 통과` 또는 `화면 검사 결과: 실패 (<실패한 것>)`.
-- **3D 지형 검사** (`tests/view_3d/`, 창을 띄움, `run_all.sh`에 없음): `bash tools/godot.sh --fixed-fps 60 --path . -s tests/view_3d/check_terrain_3d.gd -- --scene=<씬>` (칸 색이 2D와 같은지, 구역 경계 틈, 화면 밖 구역을 안 그리는지). 몸과 앞벽 처리: `check_bodies_3d.gd` (그림 픽셀 일치, 임시 도형·시체·물건 색, 번쩍임, 8방향 조준, 반투명·잘라내기, 시야와 반투명). 바닥 표시·탄·돌·도넛·상자·키 안내: `check_marks_3d.gd -- --scene=<씬>`. 시야: `check_vision_3d.gd` (2D 판정과 밝기 일치, 어두운 곳·빛 밝기, 상자, 반경 키, 언데드 8마리 프레임 시간. `-- --marks --out=<png>`는 앞벽 뒤 예고가 보이는지만 잰다). 그린 화면의 벽 가림: `check_wall_occlusion.gd` (화면 회전 0/45도, 앞벽 끔/켬, 둘레 안 점을 잘라내기 자리별로 나눠 출력). 전투 장면 촬영 (예고·돌·탄·도넛, 판정 없음): `bash tools/godot.sh --fixed-fps 60 --path . -s tools/shot_view_3d_combat.gd -- --out=<a.png>`. 걷는 동안 몸·바닥 흔들림: `check_camera_motion.gd`. 벽 픽셀 흔들림: `check_wall_flicker.gd` (`--target=proto|layer|terrain --mode=static|toggle|poses`, 찍은 순간의 카메라·발밑 위치를 출력)
+- **3D 지형 검사** (`tests/view_3d/`, 창을 띄움, `run_all.sh`에 없음): `bash tools/godot.sh --fixed-fps 60 --path . -s tests/view_3d/check_terrain_3d.gd -- --scene=<씬>` (칸 색이 2D와 같은지, 구역 경계 틈, 화면 밖 구역을 안 그리는지). 몸과 앞벽 처리: `check_bodies_3d.gd` (그림 픽셀 일치, 임시 도형·시체·물건 색, 번쩍임, 8방향 조준, 반투명·잘라내기, 시야와 반투명). 바닥 표시·탄·돌·도넛·상자·키 안내: `check_marks_3d.gd -- --scene=<씬>`. 시야: `check_vision_3d.gd` (2D 판정과 밝기 일치, 어두운 곳·빛 밝기, 상자, 반경 키, 언데드 8마리 프레임 시간. `-- --marks --out=<png>`는 앞벽 뒤 예고가 보이는지만 잰다). 그린 화면의 벽 가림: `check_wall_occlusion.gd` (화면 회전 0/45도, 앞벽 끔/켬, 둘레 안 점을 잘라내기 자리별로 나눠 출력). 전투 장면 촬영 (예고·돌·탄·도넛, 판정 없음): `bash tools/godot.sh --fixed-fps 60 --path . -s tools/shot_view_3d_combat.gd -- --out=<a.png>`. 걷는 동안 몸·바닥 흔들림: `check_camera_motion.gd`. 벽 픽셀 흔들림: `check_wall_flicker.gd` (`--target=layer|terrain --mode=static|poses`, 찍은 순간의 카메라·발밑 위치를 출력)
 - 검증에 쓴 스크립트가 다시 쓸 만하면 임시 폴더에 두지 말고 `tests/`나 `tools/`에 넣는다.
 - **밸런스 측정** (`tests/balance/`): 플레이어 봇(`player_bot.gd`)이 실제 입력만 흉내 내서 싸우고, `run_balance.gd`가 대상 × 조건(혼자 / 쥐 언데드 2마리) × 실력(숙련·보통·초보)마다 여러 번 싸워 잡는 시간·받은 피해·죽은 비율·명중률을 표로 낸다.
   - 봇의 시야는 `--sight=full`(기본, 시야와 상관없이 모든 몬스터·돌의 위치를 안다)과 `--sight=cone`(플레이어나 언데드 시야에 보이는 몬스터·돌만 앎)이 있다. cone이면 겨눌 몬스터가 없으면 걷는 방향을 보며 실력마다 정한 간격으로 좌우를 둘러본다 (`player_bot.gd`의 `look_around`).
@@ -171,7 +171,7 @@ res://
   - 스크린샷: `--scene=res://regions/shallow_cave.tscn --setup=res://tools/screenshot_setups/vision_preview.gd` (쥐 둥지 바위 앞, 동쪽을 봄. 쥐 넷: 정면·바위 뒤·부채꼴 밖·몸 바로 뒤)
   - 움직이는 모습 연속 스크린샷: `bash tools/godot.sh --path . -s tools/record_vision_sequence.gd -- --out=<scratchpad 경로>/seq` (제자리 돌기·걷기·바위 옆 지나가기, 장면마다 12장을 모은 한 장과 낱장)
   - 언데드 시야와 빛 겹침 스크린샷: `--scene=res://regions/shallow_cave.tscn --setup=res://tools/screenshot_setups/vision_undead_overlap.gd` (쥐 언데드 둘: 플레이어와 같은 쪽을 봄(겹침) / 다른 쪽을 봄)
-  - 2D 시야의 프레임 시간: `bash tools/godot.sh --path . -s tools/measure_vision_frame.gd -- --view_2d --scene=res://regions/shallow_cave.tscn` (3D 시야의 프레임 시간은 `check_vision_3d.gd`. 창이 뜬다. 시야를 켠 구간과 끈 구간을 번갈아 재서 프레임 시간 중앙값의 차이를 본다. 평균은 다른 프로그램 때문에 크게 흔들린다. 원인을 나누려면 `--no_shadow`, `--no_occluders`, `--no_light`. 언데드 N마리를 세우려면 `--undead=N`, 벽이 촘촘한 곳에서 재려면 `--at=x,y`)
+  - 프레임 시간: `tests/view_3d/check_vision_3d.gd`의 [측정] 줄 (트인 곳·벽이 촘촘한 곳, 언데드 0·8마리)
   - 언데드 시야 값은 `SightData`(`data/sight/`)에 둔다. 몬스터 데이터의 `undead_sight`가 비어 있으면 `undead_default.tres`를 쓴다.
 - **박쥐 무리 경로 그림**: `bash tools/godot.sh --headless --fixed-fps 60 --path . -s tools/record_pack_paths.gd -- --seconds=12 --out=<scratchpad 경로>/pack_paths.png`. 네크로맨서를 세워 두고 박쥐 3마리의 경로를 3초씩 칸으로 나눠 그린다(흰 테두리 점은 동시 돌진 예고). 도는 방향 바꾼 횟수, 박쥐끼리 가장 가까운 거리, 동시 돌진 시작 때 박쥐 사이 각도를 출력한다.
 - 출력에 `SCRIPT ERROR` 또는 `ERROR:`가 있으면 고치고 다시 실행한다.

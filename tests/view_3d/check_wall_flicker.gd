@@ -1,27 +1,23 @@
 extends ScenarioTest
 ## 벽 모서리 픽셀 흔들림 검사 (계획서 2단계). 창을 띄운다. run_all.sh에는 넣지 않고, 값을 바꿔 가며 여러 번 실행해 비교한다.
-## bash tools/godot.sh --fixed-fps 60 --path . -s tests/view_3d/check_wall_flicker.gd -- --target=proto --mode=static --out=<a.png>
+## bash tools/godot.sh --fixed-fps 60 --path . -s tests/view_3d/check_wall_flicker.gd -- --target=layer --mode=poses
 ## 움직이는 것을 모두 멈춘 같은 장면을 프레임 간격을 두고 찍어, 앞 장면과 달라진 픽셀을 출력한다.
-## --target=proto|layer|terrain   proto: 시제품 층, layer: 같은 굴에 새 층(--depth_step=0이면 카메라 깊이를 격자에 맞추지 않음), terrain: 얕은 굴의 새 지형
-## --mode=static|toggle|poses   toggle: 시제품 검사처럼 반투명을 켜고 끄며 찍는다. poses: 시제품 반투명 검사의 자세들을 옮겨 다니며 켬·끔을 비교한다 (둘 다 proto만)
-##                          poses는 시야를 끈 채로 잰다 (시제품 검사와 같다). --vision=1이면 시야(그림자)를 켠다
-## --shadow=0, --palette=0  시제품의 그림자·팔레트 끄기
+## --target=layer|terrain   layer: 벽 시험 굴 (--depth_step=0이면 카메라 깊이를 격자에 맞추지 않음), terrain: 얕은 굴
+## --mode=static|poses      poses: 벽 시험 굴의 자세들을 옮겨 다니며 반투명 켬·끔을 비교한다 (layer만). 시야를 끈 채로 잰다. --vision=1이면 시야(그림자)를 켠다
 ## --out=<png>              마지막 장면 저장. 실행끼리는 tools/compare_images.gd로 비교한다
 
 const SETTLE_FRAMES: int = 120
 const WAIT_FRAMES: int = 40
 const CAPTURES: int = 6
 const MAX_LISTED: int = 6
-const PROTO_SCENE: String = "res://proto_25d/proto_cave.tscn"
+const LAYER_SCENE: String = "res://tests/view_3d/wall_test_cave.tscn"
 const TERRAIN_SCENE: String = "res://regions/shallow_cave.tscn"
 const PROTO_AIM_OFFSET: Vector2 = Vector2(0, 300)
 ## poses 방식에서 쥐 그림 둘레 이만큼은 먼 곳으로 치지 않는다 (화면 픽셀)
 const NEARBY_GROW: int = 64
 
-var _target: String = "proto"
+var _target: String = "layer"
 var _mode: String = "static"
-var _shadow: bool = true
-var _palette: bool = true
 var _vision: bool = false
 ## 0 이상이면 새 층의 카메라 깊이 격자를 이 값으로 바꾼다
 var _depth_step: float = -1.0
@@ -34,10 +30,6 @@ func _init() -> void:
 			_target = arg.trim_prefix("--target=")
 		elif arg.begins_with("--mode="):
 			_mode = arg.trim_prefix("--mode=")
-		elif arg == "--shadow=0":
-			_shadow = false
-		elif arg == "--palette=0":
-			_palette = false
 		elif arg == "--vision=1":
 			_vision = true
 		elif arg.begins_with("--depth_step="):
@@ -47,7 +39,7 @@ func _init() -> void:
 
 
 func get_start_scene() -> String:
-	return PROTO_SCENE if _target == "proto" or _target == "layer" else TERRAIN_SCENE
+	return LAYER_SCENE if _target == "layer" else TERRAIN_SCENE
 
 
 func _on_scene_ready() -> void:
@@ -57,35 +49,20 @@ func _on_scene_ready() -> void:
 		node.process_mode = Node.PROCESS_MODE_DISABLED
 	if _mode != "poses":
 		necromancer.process_mode = Node.PROCESS_MODE_DISABLED
-	var proto: Node = null
-	if _target == "proto":
-		proto = current_scene.get_node("View3D")
-		proto.set(&"aim_override", necromancer.get_body_center() + PROTO_AIM_OFFSET)
-		proto.set(&"palette_on", _palette)
-		proto.call(&"_apply_view_mode")
-		(proto.get(&"_light") as OmniLight3D).shadow_enabled = _shadow
-	else:
-		var old: Node = current_scene.get_node_or_null("View3D")
-		if old != null:
-			old.free()
-		var layer: RegionView3D = current_scene.call(&"add_view_3d")
-		layer.aim_lead.strength = 0.0
-		if _depth_step >= 0.0:
-			layer.depth_step = _depth_step
-		proto = layer
-		if _mode == "static":
-			proto = null
-	print("대상 %s, 방식 %s, 그림자 %s, 팔레트 %s" % [_target, _mode, _shadow, _palette])
+	var layer: RegionView3D = current_scene.call(&"add_view_3d")
+	layer.aim_lead.strength = 0.0
+	layer.aim_override = necromancer.get_body_center() + PROTO_AIM_OFFSET
+	if _depth_step >= 0.0:
+		layer.depth_step = _depth_step
+	print("대상 %s, 방식 %s" % [_target, _mode])
 	await wait_frames(SETTLE_FRAMES)
 	if _mode == "poses":
-		await _measure_poses(proto, necromancer)
+		await _measure_poses(layer, necromancer)
 		finish(true)
 		return
 	var previous: Image = await _capture()
 	var total: int = 0
 	for i: int in CAPTURES:
-		if proto != null and _target == "proto" and _mode == "toggle":
-			proto.set(&"see_through_on", i % 2 == 1)
 		await wait_frames(WAIT_FRAMES)
 		var current: Image = await _capture()
 		var changed: Array[Vector2i] = ImageDiff.changed_pixels(previous, current)
@@ -98,7 +75,7 @@ func _on_scene_ready() -> void:
 	finish(true)
 
 
-## 시제품 반투명 검사와 같은 자세들에서 반투명 켬·끔 화면을 비교해, 쥐에서 먼 곳의 달라진 픽셀만 센다.
+## 자세마다 반투명 켬·끔 화면을 비교해, 쥐에서 먼 곳의 달라진 픽셀만 센다.
 func _measure_poses(proto: Node, necromancer: Necromancer) -> void:
 	var rat: Monster = current_scene.get_node("Actors/Rat")
 	var vision: Vision = current_scene.call(&"get_vision")
@@ -143,10 +120,7 @@ func _measure_poses(proto: Node, necromancer: Necromancer) -> void:
 
 
 func _set_see_through(view: Node, value: bool) -> void:
-	if view is RegionView3D:
-		(view as RegionView3D).get_front_walls().see_through_on = value
-	else:
-		view.set(&"see_through_on", value)
+	(view as RegionView3D).get_front_walls().see_through_on = value
 
 
 func _camera_position(view: Node) -> Vector3:

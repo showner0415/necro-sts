@@ -10,9 +10,8 @@
 [ext_resource type="Resource" path="res://data/monsters/rat.tres" id="10_rat"]
 [ext_resource type="PackedScene" path="res://ui/hud.tscn" id="12_hud"]
 [ext_resource type="PackedScene" path="res://ui/inventory_screen.tscn" id="13_inventory"]
-[ext_resource type="Script" path="res://proto_25d/view_3d.gd" id="14_view"]
 
-[node name="ProtoCave" type="Node2D"]
+[node name="WallTestCave" type="Node2D"]
 script = ExtResource("1_region")
 data = ExtResource("2_data")
 death_destination = ExtResource("3_base")
@@ -39,6 +38,3 @@ data = ExtResource("10_rat")
 [node name="HUD" parent="." instance=ExtResource("12_hud")]
 
 [node name="InventoryScreen" parent="." instance=ExtResource("13_inventory")]
-
-[node name="View3D" type="Node3D" parent="."]
-script = ExtResource("14_view")
