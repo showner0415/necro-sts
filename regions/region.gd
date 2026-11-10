@@ -9,6 +9,7 @@ extends Node2D
 ## - 지역 상자(LootChest): F를 누르면 그 상자(오른쪽)와 인벤토리(왼쪽)를 나란히 연다 (상자 화면 ChestScreen).
 ##   열려 있는 동안만 상자의 내용물이 하나씩 드러난다. 상자에서 open_distance보다 멀어지거나 Tab·Esc로 둘 다 닫는다
 ## - 네크로맨서가 죽으면 인벤토리를 전부 잃고 death_destination(거점)으로 간다
+## - 지역 데이터의 limit_vision이 켜져 있으면 플레이어 시야를 제한한다 (Vision, 거점은 끔)
 ## 다른 씬으로 갈 때 소환 중인 언데드는 일반 해제된다. 네크로맨서는 새 씬에서 새로 만들어지므로 체력·마나가 가득 찬다.
 
 ## 이 지역
@@ -62,6 +63,8 @@ func _ready() -> void:
 		_storage_screen.open_changed.connect(_on_storage_open_changed)
 	_inventory_screen.open_changed.connect(_on_inventory_open_changed)
 	_hud.hotbar_view.bind(GameState.hotbar, _necromancer.summoner.roster)
+	if data != null and data.limit_vision:
+		_add_vision()
 
 	for node: Node in find_children("*", "EscapePoint", true, false):
 		var point: EscapePoint = node as EscapePoint
@@ -177,3 +180,21 @@ func _on_necromancer_died() -> void:
 	# 지역에서 죽으면 인벤토리의 물건을 전부 잃고 거점에서 다시 시작한다 (창고는 아직 없다).
 	GameState.reset_after_death()
 	travel_to(death_destination)
+
+
+## 시야 제한(Vision)을 붙인다. 몸(Actors)보다 앞에 있는 그림(바닥·벽·상자·탈출 지점 등)을 지형으로 넘겨 어둡게 한다.
+func _add_vision() -> void:
+	var vision: Vision = Vision.new()
+	vision.name = "Vision"
+	var actors: Node = _necromancer.get_parent()
+	var terrain: Array[CanvasItem] = []
+	for child: Node in get_children():
+		if child.get_index() < actors.get_index() and child is CanvasItem:
+			terrain.append(child as CanvasItem)
+	vision.setup(_necromancer, get_node_or_null("Walls") as PlaceholderWalls, terrain)
+	add_child(vision)
+
+
+## 확인용: 이 지역의 시야 (시야 제한이 없는 지역이면 null)
+func get_vision() -> Vision:
+	return get_node_or_null("Vision") as Vision

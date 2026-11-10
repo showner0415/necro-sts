@@ -10,6 +10,7 @@ extends ScenarioTest
 ## 전부 (헤드리스, 빠르게):
 ##   bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_map_route.gd
 ## 일부만: -- --routes=bat --skills=normal --undead=0 --runs=3
+## 멧돼지 돌진이 앞쪽만 맞히는 규칙(기본 끔)을 켜고 재려면: --charge_front_only=1
 ## 물러나기도 재려면: --retreat=0,1,2 (1: 언데드를 모두 잃거나 체력이 절반 이하면 싸움을 그만두고 합류 굴의 탈출 B로 물러난다, 2: 체력이 절반 이하일 때만). 1이나 2 중 하나만 줘도 둘 다 잰다
 ## 창으로 보기 (실제 속도, 한 판):
 ##   bash tools/godot.sh --path . -s tests/balance/run_map_route.gd -- --routes=boar --skills=normal --undead=2 --runs=1
@@ -22,6 +23,7 @@ const UNDEAD_BONES: int = 40
 const BAT_PATH: String = "res://data/monsters/bat.tres"
 const BAT_PATHS = preload("res://tests/bat_nest_paths.gd")
 const RAT_PATH: String = "res://data/monsters/rat.tres"
+const CHARGE_PATH: String = "res://data/behaviors/charge.tres"
 ## 시간 초과한 판의 위치 기록 간격 (초)과, 끝에서 몇 초 동안 움직인 거리를 볼지
 const TRACE_INTERVAL: float = 1.0
 const TRACE_TAIL: int = 20
@@ -65,6 +67,8 @@ var _scene: String = CAVE_SCENE
 var _png: String = MAP_PNG
 ## 시험용: 0보다 크면 쥐 언데드의 공격 거리(undead_attack_range_override)를 이 값으로 바꾼 데이터 복사본을 쓴다 (실제 .tres는 그대로)
 var _undead_attack_range: float = -1.0
+## 시험용: --charge_front_only=1이면 멧돼지 돌진이 앞쪽만 맞히는 규칙(front_only_hit, 기본 끔)을 켠다 (불러 둔 행동 데이터만 바꿈, 실제 .tres는 그대로)
+var _charge_front_only: bool = false
 var _rat_undead_data: MonsterData
 var _runs: int = DEFAULT_RUNS
 var _timeout: float = DEFAULT_TIMEOUT
@@ -108,6 +112,9 @@ func _parse_args() -> void:
 				_scene = parts[1]
 			"undead_attack_range":
 				_undead_attack_range = float(parts[1])
+			"charge_front_only":
+				_charge_front_only = parts[1] != "0"
+				(load(CHARGE_PATH) as ChargeBehavior).front_only_hit = _charge_front_only
 			"png":
 				_png = parts[1]
 			"timeout":
@@ -142,12 +149,14 @@ func _run_all() -> void:
 				for skill_id: StringName in _skills:
 					var results: Array[Dictionary] = []
 					for run: int in _runs:
-						results.append(await _pass(route_id, undead_count, skill_id, run, retreat))
+						var result: Dictionary = await _pass(route_id, undead_count, skill_id, run, retreat)
+						if not result.has("invalid"):
+							results.append(result)
 					lines.append(_row(route_id, undead_count, retreat, skill_id, results))
 					print(lines[-1])
 	print("")
 	print("\n".join(lines))
-	finish(true)
+	finish(start_failures == 0)
 
 
 func _pass(route_id: StringName, undead_count: int, skill_id: StringName, run: int, retreat: int) -> Dictionary:
@@ -164,6 +173,9 @@ func _pass(route_id: StringName, undead_count: int, skill_id: StringName, run: i
 			kept.append(monster)
 		else:
 			monster.free()
+	# 남길 굴이 있는 길은 몬스터가 적어도 한 마리 있어야 한다 (거점처럼 몬스터 없는 씬이면 틀림).
+	if not check_fight_start(_scene, maxi(kept.size(), 0 if keep_rooms.is_empty() else 1)):
+		return {"invalid": true}
 	var necromancer: Necromancer = find_necromancer()
 	necromancer.global_position = _room_center(_roles[route["start"]])
 	await wait_frames(SETTLE_FRAMES)
@@ -258,7 +270,9 @@ func _pass(route_id: StringName, undead_count: int, skill_id: StringName, run: i
 			goal_index += 1
 			press_moves(Vector2.ZERO)
 			continue
-		press_moves(follower.get_direction(necromancer, goals[goal_index]))
+		var walk: Vector2 = follower.get_direction(necromancer, goals[goal_index])
+		press_moves(walk)
+		bot.look_around(delta, walk)
 	if not result["escaped"]:
 		bot.release_all()
 	bot.finish_tracking(result["died"])
@@ -297,13 +311,7 @@ func _give_undead(necromancer: Necromancer, count: int) -> Array[Skull]:
 
 ## 얕은 굴을 새로 불러오고, 전역 상태(인벤토리·핫바)를 비운다.
 func _reload_scene() -> void:
-	await physics_frame
-	await physics_frame
-	root.get_node("GameState").call(&"reset_after_death")
-	var old_scene: Node = current_scene
-	change_scene_to_file(_scene)
-	while current_scene == old_scene or current_scene == null or not current_scene.is_node_ready():
-		await physics_frame
+	await reload_fight_scene(_scene)
 
 
 func _row(route_id: StringName, undead_count: int, retreat: int, skill_id: StringName, results: Array[Dictionary]) -> String:
@@ -346,6 +354,8 @@ func _condition_name(undead_count: int) -> String:
 	var label: String = "혼자" if undead_count == 0 else "쥐 언데드 %d" % undead_count
 	if _undead_attack_range > 0.0:
 		label += " (언데드 공격 거리 %.0f)" % _undead_attack_range
+	if _charge_front_only:
+		label += " (돌진은 앞쪽만 맞힘)"
 	return label
 
 

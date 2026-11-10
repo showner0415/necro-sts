@@ -50,6 +50,10 @@ var _behavior: MonsterBehavior
 var _knockback: Knockback = Knockback.new()
 ## 벽을 돌아서 가는 방향을 정한다 (벽이 없으면 곧장)
 var _path_follower: PathFollower
+## 시야(Vision)가 쓰는 바라보는 방향 (길이 1): 싸울 때는 대상 쪽, 움직일 때는 움직이는 쪽, 멈추면 그대로.
+## 시야 데이터의 turn_speed까지만 돈다
+var facing: Vector2 = Vector2.DOWN
+var _sight: SightData
 
 @onready var _collision: CollisionShape2D = $CollisionShape2D
 
@@ -63,6 +67,7 @@ func setup(summoned_skull: Skull, monster_data: MonsterData, master: Node2D) -> 
 
 func _ready() -> void:
 	_behavior = data.make_undead_behavior()
+	_sight = data.get_undead_sight()
 	_collision.shape = PlaceholderBody.make_shape(data)
 	_collision.rotation = PlaceholderBody.shape_rotation(data)
 	_collision.position = PlaceholderBody.center(data)
@@ -85,8 +90,26 @@ func _physics_process(delta: float) -> void:
 		velocity = _knockback.get_velocity()
 	move_and_slide()
 	_knockback.update(delta)
+	_update_facing(target, delta)
 	# 예고 표시(깜빡임, 방향 선)가 프레임마다 바뀐다.
 	queue_redraw()
+
+
+func _update_facing(target: Monster, delta: float) -> void:
+	var want: Vector2 = Vector2.ZERO
+	if target != null:
+		want = global_position.direction_to(target.global_position)
+	elif velocity.length() > 1.0:
+		want = velocity.normalized()
+	if want == Vector2.ZERO:
+		return
+	var max_turn: float = deg_to_rad(_sight.turn_speed) * delta
+	facing = facing.rotated(clampf(facing.angle_to(want), -max_turn, max_turn)).normalized()
+
+
+## 시야의 중심 (몸 가운데)
+func get_sight_origin() -> Vector2:
+	return global_position + PlaceholderBody.center(data)
 
 
 ## 테스트·디버그용: 이 한 마리가 쓰는 행동 조각
@@ -149,21 +172,15 @@ func _follow() -> void:
 
 ## 따라가는 동안 다른 언데드에게서 비켜 서는 방향과 세기 (가까울수록 세다, 길이 최대 1)
 func _spacing_push() -> Vector2:
-	var push: Vector2 = Vector2.ZERO
+	var others: Array[Vector2] = []
+	var ids: Array[int] = []
 	for node: Node in get_tree().get_nodes_in_group(&"undead"):
 		var other: Node2D = node as Node2D
 		if other == self or other == null or other.is_queued_for_deletion():
 			continue
-		var away: Vector2 = global_position - other.global_position
-		var gap: float = away.length()
-		if gap >= spacing_distance:
-			continue
-		# 같은 자리에 겹쳐 있으면 정해진 쪽으로 비킨다 (인스턴스 번호로 서로 반대쪽).
-		if gap == 0.0:
-			away = Vector2.RIGHT if get_instance_id() > other.get_instance_id() else Vector2.LEFT
-		# 제곱근으로 해서 거의 다 떨어졌을 때도 너무 느려지지 않게 한다.
-		push += away.normalized() * sqrt((spacing_distance - gap) / spacing_distance)
-	return push.limit_length(1.0)
+		others.append(other.global_position)
+		ids.append(other.get_instance_id())
+	return BodySpacing.push(global_position, get_instance_id(), others, ids, spacing_distance)
 
 
 ## 살아 있는 몬스터마다 이번 프레임 정보를 모아 UndeadTargeting에 넣고, 정해진 대상을 돌려준다.

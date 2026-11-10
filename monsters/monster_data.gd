@@ -21,6 +21,18 @@ enum PlaceholderShape { CIRCLE, ELLIPSE, DIAMOND }
 @export var max_health: float = 3.0
 ## 대상을 쫓을 때의 속도 (픽셀/초)
 @export var move_speed: float = 40.0
+## 싸우는 동안 다른 몬스터와 떨어지려는 거리 (픽셀). 0이면 비켜 서지 않는다
+@export var combat_spacing: float = 0.0
+@export_group("던지기")
+## 한 번에 연달아 던지는 돌 수
+@export var throw_burst_count: int = 1
+## 연달아 던질 때 돌 사이 간격 (초)
+@export var throw_burst_interval: float = 0.25
+## 돌마다의 예측 비율 (0이면 지금 자리를 노림, 1이면 도착할 곳을 정확히 노림). 돌 수보다 짧으면 마지막 값을 쓴다
+@export var throw_lead_ratios: Array[float] = []
+## 돌마다의 조준 오차 (±도). 돌 수보다 짧으면 마지막 값을 쓴다
+@export var throw_aim_errors: Array[float] = []
+@export_group("")
 ## 대상이 이 거리 안에 들어오면 쫓아온다
 @export var detect_range: float = 80.0
 ## 대상이 이 거리 안이면 멈춰서 공격한다
@@ -68,6 +80,8 @@ enum PlaceholderShape { CIRCLE, ELLIPSE, DIAMOND }
 ## 쥐 언데드는 멧돼지 돌진에 맞는 범위(20) 밖에서 싸우도록 24로 둔다 (사용자 결정, 2026-11-08)
 @export var undead_attack_range_override: float = -1.0
 @export var undead_placeholder_color: Color = Color.WHITE
+## 언데드일 때의 시야 (거리·각도 등). 비어 있으면 기본값 (UNDEAD_SIGHT_DEFAULT_PATH)
+@export var undead_sight: SightData
 
 ## 언데드 능력치는 몬스터 값에서 계산한다 (규칙: UndeadStatRules). 체력·공격력에만 배율, 나머지는 몬스터와 같다.
 ## 내구도가 가득 찼을 때의 값이다.
@@ -79,6 +93,8 @@ var undead_contact_damage: float:
 		return contact_damage * get_undead_damage_ratio()
 
 const UNDEAD_STAT_RULES_PATH: String = "res://data/undead_stat_rules.tres"
+const UNDEAD_SIGHT_DEFAULT_PATH: String = "res://data/sight/undead_default.tres"
+static var _default_sight: SightData
 static var _undead_rules: UndeadStatRules
 
 @export_group("그림")
@@ -115,6 +131,16 @@ func make_sprite_frames() -> SpriteFrames:
 	return frames
 
 
+## 언데드일 때의 시야 (undead_sight가 비어 있으면 기본값). 기본값은 한 번 불러 붙잡아 둔다
+## (아무도 붙잡지 않으면 캐시에서 내려가 부를 때마다 파일을 다시 읽는다)
+func get_undead_sight() -> SightData:
+	if undead_sight != null:
+		return undead_sight
+	if _default_sight == null:
+		_default_sight = load(UNDEAD_SIGHT_DEFAULT_PATH)
+	return _default_sight
+
+
 ## 적일 때 쓰는 행동 조각의 복사본 (한 마리에 하나)
 func make_enemy_behavior() -> MonsterBehavior:
 	return behavior.make_instance()
@@ -126,12 +152,20 @@ func make_undead_behavior() -> MonsterBehavior:
 
 
 func get_enemy_stats() -> CombatStats:
-	return CombatStats.create(move_speed, attack_range, contact_damage, attack_cooldown)
+	return _with_throw_stats(CombatStats.create(move_speed, attack_range, contact_damage, attack_cooldown))
+
+
+func _with_throw_stats(stats: CombatStats) -> CombatStats:
+	stats.burst_count = throw_burst_count
+	stats.burst_interval = throw_burst_interval
+	stats.lead_ratios = throw_lead_ratios
+	stats.aim_errors = throw_aim_errors
+	return stats
 
 
 ## 언데드일 때의 능력치: 이동 속도·공격 간격은 몬스터와 같고, 공격력만 배율을 곱한다. 공격 거리는 따로 둔 값이 없으면 몬스터와 같다.
 func get_undead_stats() -> CombatStats:
-	return CombatStats.create(move_speed, get_undead_attack_range(), undead_contact_damage, attack_cooldown)
+	return _with_throw_stats(CombatStats.create(move_speed, get_undead_attack_range(), undead_contact_damage, attack_cooldown))
 
 
 ## 언데드 공격 거리 (이 몬스터에 따로 둔 값이 있으면 그것, 없으면 몬스터의 attack_range)

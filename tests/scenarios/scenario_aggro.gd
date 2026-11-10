@@ -173,6 +173,8 @@ func _fight_keeps_nearest() -> void:
 	tough.max_health = TOUGH_RAT_HEALTH
 	_fight_rat.data = tough
 	_fight_rat.health = TOUGH_RAT_HEALTH
+	# 대상 고르기만 보는 단계다: 물고 물러나면 쥐가 움직여 "가장 가까운 대상"이 프레임마다 바뀌므로 붙어 싸우게 고정한다.
+	(_fight_rat.get_behavior() as ApproachBehavior).hit_and_run = false
 	_fight_rat.global_position = FIGHT_STAGE
 	_necromancer.global_position = FIGHT_STAGE + NECROMANCER_OFFSET
 

@@ -154,7 +154,8 @@ func test_hits_each_hostile_once_per_charge() -> void:
 	other.free()
 
 
-func test_hostile_behind_or_beside_is_not_hit() -> void:
+func test_hostile_behind_or_beside_is_not_hit_when_front_only() -> void:
+	charge.front_only_hit = true
 	var behind: FakeHostile = FakeHostile.new()
 	var beside: FakeHostile = FakeHostile.new()
 	body.hostiles.append_array([behind, beside])
@@ -167,6 +168,17 @@ func test_hostile_behind_or_beside_is_not_hit() -> void:
 	assert_eq(beside.damage.size(), 0, "옆 상대는 맞지 않는다")
 	behind.free()
 	beside.free()
+
+
+func test_hostile_behind_is_hit_by_default() -> void:
+	assert_false(charge.front_only_hit, "기본은 앞쪽만 맞히는 규칙을 쓰지 않는다 (사용자 결정)")
+	var behind: FakeHostile = FakeHostile.new()
+	body.hostiles.append(behind)
+	_run_windup()
+	behind.position = body.position - charge.get_direction() * (charge.hit_radius - 2.0)
+	_step()
+	assert_eq(behind.damage.size(), 1, "맞는 거리 안이면 뒤쪽 상대도 맞는다")
+	behind.free()
 
 
 func test_next_charge_can_hit_again() -> void:

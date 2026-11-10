@@ -28,7 +28,14 @@ const TARGETS: Dictionary = {
 	&"boar": {"name": "멧돼지 1마리", "data": "res://data/monsters/boar.tres", "offsets": [Vector2.ZERO]},
 	&"bat_pack": {"name": "박쥐 무리(3)", "data": "res://data/monsters/bat.tres", "offsets": [Vector2(0, -12), Vector2(12, 0), Vector2(0, 12)], "pack": true},
 	&"goblin_pair": {"name": "고블린 투석병(2)", "data": "res://data/monsters/goblin_slinger.tres", "offsets": [Vector2(0, -25), Vector2(10, 25)]},
+	## 벽으로 둘러싸인 방 (12×9칸, 얕은 굴의 작은 굴 64~115칸과 비슷하다). 기본 대상에는 넣지 않는다: --targets=goblin_room
+	&"goblin_room": {"name": "고블린 투석병(2), 벽 방", "data": "res://data/monsters/goblin_slinger.tres", "offsets": [Vector2(0, -25), Vector2(10, 25)],
+		"room": Vector2(384, 288), "start": Vector2(-120, 0), "spawn": Vector2(110, 0)},
 }
+## 벽 방의 벽 두께 (픽셀), 벽의 충돌층 (지역의 벽과 같다), 봇이 방 가운데로 돌아오기 시작하는 거리 (픽셀)
+const ROOM_WALL_THICKNESS: float = 32.0
+const ROOM_WALL_LAYER: int = 1
+const ROOM_ARENA_RADIUS: float = 120.0
 const SPAWN_OFFSET: Vector2 = Vector2(150, 0)
 const DEFAULT_RUNS: int = 20
 ## 한 판의 시간 한계 (초). 넘으면 "시간 초과"로 센다.
@@ -57,6 +64,7 @@ func _on_scene_ready() -> void:
 
 
 func _parse_args() -> void:
+	apply_goblin_args()
 	for arg: String in OS.get_cmdline_user_args():
 		var parts: PackedStringArray = arg.trim_prefix("--").split("=")
 		if parts.size() != 2:
@@ -81,6 +89,8 @@ func _parse_args() -> void:
 
 func _run_all() -> void:
 	var rows: Array[String] = []
+	var error_rows: Array[String] = []
+	var durability_rows: Array[String] = []
 	## [대상, 실력] → 혼자일 때 요약 (언데드 효과의 기준)
 	var alone: Dictionary = {}
 	for target_id: StringName in _targets:
@@ -88,13 +98,18 @@ func _run_all() -> void:
 			for skill_id: StringName in _skills:
 				var results: Array[Dictionary] = []
 				for run: int in _runs:
-					results.append(await _fight(target_id, undead_count, skill_id, run))
+					var result: Dictionary = await _fight(target_id, undead_count, skill_id, run)
+					if not result.has("invalid"):
+						results.append(result)
 				var stats: Dictionary = _summarize(results)
 				if undead_count == 0:
 					alone[[target_id, skill_id]] = stats
 				var row: String = _summary_row(target_id, undead_count, skill_id, stats, alone.get([target_id, skill_id]))
 				print(row)
 				rows.append(row)
+				error_rows.append(_error_row(target_id, undead_count, skill_id, results))
+				if undead_count > 0:
+					durability_rows.append(_durability_row(target_id, undead_count, skill_id, results))
 	print("")
 	print("| 대상 | 조건 | 실력 | 잡은 시간 평균 | 가장 늦게 | 받은 피해 평균 | 가장 많이 | 죽음 | 시간 초과 | 언데드 효과: 시간 | 언데드 효과: 피해 | 언데드 효과: 사망률 | 명중률 | 본 예고(돌 포함) | 구름 | 소환 | 가장 가까이 온 거리 | 동시 공격 | 놓친 동시 공격 피해 | 놓친 직후 마나 | 최저 마나 | 언데드 죽음 | 언데드 해제 |")
 	print("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
@@ -102,7 +117,18 @@ func _run_all() -> void:
 		print("(무리 동시 공격 처음 %d번은 일부러 피하지 않음)" % _miss_pack)
 	for row: String in rows:
 		print(row)
-	finish(true)
+	print("")
+	print("| 대상 | 조건 | 실력 | 판 | 잡은 시간 (95% 오차) | 받은 피해 (95% 오차) | 죽음 (95% 범위) |")
+	print("|---|---|---|---|---|---|---|")
+	for row: String in error_rows:
+		print(row)
+	if not durability_rows.is_empty():
+		print("")
+		print("| 대상 | 조건 | 실력 | 판 | 머리뼈 내구도 소모 합계 (판당, 95% 오차) | 초당 소모 (합계) |")
+		print("|---|---|---|---|---|---|")
+		for row: String in durability_rows:
+			print(row)
+	finish(start_failures == 0)
 
 
 ## 한 판 싸운다. 결과: time(초), damage, died, timeout, shots, hits
@@ -115,15 +141,17 @@ func _fight(target_id: StringName, undead_count: int, skill_id: StringName, run:
 		node.free()
 	for node: Node in region.find_children("*", "EscapePoint", true, false):
 		node.free()
-	necromancer.global_position = Vector2.ZERO
-
 	var target: Dictionary = TARGETS[target_id]
+	necromancer.global_position = target.get("start", Vector2.ZERO)
+	if target.has("room"):
+		_build_room(region, target["room"])
+
 	var data: MonsterData = load(target["data"])
 	var spawned: Array[Monster] = []
 	for offset: Vector2 in target["offsets"]:
 		var monster: Monster = (load(MONSTER_SCENE) as PackedScene).instantiate()
 		monster.data = data
-		monster.position = SPAWN_OFFSET + offset
+		monster.position = target.get("spawn", SPAWN_OFFSET) + offset
 		necromancer.get_parent().add_child(monster)
 		spawned.append(monster)
 	# 무리면 MonsterPack으로 묶는다: 어그로 공유와 동시 공격 시각 맞추기 (시험 지역의 BatPack과 같다).
@@ -131,13 +159,21 @@ func _fight(target_id: StringName, undead_count: int, skill_id: StringName, run:
 		var pack: MonsterPack = MonsterPack.new()
 		pack.set_members(spawned)
 		region.add_child(pack)
+	if not check_fight_start(TEST_REGION_SCENE, spawned.size()):
+		return {"invalid": true}
 
 	var bot: PlayerBot = PlayerBot.new(self, necromancer, skill_id)
 	bot.miss_group_attacks = _miss_pack
 	if _keep >= 0.0:
 		bot.keep_distance = _keep
+	if target.has("room"):
+		bot.arena_radius = ROOM_ARENA_RADIUS
+	var skulls: Array[Skull] = []
 	if undead_count > 0:
-		bot.set_undead_skulls(_give_undead(necromancer, undead_count))
+		skulls = _give_undead(necromancer, undead_count)
+		bot.set_undead_skulls(skulls)
+	var durability_start: float = _total_durability(skulls)
+	_on_fight_start(necromancer, bot, spawned)
 
 	var time: float = 0.0
 	var delta: float = 1.0 / Engine.physics_ticks_per_second
@@ -157,6 +193,7 @@ func _fight(target_id: StringName, undead_count: int, skill_id: StringName, run:
 			result["timeout"] = true
 			break
 		bot.tick(delta)
+		_on_fight_frame(necromancer, bot, time)
 	bot.release_all()
 	bot.finish_tracking(result["died"])
 	result["time"] = time
@@ -173,7 +210,58 @@ func _fight(target_id: StringName, undead_count: int, skill_id: StringName, run:
 	result["mana_min"] = bot.mana_min
 	result["undead_died"] = bot.undead_died
 	result["undead_released"] = bot.undead_released
+	result["durability_lost"] = durability_start - _total_durability(skulls)
+	_on_fight_end(result, bot)
 	return result
+
+
+func _total_durability(skulls: Array[Skull]) -> float:
+	var total: float = 0.0
+	for skull: Skull in skulls:
+		total += skull.durability
+	return total
+
+
+## 가운데가 (0, 0)이고 안쪽 크기가 size인 방을 벽으로 둘러싼다 (길찾기 없이 곧장 다니는 볼록한 방이라 NavigationGrid는 넣지 않는다).
+func _build_room(region: Node, size: Vector2) -> void:
+	var body: StaticBody2D = StaticBody2D.new()
+	body.collision_layer = ROOM_WALL_LAYER
+	body.collision_mask = 0
+	var half: Vector2 = size / 2.0
+	var outer: Vector2 = half + Vector2.ONE * ROOM_WALL_THICKNESS / 2.0
+	for wall: Array in [[Vector2(0, -outer.y), Vector2(size.x + 2.0 * ROOM_WALL_THICKNESS, ROOM_WALL_THICKNESS)], [Vector2(0, outer.y), Vector2(size.x + 2.0 * ROOM_WALL_THICKNESS, ROOM_WALL_THICKNESS)],
+			[Vector2(-outer.x, 0), Vector2(ROOM_WALL_THICKNESS, size.y)], [Vector2(outer.x, 0), Vector2(ROOM_WALL_THICKNESS, size.y)]]:
+		var shape: RectangleShape2D = RectangleShape2D.new()
+		shape.size = wall[1]
+		var collision: CollisionShape2D = CollisionShape2D.new()
+		collision.shape = shape
+		collision.position = wall[0]
+		body.add_child(collision)
+	region.add_child(body)
+
+
+## 머리뼈 내구도 소모 표 한 줄: 판당 합계와, 모든 판의 소모 합을 싸운 시간 합으로 나눈 초당 소모
+func _durability_row(target_id: StringName, undead_count: int, skill_id: StringName, results: Array[Dictionary]) -> String:
+	var lost: float = 0.0
+	var time: float = 0.0
+	for result: Dictionary in results:
+		lost += result["durability_lost"]
+		time += result["time"]
+	return "| %s | 쥐 언데드 %d | %s | %d | %s | %.2f |" % [TARGETS[target_id]["name"], undead_count, PlayerBot.SKILLS[skill_id]["name"], results.size(),
+		_mean_error(results.map(func(r: Dictionary) -> float: return r["durability_lost"]), ""), lost / maxf(time, 0.01)]
+
+
+## 원인을 재는 스크립트(run_diagnose.gd)가 덮어쓴다: 싸움 시작, 봇이 움직인 뒤 물리 프레임마다, 판이 끝났을 때
+func _on_fight_start(_necromancer: Necromancer, _bot: PlayerBot, _spawned: Array[Monster]) -> void:
+	pass
+
+
+func _on_fight_frame(_necromancer: Necromancer, _bot: PlayerBot, _time: float) -> void:
+	pass
+
+
+func _on_fight_end(_result: Dictionary, _bot: PlayerBot) -> void:
+	pass
 
 
 func bot_monsters_left() -> int:
@@ -199,15 +287,7 @@ func _give_undead(necromancer: Necromancer, count: int) -> Array[Skull]:
 
 ## 시험 지역을 새로 불러오고, 전역 상태(인벤토리·핫바)를 비운다.
 func _reload_scene() -> void:
-	# 지난 판에서 죽었으면 지역 씬이 거점으로 보내는 중일 수 있다. 그 뒤에 다시 부른다.
-	await physics_frame
-	await physics_frame
-	var game_state: Node = root.get_node("GameState")
-	game_state.call(&"reset_after_death")
-	var old_scene: Node = current_scene
-	change_scene_to_file(TEST_REGION_SCENE)
-	while current_scene == old_scene or current_scene == null or not current_scene.is_node_ready():
-		await physics_frame
+	await reload_fight_scene(TEST_REGION_SCENE)
 
 
 ## 한 조건의 결과 요약. 시간은 살아서 잡은 판만으로 낸다 (모두 죽거나 시간 초과면 time_mean은 -1).
@@ -269,6 +349,38 @@ func _summary_row(target_id: StringName, undead_count: int, skill_id: StringName
 		stats["hit_rate"], stats["telegraphs"], stats["rolls"], stats["summons"], stats["closest"],
 		stats["group_attacks"], stats["missed_damage"], stats["mana_after_miss"],
 		stats["mana_min"], stats["undead_died"], stats["undead_released"]]
+
+
+## 오차 범위 표 한 줄. 시간은 살아서 잡은 판만, 피해와 죽음은 모든 판으로 낸다.
+func _error_row(target_id: StringName, undead_count: int, skill_id: StringName, results: Array[Dictionary]) -> String:
+	var finished: Array[Dictionary] = results.filter(func(r: Dictionary) -> bool: return not r["died"] and not r["timeout"])
+	var deaths: int = results.filter(func(r: Dictionary) -> bool: return r["died"]).size()
+	return "| %s | %s | %s | %d | %s | %s | %s |" % [
+		TARGETS[target_id]["name"], "혼자" if undead_count == 0 else "쥐 언데드 %d" % undead_count, PlayerBot.SKILLS[skill_id]["name"], results.size(),
+		_mean_error(finished.map(func(r: Dictionary) -> float: return r["time"]), "초"),
+		_mean_error(results.map(func(r: Dictionary) -> float: return r["damage"]), ""),
+		_rate_range(deaths, results.size())]
+
+
+## "13.6 ± 1.2초 (43판)": 평균과 95% 오차 범위 (정규 근사: 1.96 × 표준편차 / √판 수)
+func _mean_error(values: Array, unit: String) -> String:
+	if values.size() < 2:
+		return "-"
+	var mean: float = _mean(values)
+	var squares: float = 0.0
+	for v: float in values:
+		squares += (v - mean) * (v - mean)
+	return "%.1f ± %.1f%s (%d판)" % [mean, 1.96 * sqrt(squares / (values.size() - 1)) / sqrt(values.size()), unit, values.size()]
+
+
+## "56% (42~69%)": 비율과 95% 범위 (Wilson. 0%나 100% 근처에서도 범위가 0으로 줄지 않는다)
+func _rate_range(count: int, total: int) -> String:
+	var z: float = 1.96
+	var p: float = float(count) / total
+	var denominator: float = 1.0 + z * z / total
+	var center: float = (p + z * z / (2.0 * total)) / denominator
+	var half: float = z * sqrt(p * (1.0 - p) / total + z * z / (4.0 * total * total)) / denominator
+	return "%.0f%% (%.0f~%.0f%%)" % [100.0 * p, 100.0 * maxf(center - half, 0.0), 100.0 * minf(center + half, 1.0)]
 
 
 ## 기준 대비 변화: "-2.6초 (-15%)". 기준이 0이면 비율은 뺀다.

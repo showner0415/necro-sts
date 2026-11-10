@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ApproachBehavior" format=3]
+
+[ext_resource type="Script" path="res://monsters/behaviors/approach_behavior.gd" id="1_approach"]
+
+[resource]
+script = ExtResource("1_approach")
+attack_windup = 0.1
+hit_and_run = true
+back_off_distance = 40.0
+back_off_speed = 40.0
+pause_time = 0.25
+circle_range = 56.0
+circle_strength = 0.75
+circle_speed = 30.0
+wall_probe_distance = 12.0

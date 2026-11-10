@@ -11,6 +11,20 @@ var attack_range: float
 var contact_damage: float
 ## 공격 사이의 간격 (초)
 var attack_cooldown: float
+## 한 번에 연달아 던지는 돌 수와 돌 사이 간격 (초)
+var burst_count: int = 1
+var burst_interval: float = 0.0
+## 돌마다의 예측 비율(0이면 지금 자리를 노림, 1이면 도착할 곳을 정확히)과 조준 오차(±도). 돌 수보다 짧으면 마지막 값을 쓴다
+var lead_ratios: Array[float] = []
+var aim_errors: Array[float] = []
+
+
+func get_lead_ratio(index: int) -> float:
+	return lead_ratios[mini(index, lead_ratios.size() - 1)] if not lead_ratios.is_empty() else 0.0
+
+
+func get_aim_error(index: int) -> float:
+	return aim_errors[mini(index, aim_errors.size() - 1)] if not aim_errors.is_empty() else 0.0
 
 
 static func create(speed: float, attack_distance: float, damage: float, cooldown: float) -> CombatStats:

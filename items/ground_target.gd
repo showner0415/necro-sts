@@ -15,6 +15,8 @@ var _key_text: String
 
 
 func _ready() -> void:
+	# 시야 밖에서는 보이지 않는다 (Vision).
+	add_to_group(&"sight_hidden")
 	_key_text = "[%s]" % _action_key_name(PICKUP_ACTION)
 	_prompt.visible = false
 

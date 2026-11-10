@@ -9,3 +9,5 @@ extends Resource
 @export_file("*.tscn") var scene_path: String
 ## true면 거점 (몬스터가 없는 안전한 곳)
 @export var is_base: bool = false
+## true면 플레이어 시야를 제한한다 (마우스 방향 부채꼴만 보임, Vision). 동굴 같은 위험 지역에서 켜고 거점에서는 끈다
+@export var limit_vision: bool = false

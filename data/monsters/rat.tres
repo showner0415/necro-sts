@@ -5,6 +5,7 @@
 [ext_resource type="Script" uid="uid://bcih3jlpk6ss2" path="res://items/drop_entry.gd" id="3_drop"]
 [ext_resource type="Resource" uid="uid://bra1oda508qor" path="res://data/skulls/rat_skull.tres" id="4_rat_skull"]
 [ext_resource type="Resource" path="res://data/behaviors/approach.tres" id="5_approach"]
+[ext_resource type="Resource" path="res://data/behaviors/approach_hit_and_run.tres" id="5_hit_and_run"]
 [ext_resource type="Texture2D" path="res://assets/monsters/rat/rat_east.png" id="6_rat_east"]
 [ext_resource type="Texture2D" path="res://assets/monsters/rat/rat_south_east.png" id="7_rat_south_east"]
 [ext_resource type="Texture2D" path="res://assets/monsters/rat/rat_south.png" id="8_rat_south"]
@@ -28,8 +29,10 @@ chance = 0.5
 script = ExtResource("1_monster")
 id = &"rat"
 display_name = "쥐"
-behavior = ExtResource("5_approach")
+behavior = ExtResource("5_hit_and_run")
+undead_behavior = ExtResource("5_approach")
 max_health = 7.0
+combat_spacing = 24.0
 drops = Array[ExtResource("3_drop")]([SubResource("Resource_drop_bone"), SubResource("Resource_drop_skull")])
 summon_mana_cost = 4.0
 undead_upkeep_mana_per_second = 1.0

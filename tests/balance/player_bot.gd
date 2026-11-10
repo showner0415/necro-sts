@@ -14,13 +14,19 @@ extends RefCounted
 ##   언데드를 노린 공격이 뒤로 이어지지 않게. 사람도 예고 선이 보일 때 비키므로 예고 중에만 한다
 ## - 언데드: 핫바의 머리뼈가 소환 중이 아니고 마나가 넉넉하면 숫자키 → G로 다시 소환한다
 ## - 물러나기(retreat_to): 쏘지 않고 탈출 지점으로 길찾기로 가며, 뛸 수 있으면 뛰고 예고된 공격만 구르기로 피한다
-## 실력은 반응 시간, 조준 오차, 회피 성공률 세 값으로 정한다 (SKILLS, 임시값).
+## - 시야 (--sight, 기본 full): full이면 모든 몬스터·돌의 위치를 안다. cone이면 지역에 시야(Vision)가 있을 때 플레이어나 언데드 시야에 보이는 몬스터·돌만 안다. 처음 보인 뒤 반응 시간이 지나야 겨눈다.
+##   예고·돌은 보이기 시작한 때부터 반응 시간을 센다
+## - 둘러보기 (사용자 확정): 겨눌 몬스터가 없으면 걷는 방향을 본다. scan_interval초마다 좌우 scan_angle도를 한 번씩 scan_look_time초 동안 본다.
+##   안 보이는 몬스터에게 맞으면 hit_turn_delay초 뒤 맞은 쪽을 hit_look_time초 동안 본다 (맵을 걸을 때는 look_around를 부른다)
+## - 놓친 몬스터 (사용자 결정): 살아 있는 몬스터가 시야에서 사라지면 반응 시간 동안 마우스를 그대로 두고, 그 뒤 last_seen_look_time초 동안 마지막으로 본 자리를 본다.
+##   실제 위치가 아니라 마지막으로 본 자리만 쓴다. 싸우는 중이면 그다음 둘러보기도 그쪽을 기준으로 한다
+## 실력은 반응 시간, 조준 오차, 회피 성공률(, 둘러보는 간격) 값으로 정한다 (SKILLS, 임시값).
 
-## 실력 단계: [이름, 반응 시간(초), 조준 오차(도, 표준편차), 회피 성공률]
+## 실력 단계: [이름, 반응 시간(초), 조준 오차(도, 표준편차), 회피 성공률, 둘러보는 간격(초, 사용자 확정)]
 const SKILLS: Dictionary = {
-	&"skilled": {"name": "숙련", "reaction": 0.18, "aim_error": 0.0, "dodge": 0.9},
-	&"normal": {"name": "보통", "reaction": 0.30, "aim_error": 3.5, "dodge": 0.6},
-	&"novice": {"name": "초보", "reaction": 0.45, "aim_error": 7.0, "dodge": 0.25},
+	&"skilled": {"name": "숙련", "reaction": 0.18, "aim_error": 0.0, "dodge": 0.9, "scan_interval": 1.2},
+	&"normal": {"name": "보통", "reaction": 0.30, "aim_error": 3.5, "dodge": 0.6, "scan_interval": 2.0},
+	&"novice": {"name": "초보", "reaction": 0.45, "aim_error": 7.0, "dodge": 0.25, "scan_interval": 3.0},
 }
 
 ## 핫바 칸을 고르는 숫자키 (칸 순서대로)
@@ -51,8 +57,24 @@ var group_attack_settle_time: float = 0.3
 var summon_mana_margin: float = 2.0
 ## 봇이 상대할 몬스터를 고르는 거름 (Monster -> bool). 비어 있으면 살아 있는 몬스터 모두. 실제 맵에서 걸려 온 몬스터만 상대할 때 쓴다
 var monster_filter: Callable = Callable()
+## 둘러보기 (사용자 확정): 걷는 방향에서 좌우 이 각도 (도), 한쪽을 보는 시간 (초)
+var scan_angle: float = 60.0
+var scan_look_time: float = 0.4
+## 안 보이는 쪽에서 맞으면 이만큼 뒤에 맞은 쪽을 본다 (초, 사용자 확정)
+var hit_turn_delay: float = 0.3
+## 맞은 쪽을 보는 시간 (초, 제안)
+var hit_look_time: float = 0.8
+## 놓친 몬스터의 마지막 자리를 보는 시간 (초, 제안)
+var last_seen_look_time: float = 1.0
+## 몬스터를 앞서 겨눌 때 실제 몸에서 벗어나도 되는 각도 (도, 제안). 시야가 완전히 밝은 각도(좌우 23도) 안쪽
+var max_lead_angle: float = 20.0
+## 둘러볼 때 마우스를 몸에서 이만큼 떨어진 곳에 둔다 (픽셀)
+var look_distance: float = 100.0
 
 var skill: Dictionary
+## 봇이 몬스터를 아는 방식 (명령줄 --sight=full / --sight=cone). full: 시야와 상관없이 모든 몬스터와 돌의 위치를 안다 (기본값, 사용자 결정 2026-11-09).
+## cone: 플레이어·언데드 시야에 보이는 것만 안다. 실력 차이는 full이면 반응 시간·조준 오차·회피 성공률로만 나뉜다.
+var sight: StringName = &"full"
 var _test: ScenarioTest
 var _necromancer: Necromancer
 var _aim_offset_deg: float = 0.0
@@ -64,11 +86,16 @@ var _telegraphs: Dictionary = {}
 var _stones: Dictionary = {}
 ## 돌 줄에서 몸 가운데가 이 거리 안이면 맞을 것으로 보고 옆으로 걷는다 (몸 반지름 + 돌 반지름 + 여유)
 var stone_danger_width: float = 12.0
+## 그림자 원 가장자리에서 이만큼 더 벗어난다 (몸 반지름과 여유)
+var shadow_margin: float = 8.0
 var _time: float = 0.0
 var _running: bool = false
 var _summon_cooldown: float = 0.0
 var _undead_skulls: Array[Skull] = []
 var _key_queue: Array[Key] = []
+## 측정: 앞서 겨누기를 계산한 프레임 수, 그중 max_lead_angle 제한에 걸린 프레임 수 (측정용, 동작을 바꾸지 않는다)
+var lead_checks: int = 0
+var lead_clamped: int = 0
 ## 측정: 쏜 탄 수, 맞힌 탄 수, 구른 횟수
 var shots: int = 0
 var hits: int = 0
@@ -93,6 +120,18 @@ var retreating: bool = false
 var _retreat_point: Vector2 = Vector2.ZERO
 var _retreat_follower: PathFollower
 
+## 시야: 몬스터마다 처음 보인 시각, 마지막으로 걸은 방향, 둘러보기 시계, 맞은 쪽 보기 (-1이면 안 함)
+var _seen_at: Dictionary = {}
+var _walk_direction: Vector2 = Vector2.RIGHT
+var _scan_timer: float = 0.0
+var _hit_timer: float = -1.0
+var _hit_direction: Vector2 = Vector2.ZERO
+var _last_health: float = -1.0
+## 보이는 몬스터마다 지금 자리, 가장 최근에 놓친 몬스터의 마지막 자리와 놓친 시각 (-1이면 없음)
+var _last_seen: Dictionary = {}
+var _lost_position: Vector2 = Vector2.ZERO
+var _lost_at: float = -1.0
+
 ## 진행 중인 무리 동시 공격: 일부러 놓치는지, 시작할 때 체력, 예고가 안 보인 지 얼마나 됐는지
 var _group_active: bool = false
 var _group_missed: bool = false
@@ -104,6 +143,9 @@ func _init(test: ScenarioTest, necromancer: Necromancer, skill_id: StringName) -
 	_test = test
 	_necromancer = necromancer
 	skill = SKILLS[skill_id]
+	for arg: String in OS.get_cmdline_user_args():
+		if arg.begins_with("--sight="):
+			sight = StringName(arg.trim_prefix("--sight="))
 	aim_resample_interval = necromancer.attack.cooldown
 	_necromancer.get_parent().child_entered_tree.connect(_on_actor_added)
 	_necromancer.summoner.roster.unsummoned.connect(func(_skull: Skull, died: bool) -> void:
@@ -138,7 +180,7 @@ func retreat_to(point: Vector2) -> void:
 
 
 ## 물러나는 중 한 프레임: 쏘지 않고 탈출 지점으로 가며, 예고된 공격은 구르기로 피한다 (다가오는 몬스터를 피해 뛰기도 한다).
-func _retreat_tick(monsters: Array[Monster]) -> void:
+func _retreat_tick(monsters: Array[Monster], delta: float) -> void:
 	_test.press_mouse(false)
 	if not monsters.is_empty() and _try_dodge(monsters):
 		return
@@ -149,6 +191,7 @@ func _retreat_tick(monsters: Array[Monster]) -> void:
 		direction = _retreat_follower.get_direction(_necromancer, _retreat_point)
 	_test.press_moves(direction)
 	_set_running(direction != Vector2.ZERO and _necromancer.stamina.can_run())
+	look_around(delta, direction)
 
 
 ## 물리 프레임마다 부른다.
@@ -157,17 +200,29 @@ func tick(delta: float) -> void:
 	_summon_cooldown = maxf(_summon_cooldown - delta, 0.0)
 	_press_queued_key()
 	var monsters: Array[Monster] = _alive_monsters()
+	_update_seen(monsters)
+	_check_hit()
 	if retreating:
-		_retreat_tick(monsters)
+		_retreat_tick(monsters, delta)
 		return
 	if monsters.is_empty():
 		release_all()
+		look_around(delta, Vector2.ZERO)
 		return
 	_track_group_attack(monsters, delta)
-	var target: Monster = _nearest(monsters)
-	_aim_and_fire(target, delta, _should_flee(monsters))
+	# 겨누고 거리를 두는 것은 보인 뒤 반응 시간이 지난 몬스터만. 예고 피하기는 보이는 몬스터 모두 (예고를 본 때부터 반응 시간을 센다).
+	var known: Array[Monster] = monsters.filter(func(m: Monster) -> bool: return _time - _seen_at[m] >= skill["reaction"])
+	if known.is_empty():
+		_test.press_mouse(false)
+		look_around(delta, Vector2.ZERO)
+	else:
+		_aim_and_fire(_nearest(known), delta, _should_flee(known))
 	if not _try_dodge(monsters) and not _try_sidestep_stones():
-		_move(monsters)
+		if known.is_empty():
+			_test.press_moves(Vector2.ZERO)
+			_set_running(false)
+		else:
+			_move(known)
 	_manage_undead()
 	mana_min = minf(mana_min, _necromancer.mana.current)
 	for monster: Monster in monsters:
@@ -188,13 +243,102 @@ func release_all() -> void:
 	_set_running(false)
 
 
+## 살아 있고 지금 보이는 몬스터 (monster_filter가 있으면 그것도 통과한 것)
 func _alive_monsters() -> Array[Monster]:
+	var result: Array[Monster] = []
+	for monster: Monster in _all_alive_monsters():
+		if (not monster_filter.is_valid() or monster_filter.call(monster)) and _can_see(monster.global_position):
+			result.append(monster)
+	return result
+
+
+func _all_alive_monsters() -> Array[Monster]:
 	var result: Array[Monster] = []
 	for node: Node in _test.get_nodes_in_group(&"monsters"):
 		var monster: Monster = node as Monster
-		if monster != null and not monster.is_queued_for_deletion() and monster.health > 0.0 and (not monster_filter.is_valid() or monster_filter.call(monster)):
+		if monster != null and not monster.is_queued_for_deletion() and monster.health > 0.0:
 			result.append(monster)
 	return result
+
+
+## 지역의 시야 (없으면 null: 모두 보인다)
+func _vision() -> Vision:
+	var scene: Node = _test.current_scene
+	if scene == null or not scene.has_method(&"get_vision"):
+		return null
+	return scene.call(&"get_vision")
+
+
+func _can_see(world: Vector2) -> bool:
+	if sight == &"full":
+		return true
+	var vision: Vision = _vision()
+	return vision == null or vision.is_visible_at(world)
+
+
+## 보이는 몬스터마다 처음 보인 시각을 적고, 안 보이게 된 몬스터는 지운다 (다시 보이면 반응 시간을 처음부터 센다).
+func _update_seen(visible: Array[Monster]) -> void:
+	var now: Dictionary = {}
+	for monster: Monster in visible:
+		now[monster] = true
+		_last_seen[monster] = monster.global_position
+		if not _seen_at.has(monster):
+			_seen_at[monster] = _time
+	for monster: Variant in _seen_at.keys():
+		if not now.has(monster):
+			_seen_at.erase(monster)
+			# 다시 보일 때 안 보이던 동안의 이동이 한 프레임 속도로 계산되지 않게 지운다.
+			_last_positions.erase(monster)
+			# 죽어서 사라진 몬스터는 찾지 않는다.
+			if is_instance_valid(monster) and not monster.is_queued_for_deletion() and monster.health > 0.0:
+				_lost_position = _last_seen[monster]
+				_lost_at = _time
+			_last_seen.erase(monster)
+
+
+## 체력이 줄었는데 때린 몬스터(네크로맨서를 노리는 가장 가까운 몬스터)가 안 보이면, 맞은 쪽 보기를 시작한다.
+func _check_hit() -> void:
+	var health: float = _necromancer.health
+	if _last_health >= 0.0 and health < _last_health:
+		var attacker: Monster = null
+		for monster: Monster in _all_alive_monsters():
+			if monster.get_target() == _necromancer and (attacker == null or monster.global_position.distance_to(_necromancer.global_position) < attacker.global_position.distance_to(_necromancer.global_position)):
+				attacker = monster
+		if attacker != null and not _can_see(attacker.global_position):
+			_hit_timer = 0.0
+			_hit_direction = _necromancer.get_body_center().direction_to(attacker.global_position)
+	_last_health = health
+
+
+## 겨눌 몬스터가 없을 때 마우스를 둔다: 걷는 방향(walk_direction이 ZERO면 마지막으로 걸은 방향), scan_interval초마다 좌우를 한 번씩 둘러봄,
+## 안 보이는 쪽에서 맞았으면 맞은 쪽, 방금 몬스터를 놓쳤으면 마지막으로 본 자리. 맵을 걸을 때(싸우지 않을 때)는 밖에서 매 물리 프레임 부른다.
+func look_around(delta: float, walk_direction: Vector2) -> void:
+	if walk_direction != Vector2.ZERO:
+		_walk_direction = walk_direction.normalized()
+	var look: Vector2 = _walk_direction
+	if _hit_timer >= 0.0:
+		_hit_timer += delta
+		if _hit_timer >= hit_turn_delay:
+			look = _hit_direction
+		if _hit_timer >= hit_turn_delay + hit_look_time:
+			_hit_timer = -1.0
+	elif _lost_at >= 0.0 and _time - _lost_at < skill["reaction"]:
+		# 놓친 것을 알아차리기 전이다. 마우스를 그대로 둔다.
+		return
+	elif _lost_at >= 0.0 and _time - _lost_at < skill["reaction"] + last_seen_look_time:
+		look = _necromancer.get_body_center().direction_to(_lost_position)
+		if walk_direction == Vector2.ZERO and look != Vector2.ZERO:
+			_walk_direction = look
+	else:
+		_scan_timer += delta
+		var since: float = _scan_timer - skill["scan_interval"]
+		if since >= 0.0 and since < scan_look_time:
+			look = _walk_direction.rotated(deg_to_rad(-scan_angle))
+		elif since >= scan_look_time and since < scan_look_time * 2.0:
+			look = _walk_direction.rotated(deg_to_rad(scan_angle))
+		elif since >= scan_look_time * 2.0:
+			_scan_timer = 0.0
+	_test.aim_mouse_at(_necromancer.get_body_center() + look * look_distance)
 
 
 func _nearest(monsters: Array[Monster]) -> Monster:
@@ -231,11 +375,24 @@ func _aim_and_fire(target: Monster, delta: float, fleeing: bool) -> void:
 	if _last_positions.has(target) and delta > 0.0:
 		velocity = (target.global_position - _last_positions[target]) / delta
 	var flight_time: float = origin.distance_to(center) / _necromancer.attack.projectile_speed
-	var aim: Vector2 = center + velocity * flight_time
+	var aim: Vector2 = _limit_lead(origin, center, center + velocity * flight_time)
 	aim = origin + (aim - origin).rotated(deg_to_rad(_aim_offset_deg))
 	_test.aim_mouse_at(aim)
 	var in_range: bool = origin.distance_to(center) <= _necromancer.attack.projectile_range * fire_range_ratio
 	_test.press_mouse(in_range and not fleeing)
+
+
+## 앞서 겨눈 자리(lead)를 실제 몸(center)에서 max_lead_angle도 안쪽으로 줄인다. 빠르게 달려오는 몬스터를 앞서 겨누면 겨눌 자리가
+## 봇의 몸 근처나 뒤쪽이 되어 마우스 방향이 튀고, 시야 부채꼴이 그 몬스터를 벗어난다.
+func _limit_lead(origin: Vector2, center: Vector2, lead: Vector2) -> Vector2:
+	var to_center: Vector2 = center - origin
+	var angle: float = to_center.angle_to(lead - origin)
+	var limit: float = deg_to_rad(max_lead_angle)
+	lead_checks += 1
+	if absf(angle) <= limit and origin.distance_to(lead) >= to_center.length() * 0.5:
+		return lead
+	lead_clamped += 1
+	return origin + to_center.rotated(clampf(angle, -limit, limit))
 
 
 ## 예고를 보고 반응 시간 뒤 공격 방향의 옆으로 구른다. 이번 프레임에 굴렀으면 true.
@@ -309,7 +466,8 @@ func _try_sidestep_stones() -> bool:
 	var seen_now: Dictionary = {}
 	for node: Node in _necromancer.get_parent().get_children():
 		var stone: Stone = node as Stone
-		if stone == null or stone.is_queued_for_deletion() or not stone.hostile_groups.has(&"necromancer"):
+		# 그림자 원은 시야와 상관없이 보이므로 돌도 던진 순간부터 안다. 돌이 안 보여도 그림자로 알 수 있다.
+		if stone == null or stone.is_queued_for_deletion() or not stone.hostile_groups.has(&"necromancer") or not (_can_see(stone.global_position) or stone.landing_radius > 0.0):
 			continue
 		seen_now[stone] = true
 		if not _stones.has(stone):
@@ -317,6 +475,12 @@ func _try_sidestep_stones() -> bool:
 			_stones[stone] = {"seen": _time, "try": randf() < skill["dodge"]}
 		var info: Dictionary = _stones[stone]
 		if not info["try"] or _time - info["seen"] < skill["reaction"]:
+			continue
+		# 그림자 원 안이면 원 밖으로 걷는다 (돌이 도착하면 맞는 범위다).
+		var ground: Vector2 = stone.global_position + stone.direction * (stone.max_distance - stone.get_traveled())
+		var from_landing: Vector2 = center - ground
+		if stone.landing_radius > 0.0 and from_landing.length() <= stone.landing_radius + shadow_margin:
+			step = from_landing.normalized() if from_landing != Vector2.ZERO else stone.direction.orthogonal()
 			continue
 		var to_me: Vector2 = center - stone.global_position
 		var along: float = to_me.dot(stone.direction)

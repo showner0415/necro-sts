@@ -25,6 +25,10 @@ const SCENE_LOAD_TIMEOUT_FRAMES: int = 300
 
 ## 현재 단계에서 지난 물리 프레임 수. restart_step_timer()로 0이 된다.
 var step_frames: int = 0
+## 측정에서 판 시작 검사(check_fight_start)에 실패한 판 수
+var start_failures: int = 0
+## apply_goblin_args로 바꾼 고블린 데이터가 캐시에서 사라지지 않게 잡아 둔다
+var _kept_goblin_data: MonsterData
 var _scene_ready: bool = false
 ## 흉내 낸 마우스의 마지막 창 좌표 (이동량 계산용)
 var _last_mouse_window_position: Vector2 = Vector2.ZERO
@@ -98,6 +102,56 @@ func finish(success: bool) -> void:
 	_done = true
 	print("결과: %s" % ("통과" if success else "실패"))
 	quit(0 if success else 1)
+
+
+# --- 밸런스 측정 ---
+
+## 측정 안에서만 고블린 데이터를 바꾼다 (실제 .tres는 바꾸지 않는다): --burst=3 --burst_interval=0.15 --stone_damage=1 --stone_cooldown=2
+func apply_goblin_args() -> void:
+	var data: MonsterData = load("res://data/monsters/goblin_slinger.tres")
+	_kept_goblin_data = data
+	for arg: String in OS.get_cmdline_user_args():
+		if arg.begins_with("--burst="):
+			data.throw_burst_count = arg.trim_prefix("--burst=").to_int()
+		elif arg.begins_with("--burst_interval="):
+			data.throw_burst_interval = arg.trim_prefix("--burst_interval=").to_float()
+		elif arg.begins_with("--stone_damage="):
+			data.contact_damage = arg.trim_prefix("--stone_damage=").to_float()
+		elif arg.begins_with("--stone_cooldown="):
+			data.attack_cooldown = arg.trim_prefix("--stone_cooldown=").to_float()
+
+
+## 측정 스크립트가 판 사이에 scene_path 씬을 새로 불러오고 전역 상태(인벤토리·핫바)를 비운다.
+## 판이 끝난 뒤에도 날아오던 돌이나 남은 몬스터에 네크로맨서가 죽을 수 있다. 그러면 지역이 거점으로 가는 요청이 이 함수의 요청을
+## 덮어써서 다음 판이 거점에서 시작되므로, 원하는 씬이 될 때까지 다시 부른다.
+func reload_fight_scene(scene_path: String) -> void:
+	var necromancer: Necromancer = find_necromancer()
+	var died_after_fight: Array[bool] = [false]
+	if necromancer != null:
+		necromancer.died.connect(func() -> void: died_after_fight[0] = true)
+	await physics_frame
+	await physics_frame
+	root.get_node("GameState").call(&"reset_after_death")
+	while true:
+		var old_scene: Node = current_scene
+		change_scene_to_file(scene_path)
+		while current_scene == old_scene or current_scene == null or not current_scene.is_node_ready():
+			await physics_frame
+		if current_scene.scene_file_path == scene_path:
+			return
+		print("판 사이에 씬이 %s로 바뀌어 다시 불러옴 (판이 끝난 뒤 네크로맨서가 죽음: %s)" % [current_scene.scene_file_path, "예" if died_after_fight[0] else "아니오"])
+
+
+## 한 판을 시작할 때 씬과 살아 있는 몬스터 수가 맞는지 본다. 틀리면 [실패]를 남기고 start_failures를 늘린 뒤 false를 돌려준다.
+## 측정은 그 판을 빼고 계속하고, 끝날 때 finish(start_failures == 0)으로 실패를 알린다.
+func check_fight_start(scene_path: String, expected_monsters: int) -> bool:
+	var actual_scene: String = current_scene.scene_file_path if current_scene != null else "(없음)"
+	var actual_monsters: int = get_nodes_in_group(&"monsters").filter(func(node: Node) -> bool: return not node.is_queued_for_deletion()).size()
+	if actual_scene == scene_path and actual_monsters == expected_monsters:
+		return true
+	start_failures += 1
+	print("[실패] 판 시작 검사: 씬 %s (기대 %s), 몬스터 %d마리 (기대 %d마리). 이 판은 뺀다" % [actual_scene, scene_path, actual_monsters, expected_monsters])
+	return false
 
 
 # --- 입력 흉내 ---

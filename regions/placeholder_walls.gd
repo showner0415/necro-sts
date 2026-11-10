@@ -24,6 +24,8 @@ extends Node2D
 ## 바닥 글자마다 체크무늬 두 색
 @export var floor_colors: Dictionary[String, PackedColorArray] = {}
 
+var _grid: PackedByteArray = PackedByteArray()
+
 
 func _ready() -> void:
 	var body: StaticBody2D = StaticBody2D.new()
@@ -46,6 +48,48 @@ func _ready() -> void:
 			collision.position = Vector2(run_start * tile_size, row * tile_size) + shape.size / 2.0
 			body.add_child(collision)
 	add_child(body)
+
+
+## 벽 격자 (칸마다 0 = 바닥, 1 = 벽, 2 = 배치 밖, 가로 grid_size().x칸씩 줄 순서). 처음 부를 때 만든다.
+func wall_grid() -> PackedByteArray:
+	if _grid.is_empty():
+		var size: Vector2i = grid_size()
+		_grid.resize(size.x * size.y)
+		_grid.fill(2)
+		var codes: PackedInt32Array = PackedInt32Array()
+		for c: String in wall_chars:
+			codes.append(c.unicode_at(0))
+		for y: int in size.y:
+			var line: String = layout[y]
+			for x: int in line.length():
+				_grid[y * size.x + x] = 1 if codes.has(line.unicode_at(x)) else 0
+	return _grid
+
+
+## 벽 격자의 크기 (가장 긴 줄의 글자 수, 줄 수)
+func grid_size() -> Vector2i:
+	var width: int = 0
+	for line: String in layout:
+		width = maxi(width, line.length())
+	return Vector2i(width, layout.size())
+
+
+## 시야 빛의 벽 그림자 모양(LightOccluder2D)을 만든다 (WallOccluderRects). 시야가 있는 지역에서만 부른다.
+## 결과: (합치기 전 칸 수, 합친 뒤 사각형 수)
+func add_light_occluders(inset: float, depth: int, light_mask: int) -> Vector2i:
+	var builder: WallOccluderRects = WallOccluderRects.new()
+	var rects: Array[Rect2] = builder.build(wall_grid(), grid_size(), tile_size, inset, depth)
+	var holder: Node2D = Node2D.new()
+	holder.name = "LightOccluders"
+	for rect: Rect2 in rects:
+		var polygon: OccluderPolygon2D = OccluderPolygon2D.new()
+		polygon.polygon = PackedVector2Array([rect.position, Vector2(rect.end.x, rect.position.y), rect.end, Vector2(rect.position.x, rect.end.y)])
+		var occluder: LightOccluder2D = LightOccluder2D.new()
+		occluder.occluder = polygon
+		occluder.occluder_light_mask = light_mask
+		holder.add_child(occluder)
+	add_child(holder)
+	return Vector2i(builder.tile_count, rects.size())
 
 
 ## 칸(열, 줄)의 글자. layout 밖이면 빈 글자.

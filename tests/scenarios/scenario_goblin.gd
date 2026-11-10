@@ -142,6 +142,8 @@ func _run() -> void:
 	await _wait_stone_gone(stone)
 
 	# 5. 다른 몬스터가 사이에 있으면 돌이 막힌다
+	# 돌과 쥐가 일직선인지만 보는 단계라 옆으로 걷지 않게 고정한다.
+	throw.strafe_speed = 0.0
 	_necromancer.global_position = _goblin.global_position + Vector2(-120, 0)
 	_rat.global_position = _goblin.global_position + Vector2(-60, 0)
 	health_before = _necromancer.health
