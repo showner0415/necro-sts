@@ -2,7 +2,7 @@ extends ScenarioTest
 ## 벽 모서리 픽셀 흔들림 검사 (계획서 2단계). 창을 띄운다. run_all.sh에는 넣지 않고, 값을 바꿔 가며 여러 번 실행해 비교한다.
 ## bash tools/godot.sh --fixed-fps 60 --path . -s tests/view_3d/check_wall_flicker.gd -- --target=proto --mode=static --out=<a.png>
 ## 움직이는 것을 모두 멈춘 같은 장면을 프레임 간격을 두고 찍어, 앞 장면과 달라진 픽셀을 출력한다.
-## --target=proto|terrain   proto: 시제품 굴(그림자·팔레트 있음), terrain: 얕은 굴의 새 지형
+## --target=proto|layer|terrain   proto: 시제품 층, layer: 같은 굴에 새 층(--depth_step=0이면 카메라 깊이를 격자에 맞추지 않음), terrain: 얕은 굴의 새 지형
 ## --mode=static|toggle|poses   toggle: 시제품 검사처럼 반투명을 켜고 끄며 찍는다. poses: 시제품 반투명 검사의 자세들을 옮겨 다니며 켬·끔을 비교한다 (둘 다 proto만)
 ##                          poses는 시야를 끈 채로 잰다 (시제품 검사와 같다). --vision=1이면 시야(그림자)를 켠다
 ## --shadow=0, --palette=0  시제품의 그림자·팔레트 끄기
@@ -23,6 +23,8 @@ var _mode: String = "static"
 var _shadow: bool = true
 var _palette: bool = true
 var _vision: bool = false
+## 0 이상이면 새 층의 카메라 깊이 격자를 이 값으로 바꾼다
+var _depth_step: float = -1.0
 var _out_path: String = ""
 
 
@@ -38,12 +40,14 @@ func _init() -> void:
 			_palette = false
 		elif arg == "--vision=1":
 			_vision = true
+		elif arg.begins_with("--depth_step="):
+			_depth_step = arg.trim_prefix("--depth_step=").to_float()
 		elif arg.begins_with("--out="):
 			_out_path = arg.trim_prefix("--out=")
 
 
 func get_start_scene() -> String:
-	return PROTO_SCENE if _target == "proto" else TERRAIN_SCENE
+	return PROTO_SCENE if _target == "proto" or _target == "layer" else TERRAIN_SCENE
 
 
 func _on_scene_ready() -> void:
@@ -61,8 +65,16 @@ func _on_scene_ready() -> void:
 		proto.call(&"_apply_view_mode")
 		(proto.get(&"_light") as OmniLight3D).shadow_enabled = _shadow
 	else:
-		var view: RegionView3D = current_scene.call(&"add_view_3d")
-		view.aim_lead.strength = 0.0
+		var old: Node = current_scene.get_node_or_null("View3D")
+		if old != null:
+			old.free()
+		var layer: RegionView3D = current_scene.call(&"add_view_3d")
+		layer.aim_lead.strength = 0.0
+		if _depth_step >= 0.0:
+			layer.depth_step = _depth_step
+		proto = layer
+		if _mode == "static":
+			proto = null
 	print("대상 %s, 방식 %s, 그림자 %s, 팔레트 %s" % [_target, _mode, _shadow, _palette])
 	await wait_frames(SETTLE_FRAMES)
 	if _mode == "poses":
@@ -72,7 +84,7 @@ func _on_scene_ready() -> void:
 	var previous: Image = await _capture()
 	var total: int = 0
 	for i: int in CAPTURES:
-		if proto != null and _mode == "toggle":
+		if proto != null and _target == "proto" and _mode == "toggle":
 			proto.set(&"see_through_on", i % 2 == 1)
 		await wait_frames(WAIT_FRAMES)
 		var current: Image = await _capture()
@@ -107,12 +119,18 @@ func _measure_poses(proto: Node, necromancer: Necromancer) -> void:
 		rat.global_position = pose[1]
 		necromancer.global_position = (pose[1] as Vector2) + (pose[2] as Vector2)
 		proto.set(&"aim_override", necromancer.get_body_center() + PROTO_AIM_OFFSET)
-		proto.set(&"see_through_on", true)
+		_set_see_through(proto, true)
 		await wait_frames(WAIT_FRAMES)
 		var on_image: Image = await _capture()
-		proto.set(&"see_through_on", false)
+		var on_camera: Vector3 = _camera_position(proto)
+		var on_lead: Vector2 = proto.call(&"get_lead_offset")
+		var on_feet: Vector2 = necromancer.global_position
+		_set_see_through(proto, false)
 		await wait_frames(WAIT_FRAMES)
 		var off_image: Image = await _capture()
+		var off_camera: Vector3 = _camera_position(proto)
+		var off_lead: Vector2 = proto.call(&"get_lead_offset")
+		var off_feet: Vector2 = necromancer.global_position
 		var nearby: Rect2i = Rect2i(proto.call(&"get_see_rect", rat) as Rect2).grow(NEARBY_GROW)
 		var far: Array[Vector2i] = ImageDiff.changed_pixels(on_image, off_image).filter(func(point: Vector2i) -> bool: return not nearby.has_point(point))
 		total += far.size()
@@ -120,7 +138,24 @@ func _measure_poses(proto: Node, necromancer: Necromancer) -> void:
 		for point: Vector2i in far.slice(0, MAX_LISTED):
 			deltas.append("%s %s→%s" % [point, on_image.get_pixelv(point).to_html(false), off_image.get_pixelv(point).to_html(false)])
 		print("%s: 먼 곳 %d개 %s" % [pose[0], far.size(), ", ".join(deltas)])
+		print("  카메라 %s, 켬 %s 끔 %s, 차이 %.9f, 앞서 가기 켬 %s 끔 %s, 발밑 %s (차이 %.9f)" % ["같음" if on_camera == off_camera else "다름", _text(on_camera), _text(off_camera), on_camera.distance_to(off_camera), on_lead, off_lead, "같음" if on_feet == off_feet else "다름", on_feet.distance_to(off_feet)])
 	print("결과 요약: 먼 곳 합계 %d개" % total)
+
+
+func _set_see_through(view: Node, value: bool) -> void:
+	if view is RegionView3D:
+		(view as RegionView3D).get_front_walls().see_through_on = value
+	else:
+		view.set(&"see_through_on", value)
+
+
+func _camera_position(view: Node) -> Vector3:
+	return (view.call(&"get_camera") as Camera3D).global_position
+
+
+## 소수 아래 7자리까지 적는다 (Vector3의 기본 글자는 짧게 줄여서 작은 차이가 보이지 않는다)
+func _text(point: Vector3) -> String:
+	return "(%.7f, %.7f, %.7f)" % [point.x, point.y, point.z]
 
 
 func _capture() -> Image:

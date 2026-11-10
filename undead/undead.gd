@@ -235,7 +235,12 @@ func take_damage(amount: float, _source: Node2D = null) -> void:
 	create_tween().tween_property(self, "modulate", Color.WHITE, hit_flash_duration)
 
 
+## 임시 도형의 지금 색 (예고 깜빡임 포함). 3D 화면 층이 읽는다.
+func get_placeholder_tint() -> Color:
+	return _behavior.get_body_color(data.undead_placeholder_color)
+
+
 func _draw() -> void:
 	# 그림이 생기기 전까지 쓰는 임시 도형. 원본 몬스터와 같은 모양·크기를 언데드 색으로 그린다.
 	_behavior.draw_overlay(self, indicator_color)
-	PlaceholderBody.draw(self, data, _behavior.get_body_color(data.undead_placeholder_color), PlaceholderBody.center(data))
+	PlaceholderBody.draw(self, data, get_placeholder_tint(), PlaceholderBody.center(data))

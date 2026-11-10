@@ -272,11 +272,16 @@ func _die() -> void:
 	queue_free()
 
 
+## 임시 도형의 지금 색 (예고 깜빡임 포함). 3D 화면 층이 읽는다.
+func get_placeholder_tint() -> Color:
+	return _behavior.get_body_color(data.placeholder_color)
+
+
 func _draw() -> void:
 	# 바닥의 예고 표시를 먼저 그리고, 기준점(발밑) 위에 몸을 그린다. 그림이 있으면 몸은 그림(_sprite)이고, 없으면 임시 도형이다.
 	_behavior.draw_overlay(self, indicator_color)
 	if _sprite == null:
-		PlaceholderBody.draw(self, data, _behavior.get_body_color(data.placeholder_color), PlaceholderBody.center(data))
+		PlaceholderBody.draw(self, data, get_placeholder_tint(), PlaceholderBody.center(data))
 
 
 ## 평소(IDLE)에 보던 대상을 기억했다가, 놓치면(벽 뒤로 숨거나 감지 범위를 벗어남) 공격자를 쫓을 때와 같은 한계까지 쫓는다.

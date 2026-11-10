@@ -48,7 +48,11 @@ func take(stack: ItemStack, inventory: Inventory) -> bool:
 	return true
 
 
+## 임시 도형의 지금 색. 3D 화면 층이 읽는다.
+func get_placeholder_tint() -> Color:
+	return empty_color if loot.is_empty() else data.placeholder_color
+
+
 func _draw() -> void:
 	# 그림이 생기기 전까지 쓰는 임시 도형: 원본 몬스터의 도형을 납작하게 눕힌 모양.
-	var color: Color = empty_color if loot.is_empty() else data.placeholder_color
-	PlaceholderBody.draw(self, data, color, Vector2.ZERO, flatten_ratio)
+	PlaceholderBody.draw(self, data, get_placeholder_tint(), Vector2.ZERO, flatten_ratio)

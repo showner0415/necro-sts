@@ -33,6 +33,22 @@ func _cells(rows: Array[String]) -> TerrainCells:
 	return cells
 
 
+func test_caps_merge_runs_of_same_colored_walls() -> void:
+	mesher.build(_cells(["###", ".#."]), CHUNK, WALL_HEIGHT, 6.0)
+	var without_caps: int = TerrainMesher.new().build(_cells(["###", ".#."]), CHUNK, WALL_HEIGHT).size()
+	assert_eq(without_caps, 1, "구역 하나")
+	var plain: TerrainMesher = TerrainMesher.new()
+	plain.build(_cells(["###", ".#."]), CHUNK, WALL_HEIGHT)
+	assert_eq(mesher.quad_count, plain.quad_count + 2, "윗줄 3칸은 하나로 합쳐 낮은 윗면 2개")
+
+
+func test_caps_stop_at_chunk_edge() -> void:
+	var plain: TerrainMesher = TerrainMesher.new()
+	plain.build(_cells(["####"]), 2, WALL_HEIGHT)
+	mesher.build(_cells(["####"]), 2, WALL_HEIGHT, 6.0)
+	assert_eq(mesher.quad_count, plain.quad_count + 2, "구역마다 따로")
+
+
 func test_floor_is_one_quad_per_cell() -> void:
 	mesher.build(_cells(["...", "..."]), CHUNK, WALL_HEIGHT)
 	assert_eq(mesher.quad_count, 6, "바닥 6칸")
