@@ -80,6 +80,8 @@ var _attack_timer: float = 0.0
 var _attack_held: bool = false
 ## 조준 위치를 돌려주는 함수 (없으면 2D 마우스 위치). 3D 화면 층이 넣어 준다
 var aim_provider: Callable = Callable()
+## 이동 입력을 돌리는 각도 (라디안). 화면을 돌려 보는 3D 층이 넣어 준다 (W = 화면 위). 규칙 좌표는 그대로다
+var input_rotation: float = 0.0
 ## 지금 키 안내를 띄운 대상 (바닥 더미 또는 시체)
 var _prompted_target: GroundTarget
 ## 진행 중인 채집과 그 시체. 채집 중이 아니면 null.
@@ -111,7 +113,7 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	var input_direction: Vector2 = Input.get_vector(&"move_left", &"move_right", &"move_up", &"move_down")
+	var input_direction: Vector2 = Input.get_vector(&"move_left", &"move_right", &"move_up", &"move_down").rotated(input_rotation)
 	# 뛰기 키는 UI와 겹치지 않으므로 직접 읽는다. 떼면 지친 상태가 풀린다.
 	var run_held: bool = Input.is_action_pressed(&"run")
 	if not run_held:
@@ -169,7 +171,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func try_roll() -> bool:
 	if is_rolling():
 		return false
-	var direction: Vector2 = Input.get_vector(&"move_left", &"move_right", &"move_up", &"move_down").normalized()
+	var direction: Vector2 = Input.get_vector(&"move_left", &"move_right", &"move_up", &"move_down").rotated(input_rotation).normalized()
 	if direction == Vector2.ZERO:
 		direction = global_position.direction_to(get_aim_position())
 	if direction == Vector2.ZERO or not stamina.try_roll():

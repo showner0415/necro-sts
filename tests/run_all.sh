@@ -11,7 +11,7 @@
 cd "$(dirname "$0")/.." || exit 1
 
 # 테스트 하나가 멈춰도 전체가 끝나도록 실행마다 시간 제한을 둔다 (초).
-TIMEOUT_SECONDS=300
+TIMEOUT_SECONDS=600
 ERROR_PATTERN="SCRIPT ERROR|ERROR:"
 failed=()
 

@@ -3,10 +3,13 @@ extends Node3D
 ## 시제품: 2D 규칙 세계를 읽어서 3D로 그리는 층. 규칙(이동, 충돌, 시야 판정)은 2D 그대로이고, 이 층은 규칙에 조준 위치만 돌려준다.
 ## - 좌표: 2D (x, y) → 3D (x / 32, 높이, y / 32). 타일 한 칸 = 3D 1단위
 ## - 지형: PlaceholderWalls의 벽 격자에서 바닥·벽 메시를 만든다. 그림자는 그림자 전용 메시가 맡는다 (앞벽을 잘라도 그림자는 그대로)
-## - 몸: 숨긴 2D 스프라이트의 애니메이션·프레임을 3D 스프라이트에 그대로 옮긴다. 수직으로 세우고 세로만 1 / cos(각도)배라 직교에서 화면 1:1 픽셀이다
+## - 몸: 숨긴 2D 스프라이트의 애니메이션·프레임을 3D 스프라이트에 그대로 옮긴다. 수직으로 세우고, 세로 크기는 프레임마다 화면에서 그림 높이만큼의 픽셀이 되게 맞춘다 (원근에서는 화면 위치에 따라 납작해지거나 늘어나므로)
 ## - 시야: 낮은 전방향 빛 하나가 벽 그림자를 만들고, 부채꼴과 둘레 원은 지형 셰이더가 2D 규칙과 같은 모양으로 계산한다. 지형만 받고 몸은 원래 색이다. 몬스터가 보이는지는 2D 판정(Vision)의 투명도를 그대로 쓴다
 ## - 조준: 화면 광선과 탄 높이 평면의 교점을 2D 위치로 바꾼다
-## 키: F3 직교/원근, F4 팔레트 후처리, F5 앞벽 (끔/반투명/잘라내기), F6 3D/2D 화면, F2 시야(기존)
+## - 앞벽: 플레이어와 조준점 앞의 벽은 잘라내고, 시야에 보이는 물체(몬스터·물건·언데드) 앞의 벽은 반투명이다. 세기가 서서히 바뀐다
+## - 화면 회전: 카메라만 돌린다. 규칙 좌표는 그대로이고, 이동 입력과 8방향 그림만 화면 기준으로 돌린다
+## - 앞서 가기: 카메라가 마우스의 화면 위치 쪽으로 움직여 보는 쪽을 더 넓게 보여 준다 (AimLead)
+## 키: F3 직교/원근, F4 팔레트 후처리, F5 앞벽 처리 켬/끔, F6 3D/2D 화면, F7 화각 30/35/40, F8 화면 회전 45/0도(0도는 비교용), F9 앞서 가는 비율, F10 최대 거리, F11 따라가는 빠르기, F12 앞서 가기 세기, F2 시야(기존)
 
 const TILE: float = 32.0
 const FLOOR_COLORS: Array[String] = ["3e2731", "262b44"]
@@ -17,7 +20,19 @@ const BOLT_COLOR: String = "2ce8f5"
 const CORPSE_COLOR: String = "8b9bb4"
 const LABEL_COLOR: String = "fee761"
 const PALETTE_PATH: String = "res://assets/palette/endesga-32.hex"
-const CUT_NAMES: Array[String] = ["off", "see-through", "cut"]
+## 빛 없는 지형이 뭉치지 않게 팔레트에 더하는 어두운 단계 (지형 에셋을 만든 뒤 다시 정한다)
+const DARK_STEPS_PATH: String = "res://proto_25d/palette_dark_steps.hex"
+const FOV_CHOICES: Array[float] = [30.0, 35.0, 40.0]
+const YAW_CHOICES: Array[float] = [45.0, 0.0]
+## 앞서 가기 값을 바꿔 보는 선택지: 비율, 최대 거리 (화면 픽셀), 따라가는 빠르기, 세기
+const LEAD_RATIOS: Array[float] = [0.3, 0.2, 0.4]
+const LEAD_MAX_DISTANCES: Array[float] = [90.0, 60.0, 120.0]
+const LEAD_SPEEDS: Array[float] = [6.0, 3.0, 12.0]
+const LEAD_STRENGTHS: Array[float] = [1.0, 0.5, 0.0]
+## 셰이더의 반투명 자리 수와 같다
+const SEE_ZONES: int = 16
+## 그림 세로 크기를 맞출 때 되풀이하는 횟수
+const HEIGHT_FIT_STEPS: int = 2
 ## 앞벽을 잘라낸 자리의 낮은 윗면 높이 (단위). 셰이더의 cut_keep_height(0.2)보다 조금 낮다
 const CUT_CAP_HEIGHT: float = 0.19
 ## 시야 빛의 범위 (칸). 범위 끝에서 어두워지는 구간이 보는 거리(14칸) 안에 들어오지 않을 만큼 크게 둔다
@@ -32,7 +47,7 @@ const LIGHT_RANGE_TILES: float = 30.0
 ## 조준·탄이 있는 평면의 높이 (픽셀). 2D의 몸 가운데(발밑에서 y로 -6)와 같게 둔다
 @export var aim_height_px: float = 6.0
 ## 원근일 때의 화각 (도)
-@export var perspective_fov: float = 20.0
+@export var perspective_fov: float = 30.0
 ## 빛 없는 지형의 밝기 (2D 시야의 0.4배를 선형 색으로 바꾼 값)
 @export var ambient_energy: float = 0.133
 ## 보는 거리와 부채꼴 (2D 시야와 같은 값)
@@ -43,12 +58,23 @@ const LIGHT_RANGE_TILES: float = 30.0
 ## 방향과 상관없이 밝은 둘레 반지름과 바깥으로 어두워지는 폭 (픽셀)
 @export var near_radius_px: float = 48.0
 @export var near_fade_px: float = 8.0
-## 앞벽을 처리하는 범위 (칸, 좌우와 남쪽)
-@export var cut_half_tiles: Vector2 = Vector2(3.0, 3.5)
+## 앞벽 처리: 자리의 반지름 (화면 픽셀), 세기가 바뀌는 시간 (초)
+@export var cut_radius_player: float = 64.0
+@export var cut_radius_aim: float = 48.0
+@export var see_radius: float = 36.0
+@export var zone_fade_time: float = 0.2
+## 자리 가운데를 잡을 높이 (평면 높이, 픽셀): 플레이어 몸 가운데, 물체 몸 가운데
+@export var player_zone_height: float = 32.0
+@export var object_zone_height: float = 24.0
 
-var cut_mode: int = 0
-var perspective: bool = false
-var palette_on: bool = false
+var front_walls_on: bool = true
+var perspective: bool = true
+var palette_on: bool = true
+var yaw_degrees: float = 45.0
+## 카메라 앞서 가기 값 (나중에 설정에서 strength를 0까지 줄인다)
+var aim_lead: AimLead = AimLead.new()
+## 확인용: 값이 있으면 앞서 가기가 실제 마우스 대신 이 화면 위치를 쓴다
+var mouse_override: Vector2 = Vector2.INF
 var show_3d: bool = true
 ## 확인용: 값이 있으면 마우스 대신 이 월드 좌표를 조준한다 (스크린샷·검사)
 var aim_override: Vector2 = Vector2.INF
@@ -65,6 +91,12 @@ var _palette_layer: CanvasLayer
 var _label: Label
 ## 2D 노드 → 3D 노드
 var _visuals: Dictionary = {}
+## 카메라가 지금 앞서 간 양 (화면 픽셀)
+var _lead_offset: Vector2 = Vector2.ZERO
+## 앞벽 자리의 지금 세기: 플레이어, 조준점, 물체마다
+var _player_weight: float = 1.0
+var _aim_weight: float = 1.0
+var _see_weights: Dictionary = {}
 
 
 func _ready() -> void:
@@ -91,32 +123,47 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_F4:
 			palette_on = not palette_on
 		KEY_F5:
-			cut_mode = (cut_mode + 1) % CUT_NAMES.size()
+			front_walls_on = not front_walls_on
 		KEY_F6:
 			show_3d = not show_3d
+		KEY_F7:
+			perspective_fov = FOV_CHOICES[(FOV_CHOICES.find(perspective_fov) + 1) % FOV_CHOICES.size()]
+		KEY_F8:
+			yaw_degrees = YAW_CHOICES[(YAW_CHOICES.find(yaw_degrees) + 1) % YAW_CHOICES.size()]
+		KEY_F9:
+			aim_lead.ratio = LEAD_RATIOS[(LEAD_RATIOS.find(aim_lead.ratio) + 1) % LEAD_RATIOS.size()]
+		KEY_F10:
+			aim_lead.max_distance = LEAD_MAX_DISTANCES[(LEAD_MAX_DISTANCES.find(aim_lead.max_distance) + 1) % LEAD_MAX_DISTANCES.size()]
+		KEY_F11:
+			aim_lead.follow_speed = LEAD_SPEEDS[(LEAD_SPEEDS.find(aim_lead.follow_speed) + 1) % LEAD_SPEEDS.size()]
+		KEY_F12:
+			aim_lead.strength = LEAD_STRENGTHS[(LEAD_STRENGTHS.find(aim_lead.strength) + 1) % LEAD_STRENGTHS.size()]
 		_:
 			return
 	_apply_view_mode()
 	get_viewport().set_input_as_handled()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if not is_instance_valid(_necromancer) or not show_3d:
 		return
-	_update_camera()
+	_update_camera(delta)
 	_update_lights()
 	_sync_actors()
+	_update_front_walls(delta)
 
 
 ## 비교용 상태를 적용한다 (키나 스크린샷 설정에서 값을 바꾼 뒤 부른다).
 func _apply_view_mode() -> void:
 	_camera.projection = Camera3D.PROJECTION_PERSPECTIVE if perspective else Camera3D.PROJECTION_ORTHOGONAL
 	_palette_layer.visible = palette_on and show_3d
-	_wall_material.set_shader_parameter(&"cut_mode", cut_mode)
+	_camera.fov = perspective_fov
+	_camera.rotation_degrees = Vector3(-pitch_degrees, yaw_degrees, 0)
+	_necromancer.input_rotation = -deg_to_rad(yaw_degrees)
 	visible = show_3d
 	_walls.visible = not show_3d
 	_actors.visible = not show_3d
-	_label.text = "[F3] %s  [F4] palette %s  [F5] wall %s  [F6] %s" % ["persp" if perspective else "ortho", "on" if palette_on else "off", CUT_NAMES[cut_mode], "3D" if show_3d else "2D"]
+	_label.text = "[F3] %s  [F4] palette %s  [F5] walls %s  [F6] %s  [F7] fov %d  [F8] yaw %d\n[F9] lead %.1f  [F10] max %d  [F11] speed %d  [F12] strength %.1f" % ["persp" if perspective else "ortho", "on" if palette_on else "off", "on" if front_walls_on else "off", "3D" if show_3d else "2D", int(perspective_fov), int(yaw_degrees), aim_lead.ratio, int(aim_lead.max_distance), int(aim_lead.follow_speed), aim_lead.strength]
 
 
 ## 월드(2D) 좌표에서 높이 height_px의 점이 화면(내부 해상도)의 어디에 보이는지. 검사가 마우스를 옮길 때 쓴다
@@ -198,7 +245,6 @@ func _build_terrain() -> void:
 	_floor_material.shader = shader
 	_wall_material = ShaderMaterial.new()
 	_wall_material.shader = shader
-	_wall_material.set_shader_parameter(&"cut_half", cut_half_tiles)
 	_add_mesh(floor_mesh.build(), _floor_material, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 	_add_mesh(wall_mesh.build(), _wall_material, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 	var shadow_material: StandardMaterial3D = StandardMaterial3D.new()
@@ -220,26 +266,40 @@ func _add_mesh(mesh: ArrayMesh, material: Material, shadow: GeometryInstance3D.S
 
 func _build_camera() -> void:
 	_camera = Camera3D.new()
-	_camera.rotation_degrees = Vector3(-pitch_degrees, 0, 0)
 	# 세로 360픽셀 = 11.25칸이면 그림 1픽셀이 화면 1픽셀이다.
 	_camera.size = ProjectSettings.get_setting("display/window/size/viewport_height") / TILE
-	_camera.fov = perspective_fov
 	_camera.near = 0.1
 	_camera.far = 200.0
 	_camera.current = true
 	add_child(_camera)
 
 
-func _update_camera() -> void:
+func _update_camera(delta: float) -> void:
 	var feet: Vector3 = _to_3d(_necromancer.global_position, 0.0)
 	var basis_now: Basis = _camera.global_transform.basis
 	var right: Vector3 = basis_now.x
 	var up: Vector3 = basis_now.y
 	var back: Vector3 = basis_now.z
+	# 앞서 가기: 화면 픽셀만큼 카메라 평면에서 옮긴다 (화면 아래가 +y).
+	_lead_offset = aim_lead.follow(_lead_offset, aim_lead.target_offset(_lead_mouse(), get_viewport().get_visible_rect().size * 0.5), delta)
+	feet += (right * _lead_offset.x - up * _lead_offset.y) / TILE
 	# 카메라를 화면 픽셀 격자에 맞춘다 (바닥 무늬가 꿈틀거리지 않게).
 	var snapped_target: Vector3 = right * snappedf(feet.dot(right), 1.0 / TILE) + up * snappedf(feet.dot(up), 1.0 / TILE) + back * feet.dot(back)
 	var distance: float = (_camera.size * 0.5) / tan(deg_to_rad(perspective_fov * 0.5)) if perspective else 40.0
 	_camera.global_position = snapped_target + back * distance
+
+
+## 앞서 가기가 쓰는 마우스의 화면 위치. 월드 좌표를 거치지 않는다. 조준을 코드로 정한 확인 상태에서는 앞서 가지 않는다.
+func _lead_mouse() -> Vector2:
+	var center: Vector2 = get_viewport().get_visible_rect().size * 0.5
+	if mouse_override != Vector2.INF:
+		return mouse_override
+	return center if aim_override != Vector2.INF else get_viewport().get_mouse_position()
+
+
+## 확인용: 카메라가 지금 앞서 간 양 (화면 픽셀)
+func get_lead_offset() -> Vector2:
+	return _lead_offset
 
 
 func _build_lights() -> void:
@@ -272,7 +332,6 @@ func _update_lights() -> void:
 		material.set_shader_parameter(&"sight_origin", _to_3d(origin, 0.0))
 		if to_aim != Vector2.ZERO:
 			material.set_shader_parameter(&"sight_facing", to_aim.normalized())
-	_wall_material.set_shader_parameter(&"cut_center", _to_3d(_necromancer.global_position, 0.0))
 
 
 func _vision_active() -> bool:
@@ -295,7 +354,7 @@ func _build_overlay() -> void:
 	add_child(_palette_layer)
 	var label_layer: CanvasLayer = CanvasLayer.new()
 	_label = Label.new()
-	_label.position = Vector2(130, 348)
+	_label.position = Vector2(130, 336)
 	_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_label.add_theme_font_size_override(&"font_size", 8)
 	_label.add_theme_color_override(&"font_color", Color.html(LABEL_COLOR))
@@ -305,9 +364,10 @@ func _build_overlay() -> void:
 
 func _palette_colors() -> PackedVector3Array:
 	var colors: PackedVector3Array = PackedVector3Array()
-	for line: String in FileAccess.get_file_as_string(PALETTE_PATH).split("\n", false):
-		var color: Color = Color.html(line.strip_edges())
-		colors.append(Vector3(color.r, color.g, color.b))
+	for path: String in [PALETTE_PATH, DARK_STEPS_PATH]:
+		for line: String in FileAccess.get_file_as_string(path).split("\n", false):
+			var color: Color = Color.html(line.strip_edges())
+			colors.append(Vector3(color.r, color.g, color.b))
 	return colors
 
 
@@ -326,6 +386,7 @@ func _sync_actors() -> void:
 		if not alive.has(node):
 			(_visuals[node] as Node3D).queue_free()
 			_visuals.erase(node)
+			_see_weights.erase(node)
 
 
 func _sprite_of(node: Node2D) -> FacingSprite:
@@ -348,8 +409,6 @@ func _make_visual(node: Node2D) -> Node3D:
 		sprite_3d.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		sprite_3d.alpha_cut = SpriteBase3D.ALPHA_CUT_OPAQUE_PREPASS
 		sprite_3d.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		# 수직으로 세운 그림은 화면에서 cos(각도)배로 줄어들므로 세로를 그만큼 키운다.
-		sprite_3d.scale.y = 1.0 / cos(deg_to_rad(pitch_degrees))
 		result = sprite_3d
 	else:
 		var mesh: MeshInstance3D = MeshInstance3D.new()
@@ -383,6 +442,7 @@ func _update_visual(node: Node2D, visual: Node3D) -> void:
 		visual.global_position = _to_3d(node.global_position, 2.0)
 		visual.visible = node.visible
 		return
+	sprite.view_rotation = deg_to_rad(yaw_degrees)
 	var sprite_3d: AnimatedSprite3D = visual as AnimatedSprite3D
 	if sprite_3d.animation != sprite.animation:
 		sprite_3d.animation = sprite.animation
@@ -391,14 +451,95 @@ func _update_visual(node: Node2D, visual: Node3D) -> void:
 	# 2D offset은 왼쪽 위 기준(아래가 +y), 3D offset은 왼쪽 아래 기준(위가 +y)이다.
 	sprite_3d.offset = Vector2(sprite.offset.x, -(height + sprite.offset.y))
 	sprite_3d.global_position = _snap_to_pixels(_to_3d(node.global_position, 0.0))
+	sprite_3d.scale.y = _height_scale(sprite_3d.global_position, -sprite.offset.y)
 	sprite_3d.modulate = Color(1, 1, 1, node.modulate.a)
 	sprite_3d.visible = node.visible
 
 
-## 바닥 위의 점을 화면 픽셀 격자에 맞춘다 (가로는 1픽셀 = 1 / 32단위, 세로는 sin(각도)로 줄어든다).
+## 발밑 위쪽 texels만큼의 그림이 화면에서 정확히 그만큼의 픽셀이 되는 세로 배율. 카메라가 움직인 뒤에 부른다.
+func _height_scale(feet: Vector3, texels: float) -> float:
+	var nominal: float = 1.0 / cos(deg_to_rad(pitch_degrees))
+	if texels <= 0.0:
+		return nominal
+	var result: float = nominal
+	for i: int in HEIGHT_FIT_STEPS:
+		var span: float = _camera.unproject_position(feet + Vector3.UP * (texels / TILE) * result).distance_to(_camera.unproject_position(feet))
+		if span <= 0.0:
+			return nominal
+		result *= texels / span
+	return result
+
+
+## 확인용: 이 몸의 그림 한 픽셀이 화면에서 몇 픽셀인지 (가로, 세로). 그림이 없으면 ZERO
+func get_sprite_scale(node: Node2D) -> Vector2:
+	var visual: AnimatedSprite3D = _visuals.get(node) as AnimatedSprite3D
+	var sprite: FacingSprite = _sprite_of(node)
+	if visual == null or sprite == null:
+		return Vector2.ZERO
+	var feet: Vector3 = visual.global_position
+	var screen_feet: Vector2 = _camera.unproject_position(feet)
+	var texels: float = -sprite.offset.y
+	var height: float = _camera.unproject_position(feet + Vector3.UP * (texels / TILE) * visual.scale.y).distance_to(screen_feet) / texels
+	var width: float = _camera.unproject_position(feet + _camera.global_transform.basis.x * (texels / TILE)).distance_to(screen_feet) / texels
+	return Vector2(width, height)
+
+
+## 바닥 위의 점을 화면 픽셀에 맞춘다: 화면 위치를 정수로 반올림한 뒤 그 픽셀이 가리키는 같은 높이의 점으로 되돌린다 (직교·원근 모두).
 func _snap_to_pixels(point: Vector3) -> Vector3:
-	var depth_step: float = 1.0 / (TILE * sin(deg_to_rad(pitch_degrees)))
-	return Vector3(snappedf(point.x, 1.0 / TILE), point.y, snappedf(point.z, depth_step))
+	var screen: Vector2 = _camera.unproject_position(point).round()
+	var origin: Vector3 = _camera.project_ray_origin(screen)
+	var direction: Vector3 = _camera.project_ray_normal(screen)
+	if is_zero_approx(direction.y):
+		return point
+	return origin + direction * ((point.y - origin.y) / direction.y)
+
+
+
+## 앞벽 자리를 셰이더에 넣는다. 세기는 시간에 따라 서서히 바뀌어 깜빡이지 않는다.
+## 물체는 시야 판정(Vision)이 정한 투명도를 따르므로, 시야 밖 물체는 벽을 반투명하게 만들지 않는다. 언데드는 늘 보인다.
+func _update_front_walls(delta: float) -> void:
+	var step: float = delta / zone_fade_time
+	var on_target: float = 1.0 if front_walls_on else 0.0
+	_player_weight = move_toward(_player_weight, on_target, step)
+	_aim_weight = move_toward(_aim_weight, on_target, step)
+	var feet: Vector2 = _necromancer.global_position
+	var aim_ground: Vector2 = get_aim_position() + Vector2(0, aim_height_px)
+	var cut_zones: PackedVector4Array = PackedVector4Array([_zone(world_to_screen(feet, player_zone_height), cut_radius_player, _player_weight), _zone(world_to_screen(aim_ground, aim_height_px), cut_radius_aim, _aim_weight)])
+	_wall_material.set_shader_parameter(&"cut_zones", cut_zones)
+	_wall_material.set_shader_parameter(&"cut_world", PackedVector2Array([feet / TILE, aim_ground / TILE]))
+	var seen: Array[Node2D] = []
+	for node: Variant in _visuals.keys():
+		var object: Node2D = node as Node2D
+		if object == null or object == _necromancer or object is Bolt or object is Stone or object.is_queued_for_deletion():
+			continue
+		var wanted: float = 0.0
+		if front_walls_on:
+			wanted = 1.0 if object.is_in_group(&"undead") else (object.modulate.a if object.visible else 0.0)
+		_see_weights[object] = move_toward(_see_weights.get(object, 0.0), wanted, step)
+		if _see_weights[object] > 0.0:
+			seen.append(object)
+	seen.sort_custom(func(a: Node2D, b: Node2D) -> bool: return a.global_position.distance_squared_to(feet) < b.global_position.distance_squared_to(feet))
+	var see_zones: PackedVector4Array = PackedVector4Array()
+	var see_world: PackedVector2Array = PackedVector2Array()
+	see_zones.resize(SEE_ZONES)
+	see_world.resize(SEE_ZONES)
+	for i: int in mini(seen.size(), SEE_ZONES):
+		see_zones[i] = _zone(world_to_screen(seen[i].global_position, object_zone_height), see_radius, _see_weights[seen[i]])
+		see_world[i] = seen[i].global_position / TILE
+	_wall_material.set_shader_parameter(&"see_zones", see_zones)
+	_wall_material.set_shader_parameter(&"see_world", see_world)
+	var back: Vector3 = _camera.global_transform.basis.z
+	_wall_material.set_shader_parameter(&"toward_camera", Vector2(back.x, back.z).normalized())
+
+
+func _zone(screen: Vector2, radius: float, weight: float) -> Vector4:
+	return Vector4(screen.x, screen.y, radius, weight)
+
+
+## 확인용: 이 물체 앞 벽의 반투명 세기 (0~1)
+func get_see_weight(node: Node2D) -> float:
+	return _see_weights.get(node, 0.0)
+
 
 
 ## 사각형을 모아 메시를 만든다.
