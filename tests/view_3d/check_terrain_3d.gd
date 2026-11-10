@@ -6,7 +6,7 @@ extends ScenarioTest
 ## 3. 화면 밖 구역은 그리지 않는다 (그려진 삼각형 수가 전체보다 훨씬 적다)
 
 const DEFAULT_SCENE: String = "res://regions/shallow_cave.tscn"
-const SETTLE_FRAMES: int = 10
+const SETTLE_FRAMES: int = 30
 ## 색 오차 허용 (8비트 한 단계)
 const COLOR_TOLERANCE: float = 1.5 / 255.0
 ## 틈을 볼 때 맵 가장자리에서 떨어질 칸 수 (화면이 맵 안에 들어오게)
@@ -34,12 +34,20 @@ func _on_scene_ready() -> void:
 	_necromancer.process_mode = Node.PROCESS_MODE_DISABLED
 	for node: Node in get_nodes_in_group(&"monsters"):
 		node.process_mode = Node.PROCESS_MODE_DISABLED
+	# 바닥·벽 색만 보려고 몸과 바닥 표시·상자를 숨긴다.
+	_necromancer.visible = false
+	for child: Node in current_scene.get_children():
+		if child is InteractZone or child is EscapePoint:
+			(child as CanvasItem).visible = false
 	# 칸 색을 2D 색과 비교하므로 시야로 어두워지지 않게 끈다.
 	var vision: Vision = current_scene.call(&"get_vision") if current_scene.has_method(&"get_vision") else null
 	if vision != null:
 		vision.set_active(false)
 	_view = current_scene.call(&"add_view_3d")
 	_view.aim_lead.strength = 0.0
+	# 실제 마우스 자리의 벽이 잘려서 색이 달라지지 않게 앞벽 처리를 끄고 조준을 고정한다.
+	_view.aim_override = _necromancer.get_body_center()
+	_view.get_front_walls().enabled = false
 	(current_scene.get_node("HUD") as CanvasLayer).visible = false
 	for child: Node in current_scene.get_children():
 		if child is PlaceholderGround:

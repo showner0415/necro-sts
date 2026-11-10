@@ -12,6 +12,9 @@ const AIM_DISTANCES: Array[float] = [48.0, 120.0]
 const AIM_DIRECTIONS: int = 8
 const AIM_TOLERANCE: float = 1.0
 const CENTER_TOLERANCE: float = 1.0
+## 화면 계산(ViewSpace)을 실제 카메라와 비교할 점과 허용 오차 (화면 픽셀. 카메라는 픽셀 격자에 맞춘다)
+const SAMPLE_OFFSET: Vector2 = Vector2(64, -48)
+const OFFSET_TOLERANCE: float = 1.5
 const SETTLE_FRAMES: int = 3
 const WALK_FRAMES: int = 20
 const LEAD_FRAMES: int = 60
@@ -66,6 +69,15 @@ func _run() -> void:
 		fail_step("카메라", "발밑 화면 위치 %s, 화면 가운데 %s" % [feet_screen, center])
 		return
 	pass_step("카메라", "발밑 화면 위치 %s = 화면 가운데" % feet_screen)
+	var sample: Vector2 = necromancer.global_position + SAMPLE_OFFSET
+	var measured: Vector2 = view.world_to_screen(sample, 0.0) - center
+	# 카메라 거리는 내부 해상도 세로로 정해지고, 헤드리스 창은 세로가 달라 화면에서 그만큼 커진다.
+	var design_height: float = ProjectSettings.get_setting("display/window/size/viewport_height")
+	var calculated: Vector2 = ViewSpace.screen_offset(necromancer.global_position, sample, 0.0, view.pitch_degrees, view.yaw_degrees, view.fov_degrees, design_height) * (root.get_visible_rect().size.y / design_height)
+	if measured.distance_to(calculated) > OFFSET_TOLERANCE:
+		fail_step("화면 계산", "카메라 %s, 계산 %s" % [measured, calculated])
+		return
+	pass_step("화면 계산", "카메라 %s = 계산 %s" % [measured, calculated])
 	if not await _check_aim_round_trip(necromancer):
 		return
 	if not await _check_screen_up(necromancer, view):

@@ -17,6 +17,8 @@ const AGREE_TARGET: float = 0.95
 ## 밝음·어두움을 가르는 밝기 비율 (0.4와 1의 가운데)
 const LIT_RATIO: float = 0.7
 const NEAR_SKIP: float = 40.0
+## 바닥 색에 밝기만 곱했다고 볼 수 있는 채널별 비율 차이
+const FLOOR_RATIO_SPREAD: float = 0.1
 const AIM_DISTANCE: float = 200.0
 const BRIGHTNESS_TOLERANCE: float = 0.04
 ## 측정: 화면에서 밝기를 볼 거리 (월드 픽셀)
@@ -109,6 +111,7 @@ func _check_agreement() -> void:
 	random.seed = POSE_SEED
 	var total: int = 0
 	var agree: int = 0
+	var covered: int = 0
 	for pose: int in POSES:
 		await _set_pose(_cell_center(_floors[random.randi() % _floors.size()]), Vector2.from_angle(random.randf() * TAU))
 		var image: Image = await capture()
@@ -118,7 +121,10 @@ func _check_agreement() -> void:
 		for cell: Vector2i in _floors:
 			var world: Vector2 = _cell_center(cell)
 			var screen: Vector2 = _view.world_to_screen(world, 0.0)
-			if not bounds.has_point(screen) or world.distance_to(_necromancer.global_position) < NEAR_SKIP or _is_wall_at(image, screen):
+			if not bounds.has_point(screen) or world.distance_to(_necromancer.global_position) < NEAR_SKIP:
+				continue
+			if not _is_floor_pixel(image, screen, cell):
+				covered += 1
 				continue
 			var level: int = _vision.rules.level_with_walls(origin, facing, world)
 			if level != 0 and level != _vision.rules.hidden_level():
@@ -130,13 +136,17 @@ func _check_agreement() -> void:
 	if ratio < AGREE_TARGET:
 		fail_step("판정과 밝기", "일치 %.1f%% (기준 %.0f%%), 칸 %d개" % [ratio * 100.0, AGREE_TARGET * 100.0, total])
 		return
-	pass_step("판정과 밝기", "일치 %.1f%%, %d자세 칸 %d개" % [ratio * 100.0, POSES, total])
+	pass_step("판정과 밝기", "일치 %.1f%%, %d자세 칸 %d개 (벽에 가려 뺀 칸 %d개)" % [ratio * 100.0, POSES, total, covered])
 
 
-func _is_wall_at(image: Image, screen: Vector2) -> bool:
+## 이 화면 점이 그 칸의 바닥을 보여 주는지: 바닥 색에 밝기만 곱한 색이면 바닥이고, 색 비율이 다르면 앞에 벽이 있다.
+func _is_floor_pixel(image: Image, screen: Vector2, cell: Vector2i) -> bool:
+	var base: Color = _cells.top_colors[_cells.index_of(cell.x, cell.y)]
 	var pixel: Color = image.get_pixelv(Vector2i(screen))
-	var face: Color = _cells.face_color
-	return absf(pixel.r / maxf(face.r, 0.001) - pixel.g / maxf(face.g, 0.001)) < 0.02 and absf(pixel.g / maxf(face.g, 0.001) - pixel.b / maxf(face.b, 0.001)) < 0.02
+	var r: float = pixel.r / maxf(base.r, 0.001)
+	var g: float = pixel.g / maxf(base.g, 0.001)
+	var b: float = pixel.b / maxf(base.b, 0.001)
+	return maxf(r, maxf(g, b)) - minf(r, minf(g, b)) < FLOOR_RATIO_SPREAD
 
 
 ## 바닥 칸 가운데에서 east로 FAN_POINT 안쪽에 벽이 없는 자리를 찾는다.

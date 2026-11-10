@@ -401,13 +401,15 @@ func _view_rock() -> bool:
 	var necromancer: Necromancer = find_necromancer()
 	necromancer.global_position = _cell_center(spot)
 	await wait_frames(VIEW_SETTLE_FRAMES)
-	var view: Rect2 = _visible_world_rect()
 	var bats: Array[Node2D] = []
 	for node: Node in get_nodes_in_group(&"monsters"):
 		# 두 번째 무리(박쥐 아래 굴)는 전망 바위에서 보는 대상이 아니다.
 		if (node as Monster).data.id == &"bat" and _layout.room_at(Vector2i(((node as Node2D).global_position / TILE).floor())) == _roles.bat_nest:
 			bats.append(node as Node2D)
-	var seen: int = bats.filter(func(b: Node2D) -> bool: return view.has_point(b.global_position)).size()
+	var half_screen: Vector2 = _half_screen()
+	var seen: int = bats.filter(func(b: Node2D) -> bool:
+		var offset: Vector2 = _screen_offset(necromancer.global_position, b.global_position).abs()
+		return offset.x <= half_screen.x and offset.y <= half_screen.y).size()
 	# 전망 자리에서 박쥐 둥지의 가장 가까운 칸까지, 다듬은 바닥을 따라 걷는 걸음 수와 곧은 거리
 	var rows: PackedStringArray = (current_scene.get_node("Walls") as PlaceholderWalls).layout
 	var steps: Dictionary = _steps_from(rows, spot)
@@ -421,17 +423,21 @@ func _view_rock() -> bool:
 	var blocked: bool = nearest.x >= 0 and nearest_steps >= straight * VIEW_DETOUR_RATIO and not _layout.rooms[_roles.view_rock].neighbors.has(_roles.bat_nest)
 	await wait_frames(1)
 	# 2배 맵에서는 전망 자리에서 박쥐가 보이는 자리와 박쥐 길 규칙을 맞는 자리가 겹치지 않는다. 박쥐가 화면 안인지는 출력만 하고 3D 이전 때 맵과 함께 다시 정한다 (사용자 결정, 2026-11-10).
-	return _check("전망 바위에서 박쥐 둥지로 바로 못 감", bats.size() > 0 and blocked, "전망 자리 칸 %s, 화면 %s 안의 박쥐 %d / %d (판정 안 함), 박쥐 둥지 가장 가까운 칸 %s까지 곧은 거리 %.0f칸, 걸어서 %d걸음 (%.0f배 이상이어야 바로 못 감), 두 굴이 이어지지 않음 %s" % [
-		spot, view, seen, bats.size(), nearest, straight, nearest_steps, VIEW_DETOUR_RATIO, not _layout.rooms[_roles.view_rock].neighbors.has(_roles.bat_nest)])
+	return _check("전망 바위에서 박쥐 둥지로 바로 못 감", bats.size() > 0 and blocked, "전망 자리 칸 %s, 3D 화면 안의 박쥐 %d / %d (판정 안 함), 박쥐 둥지 가장 가까운 칸 %s까지 곧은 거리 %.0f칸, 걸어서 %d걸음 (%.0f배 이상이어야 바로 못 감), 두 굴이 이어지지 않음 %s" % [
+		spot, seen, bats.size(), nearest, straight, nearest_steps, VIEW_DETOUR_RATIO, not _layout.rooms[_roles.view_rock].neighbors.has(_roles.bat_nest)])
 
 
-## 실제 게임 화면(내부 해상도 640×360)에 보이는 월드 영역. 헤드리스 실행은 창이 달라 화면 가운데만 빌리고 크기는 내부 해상도로 잰다
-func _visible_world_rect() -> Rect2:
-	var viewport: Viewport = current_scene.get_viewport()
-	var inverse: Transform2D = viewport.get_canvas_transform().affine_inverse()
-	var center: Vector2 = inverse * (viewport.get_visible_rect().size * 0.5)
-	var size: Vector2 = inverse.basis_xform(Vector2(ProjectSettings.get_setting("display/window/size/viewport_width"), ProjectSettings.get_setting("display/window/size/viewport_height")))
-	return Rect2(center - size * 0.5, size)
+## 실제 게임 화면(내부 해상도 640×360)의 반 크기
+func _half_screen() -> Vector2:
+	return Vector2(ProjectSettings.get_setting("display/window/size/viewport_width"), ProjectSettings.get_setting("display/window/size/viewport_height")) * 0.5
+
+
+## feet에 섰을 때(앞서 가기 없이) point가 3D 화면 가운데에서 떨어진 정도 (내부 해상도 픽셀)
+func _screen_offset(feet: Vector2, point: Vector2) -> Vector2:
+	var view: RegionView3D = RegionView3D.new()
+	var offset: Vector2 = ViewSpace.screen_offset(feet, point, 0.0, view.pitch_degrees, view.yaw_degrees, view.fov_degrees, ProjectSettings.get_setting("display/window/size/viewport_height"))
+	view.free()
+	return offset
 
 
 ## 1-1. 길찾기 격자: 막힌 칸을 벽 타일에서 바로 계산하고(빠름), 그 결과가 물리 질의로 잰 것과 같다. 두 방법에 걸린 시간을 출력한다.
@@ -488,8 +494,8 @@ func _boar_seen_first() -> bool:
 	if entrance.is_empty() or boars.is_empty():
 		return _check("빛 드는 굴 멧돼지를 입구에서 먼저 봄", false, "입구 칸 %s, 멧돼지 %s" % [entrance, boars])
 	var boar: Vector2 = _cell_center(boars[0])
-	var half: Vector2 = Vector2(ProjectSettings.get_setting("display/window/size/viewport_width"), ProjectSettings.get_setting("display/window/size/viewport_height")) * 0.5 - Vector2(BOAR_VIEW_MARGIN, BOAR_VIEW_MARGIN)
-	var offset: Vector2 = (boar - middle).abs()
+	var half: Vector2 = _half_screen() - Vector2(BOAR_VIEW_MARGIN, BOAR_VIEW_MARGIN)
+	var offset: Vector2 = _screen_offset(middle, boar).abs()
 	var visible: bool = offset.x <= half.x and offset.y <= half.y
 	var detect_range: float = (load(BOAR_PATH) as MonsterData).detect_range
 	var nearest: float = INF
