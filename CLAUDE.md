@@ -147,6 +147,7 @@ res://
   - 표 아래에 잡은 시간·받은 피해·죽음의 95% 오차 범위 표가 함께 나온다. 전후를 비교할 때는 이 범위를 같이 본다.
   - 원인 진단: `bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_diagnose.gd -- --mode=charge_sight --runs=10` (돌진 시작 때 봇이 멧돼지를 봤는지, 그 돌진에 맞았는지. `--skills=skilled --runs=1 --trace=1`이면 0.2초마다 상태 출력), `--mode=goblin_time --runs=50` (고블린이 살아 있는 동안 봇이 무엇을 했는지, 누가 때렸는지. `--no_retreat=1`은 테스트 안에서만 물러나기를 끈다), `--mode=aim_sight --runs=50` (박쥐 혼자·고블린+쥐 언데드 2에서 겨눈 몬스터와 화면 방향의 차이, 시야가 튄 횟수, 공격이 시작될 때 봤는지와 맞았는지. `--no_vision=1`은 시야를 끄고 잰다)
   - 측정 결과를 사용자에게 보고할 때는 그 보고 내용도 `tests/balance/results/<날짜>_<내용>.md`로 저장하고 경로를 함께 알려준다.
+  - 얕은 굴 2배 맵의 새 기준값은 아직 없다 (`tests/balance/results/2026-11-10_map_route_2x_partial.md`, 사용자가 측정을 멈춤). 맵·밸런스 작업에서 이 측정이 필요해지면 먼저 사용자에게 다시 재자고 말한다.
   - 전후 비교 기준 결과표는 `tests/balance/results/<날짜>_<내용>.md`에 저장한다 (두 컴퓨터에서 본다). AI 전후 비교표에는 언데드 대결(언데드 1 vs 적 1, 언데드 1 + 네크로맨서, 언데드 2 vs 적 1, 몬스터 전부)을 항상 포함한다.
   - 판마다 시작할 때 씬과 몬스터 수를 검사한다 (`check_fight_start`). 틀리면 `[실패] 판 시작 검사`를 남기고 그 판을 빼며, 측정은 계속하되 종료 코드 1로 끝난다.
   - 사람이 같은 상황을 직접 해 보기: `bash tools/godot.sh --path . -s tools/play_case.gd -- --target=bat_pack` (고블린+쥐 언데드 2는 `--target=goblin_pair --undead=2`, 소환은 1 → G, 2 → G). 측정과 같은 싸움터이고 몬스터는 동쪽에 있다

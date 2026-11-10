@@ -78,6 +78,10 @@ var actions_enabled: bool = true
 var _attack_timer: float = 0.0
 ## 게임 화면에서(UI가 아닌 곳에서) 공격 버튼을 눌러 아직 떼지 않았는지
 var _attack_held: bool = false
+## 조준 위치를 돌려주는 함수 (없으면 2D 마우스 위치). 3D 화면 층이 넣어 준다
+var aim_provider: Callable = Callable()
+## 이동 입력을 돌리는 각도 (라디안). 화면을 돌려 보는 3D 층이 넣어 준다 (W = 화면 위). 규칙 좌표는 그대로다
+var input_rotation: float = 0.0
 ## 지금 키 안내를 띄운 대상 (바닥 더미 또는 시체)
 var _prompted_target: GroundTarget
 ## 진행 중인 채집과 그 시체. 채집 중이 아니면 null.
@@ -109,7 +113,7 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	var input_direction: Vector2 = Input.get_vector(&"move_left", &"move_right", &"move_up", &"move_down")
+	var input_direction: Vector2 = Input.get_vector(&"move_left", &"move_right", &"move_up", &"move_down").rotated(input_rotation)
 	# 뛰기 키는 UI와 겹치지 않으므로 직접 읽는다. 떼면 지친 상태가 풀린다.
 	var run_held: bool = Input.is_action_pressed(&"run")
 	if not run_held:
@@ -167,9 +171,9 @@ func _unhandled_input(event: InputEvent) -> void:
 func try_roll() -> bool:
 	if is_rolling():
 		return false
-	var direction: Vector2 = Input.get_vector(&"move_left", &"move_right", &"move_up", &"move_down").normalized()
+	var direction: Vector2 = Input.get_vector(&"move_left", &"move_right", &"move_up", &"move_down").rotated(input_rotation).normalized()
 	if direction == Vector2.ZERO:
-		direction = global_position.direction_to(get_global_mouse_position())
+		direction = global_position.direction_to(get_aim_position())
 	if direction == Vector2.ZERO or not stamina.try_roll():
 		return false
 	_roll_direction = direction
@@ -179,6 +183,11 @@ func try_roll() -> bool:
 
 func is_rolling() -> bool:
 	return _roll_elapsed >= 0.0
+
+
+## 조준 위치 (월드 좌표). aim_provider가 있으면 그것을 쓴다 (3D 화면은 마우스를 바닥 평면 위치로 바꿔 넣는다). 없으면 2D 마우스 위치.
+func get_aim_position() -> Vector2:
+	return aim_provider.call() if aim_provider.is_valid() else get_global_mouse_position()
 
 
 ## 구르기 시작 뒤 roll_invincible_duration 동안 무적
@@ -229,14 +238,14 @@ func get_shot_origin() -> Vector2:
 ## 마우스 쪽을 바라보고, 움직이는 동안(걷기·뛰기·구르기) 걷기 애니메이션을 이동 속도에 맞춰 재생한다.
 ## 밀려나는 동안은 걷는 것이 아니므로 정지 그림이다.
 func _update_sprite() -> void:
-	_sprite.face(get_global_mouse_position() - get_body_center())
+	_sprite.face(get_aim_position() - get_body_center())
 	_sprite.update_motion(Vector2.ZERO if _knockback.is_active() else get_real_velocity(), move_speed)
 
 
 func _shoot() -> void:
 	# 몸 가운데에서 마우스 쪽으로 쏜다.
 	var origin: Vector2 = get_shot_origin()
-	var direction: Vector2 = origin.direction_to(get_global_mouse_position())
+	var direction: Vector2 = origin.direction_to(get_aim_position())
 	if direction == Vector2.ZERO:
 		return
 	# 마나가 모자라면 쏘지 않는다. 자연 회복될 때까지 기다려야 한다.

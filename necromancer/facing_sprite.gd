@@ -25,6 +25,8 @@ const ANGLE_EPSILON: float = 0.01
 @export var min_speed_scale: float = 0.5
 @export var max_speed_scale: float = 2.0
 
+## 화면이 돌아가 있는 각도 (라디안). 8방향 그림은 화면 방향 기준으로 고른다 (3D 층이 넣어 준다)
+var view_rotation: float = 0.0
 ## 지금 바라보는 방향 번호 (Facing 규칙). 처음에는 남쪽
 var _direction_index: int = 2
 
@@ -37,7 +39,7 @@ func _ready() -> void:
 func face(direction: Vector2) -> void:
 	if direction == Vector2.ZERO:
 		return
-	_direction_index = Facing.index_for(direction, DIRECTION_NAMES.size())
+	_direction_index = Facing.index_for(direction.rotated(view_rotation), DIRECTION_NAMES.size())
 
 
 ## 지금 바라보는 방향 번호 (Facing 규칙)
@@ -65,7 +67,7 @@ func update_motion(velocity: Vector2, walk_speed: float) -> void:
 			set_frame_and_progress(kept_frame, kept_progress)
 	offset = walk_offset
 	var facing: Vector2 = Vector2.from_angle(_direction_index * TAU / DIRECTION_NAMES.size())
-	var backwards: bool = absf(rad_to_deg(facing.angle_to(velocity))) > reverse_angle + ANGLE_EPSILON
+	var backwards: bool = absf(rad_to_deg(facing.angle_to(velocity.rotated(view_rotation)))) > reverse_angle + ANGLE_EPSILON
 	var ratio: float = clampf(velocity.length() / walk_speed, min_speed_scale, max_speed_scale)
 	speed_scale = -ratio if backwards else ratio
 	if not is_playing():
