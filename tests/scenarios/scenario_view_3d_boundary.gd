@@ -1,7 +1,7 @@
 extends ScenarioTest
 ## 시나리오: 2D 규칙 세계와 3D 화면 층의 경계.
 ## 1. 헤드리스에서는 지역 데이터의 view_3d를 켜도 3D 층이 붙지 않고, 조준은 2D 마우스 위치다
-## 2. 3D 층을 붙이면 조준과 이동 입력이 층을 거친다
+## 2. 3D 층을 붙이면 조준과 이동 입력이 층을 거치고, 임시 바닥이 지형 메시가 되며 2D 바닥은 숨고, 몸마다 3D 사각형이 생기고 사라지면 지운다
 ## 3. 카메라가 네크로맨서를 화면 가운데에 둔다
 ## 4. 여러 방향의 월드 좌표를 흉내 낸 마우스로 조준하면 같은 자리를 조준한다
 ## 5. W는 화면 위로 걷는다
@@ -41,6 +41,25 @@ func _run() -> void:
 		fail_step("연결", "조준 연결 %s, 이동 회전 %.3f" % [necromancer.aim_provider.is_valid(), necromancer.input_rotation])
 		return
 	pass_step("연결", "조준이 3D 층을 거침, 이동 입력 %.0f도 회전" % rad_to_deg(necromancer.input_rotation))
+	var ground: PlaceholderGround = current_scene.get_node("Ground")
+	var expected_quads: int = ground.size_in_tiles.x * ground.size_in_tiles.y
+	if view.get_terrain_quads() != expected_quads or view.get_terrain_chunks().is_empty() or ground.visible:
+		fail_step("지형", "사각형 %d (기대 %d), 구역 %d, 2D 바닥 보임 %s" % [view.get_terrain_quads(), expected_quads, view.get_terrain_chunks().size(), ground.visible])
+		return
+	pass_step("지형", "바닥 %d칸 = 사각형 %d, 구역 %d개, 2D 바닥은 숨김" % [expected_quads, view.get_terrain_quads(), view.get_terrain_chunks().size()])
+	await wait_frames(SETTLE_FRAMES)
+	var monsters: int = get_nodes_in_group(&"monsters").size()
+	var chests: int = current_scene.find_children("*", "LootChest", true, false).size()
+	if view.get_bodies().get_bodies().size() != monsters + chests + 1:
+		fail_step("몸", "그리는 몸 %d (기대: 몬스터 %d + 상자 %d + 네크로맨서)" % [view.get_bodies().get_bodies().size(), monsters, chests])
+		return
+	var victim: Node = get_nodes_in_group(&"monsters")[0]
+	victim.free()
+	await wait_frames(SETTLE_FRAMES)
+	if view.get_bodies().get_bodies().size() != monsters + chests:
+		fail_step("몸", "몬스터가 사라졌는데 그리는 몸 %d (기대 %d)" % [view.get_bodies().get_bodies().size(), monsters + chests])
+		return
+	pass_step("몸", "몬스터 %d + 상자 %d + 네크로맨서를 그림, 사라진 몬스터는 지움" % [monsters, chests])
 	var center: Vector2 = root.get_visible_rect().size * 0.5
 	var feet_screen: Vector2 = view.world_to_screen(necromancer.global_position, 0.0)
 	if feet_screen.distance_to(center) > CENTER_TOLERANCE:

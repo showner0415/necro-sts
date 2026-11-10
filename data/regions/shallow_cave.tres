@@ -8,3 +8,4 @@ id = &"shallow_cave"
 display_name = "얕은 굴"
 scene_path = "res://regions/shallow_cave.tscn"
 limit_vision = true
+view_3d = true

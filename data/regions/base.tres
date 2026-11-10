@@ -8,3 +8,4 @@ id = &"base"
 display_name = "거점"
 scene_path = "res://regions/base.tscn"
 is_base = true
+view_3d = true

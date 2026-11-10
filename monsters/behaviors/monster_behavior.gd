@@ -86,6 +86,11 @@ func get_body_color(base: Color) -> Color:
 	return base
 
 
+## 바닥에 그리는 예고 선의 양 끝 (월드 좌표). 지금 선이 없으면 빈 배열이다. 3D 화면 층이 예고 앞의 벽을 반투명하게 할 때 쓴다.
+func get_warning_segment(_origin: Vector2) -> PackedVector2Array:
+	return PackedVector2Array()
+
+
 ## 쓰는 쪽의 _draw()에서 몸보다 먼저 부른다 (바닥에 그리는 예고 표시 등). indicator_color는 적·아군을 구별하는 색이다.
 func draw_overlay(_canvas: CanvasItem, _indicator_color: Color) -> void:
 	pass

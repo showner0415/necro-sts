@@ -12,6 +12,9 @@ extends Node2D
 ## - 지역 데이터의 limit_vision이 켜져 있으면 플레이어 시야를 제한한다 (Vision, 거점은 끔)
 ## 다른 씬으로 갈 때 소환 중인 언데드는 일반 해제된다. 네크로맨서는 새 씬에서 새로 만들어지므로 체력·마나가 가득 찬다.
 
+## 3D 층을 켜지 않고 2D로 그리는 실행 인자 (전후 비교용)
+const VIEW_2D_ARG: String = "--view_2d"
+
 ## 이 지역
 @export var data: RegionData
 ## 죽으면 돌아갈 곳 (거점)
@@ -203,15 +206,19 @@ func get_vision() -> Vision:
 
 
 ## 이 지역을 3D 화면 층으로 그릴지. 헤드리스(테스트·측정)에서는 규칙만 돌리므로 그리지 않는다.
+## 2D 화면과 비교하려면 실행 인자 --view_2d를 준다. 시제품 층(View3D)이 있는 씬은 그 층을 쓴다.
 func wants_view_3d() -> bool:
-	return data != null and data.view_3d and DisplayServer.get_name() != "headless"
+	return data != null and data.view_3d and DisplayServer.get_name() != "headless" and not OS.get_cmdline_user_args().has(VIEW_2D_ARG) and get_node_or_null("View3D") == null
 
 
-## 3D 화면 층을 붙인다.
+## 3D 화면 층을 붙인다. 이미 있으면 그것을 돌려준다.
 func add_view_3d() -> RegionView3D:
+	var existing: RegionView3D = get_view_3d()
+	if existing != null:
+		return existing
 	var view: RegionView3D = RegionView3D.new()
 	view.name = "RegionView3D"
-	view.setup(_necromancer)
+	view.setup(_necromancer, get_vision())
 	add_child(view)
 	return view
 

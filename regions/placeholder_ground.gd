@@ -1,3 +1,4 @@
+class_name PlaceholderGround
 extends Node2D
 ## 타일 그림이 생기기 전까지 쓰는 임시 바닥. 움직임이 눈에 보이도록 체크무늬를 그린다.
 

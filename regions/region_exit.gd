@@ -34,7 +34,12 @@ func get_prompt_label() -> String:
 	return "%s(으)로" % destination.display_name
 
 
-func _draw() -> void:
+## canvas에 바닥 표시를 그린다. 2D에서는 자기 자신에, 3D 화면 층에서는 바닥 캔버스에 그린다.
+func draw_ground_marks(canvas: CanvasItem) -> void:
 	# 그림이 생기기 전까지 쓰는 임시 도형: 바닥에 칠한 원과 테두리.
-	draw_circle(Vector2.ZERO, radius, fill_color)
-	draw_arc(Vector2.ZERO, radius - ring_width / 2.0, 0.0, TAU, 48, ring_color, ring_width)
+	canvas.draw_circle(Vector2.ZERO, radius, fill_color)
+	canvas.draw_arc(Vector2.ZERO, radius - ring_width / 2.0, 0.0, TAU, 48, ring_color, ring_width)
+
+
+func _draw() -> void:
+	draw_ground_marks(self)

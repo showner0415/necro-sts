@@ -73,6 +73,15 @@ func _run_windup() -> void:
 		frames += 1
 
 
+func test_warning_segment_only_during_windup() -> void:
+	assert_eq(charge.get_warning_segment(Vector2.ZERO).size(), 0, "예고 전에는 선이 없음")
+	charge._state = ChargeBehavior.State.WINDUP
+	charge._direction = Vector2.RIGHT
+	var segment: PackedVector2Array = charge.get_warning_segment(Vector2(10, 20))
+	assert_eq(segment[0], Vector2(10, 20), "몸에서 시작")
+	assert_eq(segment[1], Vector2(10, 20) + Vector2.RIGHT * charge.get_charge_length(Vector2(10, 20)), "돌진 길이만큼")
+
+
 func test_far_target_is_approached_without_attacking() -> void:
 	target.position = Vector2(charge.charge_range + 50.0, 0)
 	_step()
