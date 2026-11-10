@@ -61,11 +61,11 @@ const LIGHT_RANGE_TILES: float = 30.0
 ## 앞벽 처리: 자리의 반지름 (화면 픽셀), 세기가 바뀌는 시간 (초)
 @export var cut_radius_player: float = 64.0
 @export var cut_radius_aim: float = 48.0
-@export var see_radius: float = 36.0
 @export var zone_fade_time: float = 0.2
-## 자리 가운데를 잡을 높이 (평면 높이, 픽셀): 플레이어 몸 가운데, 물체 몸 가운데
+## 잘라내기 자리의 가운데를 잡을 높이 (평면 높이, 픽셀): 플레이어 몸 가운데
 @export var player_zone_height: float = 32.0
-@export var object_zone_height: float = 24.0
+## 그림이 없는 물체(시체, 줍는 물건)의 반투명 사각형 크기 (화면 픽셀)
+@export var no_sprite_rect_size: Vector2 = Vector2(20, 16)
 ## 몸 그림의 깊이만 카메라 쪽으로 당기는 양 (단위). 발밑보다 아래로 그려지는 부분이 바닥에 가리지 않게 한다
 @export var sprite_depth_bias: float = 0.3
 
@@ -80,6 +80,8 @@ var mouse_override: Vector2 = Vector2.INF
 var show_3d: bool = true
 ## 확인용: 값이 있으면 마우스 대신 이 월드 좌표를 조준한다 (스크린샷·검사)
 var aim_override: Vector2 = Vector2.INF
+## 확인용: 끄면 물체 앞 벽을 반투명하게 하지 않는다 (잘라내기는 그대로)
+var see_through_on: bool = true
 
 var _necromancer: Necromancer
 var _walls: PlaceholderWalls
@@ -95,6 +97,8 @@ var _label: Label
 var _visuals: Dictionary = {}
 ## 카메라가 지금 앞서 간 양 (화면 픽셀)
 var _lead_offset: Vector2 = Vector2.ZERO
+## 그림 텍스처마다 불투명 영역 (한 번만 계산한다)
+var _used_rects: Dictionary = {}
 ## 앞벽 자리의 지금 세기: 플레이어, 조준점, 물체마다
 var _player_weight: float = 1.0
 var _aim_weight: float = 1.0
@@ -488,7 +492,7 @@ func _update_front_walls(delta: float) -> void:
 		if object == null or object == _necromancer or object is Bolt or object is Stone or object.is_queued_for_deletion():
 			continue
 		var wanted: float = 0.0
-		if front_walls_on:
+		if front_walls_on and see_through_on:
 			wanted = 1.0 if object.is_in_group(&"undead") else (object.modulate.a if object.visible else 0.0)
 		_see_weights[object] = move_toward(_see_weights.get(object, 0.0), wanted, step)
 		if _see_weights[object] > 0.0:
@@ -496,19 +500,39 @@ func _update_front_walls(delta: float) -> void:
 	seen.sort_custom(func(a: Node2D, b: Node2D) -> bool: return a.global_position.distance_squared_to(feet) < b.global_position.distance_squared_to(feet))
 	var see_zones: PackedVector4Array = PackedVector4Array()
 	var see_world: PackedVector2Array = PackedVector2Array()
+	var see_weights: PackedFloat32Array = PackedFloat32Array()
 	see_zones.resize(SEE_ZONES)
 	see_world.resize(SEE_ZONES)
+	see_weights.resize(SEE_ZONES)
 	for i: int in mini(seen.size(), SEE_ZONES):
-		see_zones[i] = _zone(world_to_screen(seen[i].global_position, object_zone_height), see_radius, _see_weights[seen[i]])
+		var rect: Rect2 = get_see_rect(seen[i])
+		see_zones[i] = Vector4(rect.get_center().x, rect.get_center().y, rect.size.x * 0.5, rect.size.y * 0.5)
+		see_weights[i] = _see_weights[seen[i]]
 		see_world[i] = seen[i].global_position / TILE
 	_wall_material.set_shader_parameter(&"see_zones", see_zones)
 	_wall_material.set_shader_parameter(&"see_world", see_world)
+	_wall_material.set_shader_parameter(&"see_weights", see_weights)
 	var back: Vector3 = _camera.global_transform.basis.z
 	_wall_material.set_shader_parameter(&"toward_camera", Vector2(back.x, back.z).normalized())
+	# 그림의 깊이를 당긴 만큼은 벽이 그림을 가리지 않으므로 반투명하게 하지 않는다.
+	_wall_material.set_shader_parameter(&"see_min_front", sprite_depth_bias * Vector2(back.x, back.z).length())
 
 
 func _zone(screen: Vector2, radius: float, weight: float) -> Vector4:
 	return Vector4(screen.x, screen.y, radius, weight)
+
+
+## 물체 그림이 화면에서 차지하는 사각형 (불투명한 부분만). 그림이 없는 물체는 발밑 위로 no_sprite_rect_size
+func get_see_rect(node: Node2D) -> Rect2:
+	var feet: Vector2 = world_to_screen(node.global_position, 0.0).round()
+	var sprite: FacingSprite = _sprite_of(node)
+	if sprite == null:
+		return Rect2(feet - Vector2(no_sprite_rect_size.x * 0.5, no_sprite_rect_size.y), no_sprite_rect_size)
+	var texture: Texture2D = sprite.sprite_frames.get_frame_texture(sprite.animation, sprite.frame)
+	if not _used_rects.has(texture):
+		_used_rects[texture] = texture.get_image().get_used_rect()
+	var used: Rect2i = _used_rects[texture]
+	return Rect2(feet + sprite.offset + Vector2(used.position), Vector2(used.size))
 
 
 ## 확인용: 이 물체 앞 벽의 반투명 세기 (0~1)

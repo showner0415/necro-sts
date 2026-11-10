@@ -49,6 +49,10 @@ func _on_scene_ready() -> void:
 	_rat.disable_mode = CollisionObject2D.DISABLE_MODE_KEEP_ACTIVE
 	_rat.process_mode = Node.PROCESS_MODE_DISABLED
 	await wait_frames(SETTLE_FRAMES)
+	if OS.get_cmdline_user_args().has("--see-through"):
+		await _check_see_through()
+		finish(true)
+		return
 	if OS.get_cmdline_user_args().has("--wall-touch"):
 		await _check_wall_touch()
 		finish(true)
@@ -78,6 +82,7 @@ func _on_scene_ready() -> void:
 	await _check_wall_depth()
 	await _check_vision("앞서 가기 없음")
 	await _check_front_walls()
+	await _check_see_through()
 	await _check_frame_time()
 	await _check_lead()
 	_view.mouse_override = LEAD_MOUSE
@@ -454,6 +459,87 @@ func _print_rat_mismatch(image: Image) -> void:
 	print("[측정] 쥐 그림: %s 프레임 %d, 불투명 %d, 반투명 %d, 다른 픽셀 색(원본 → 화면): %s" % [sprite.animation, sprite.frame, opaque, semi, ", ".join(keys.slice(0, 8).map(func(k: String) -> String: return "%s ×%d" % [k, differences[k]]))])
 
 
+## 반투명 범위: 반투명을 켠 화면과 끈 화면을 비교해, 물체 주변(그림 사각형에서 64픽셀 안)에서 그림 사각형 밖의 픽셀이 바뀌지 않았는지 본다.
+## 더 먼 곳에서 바뀐 픽셀은 반투명과 상관없는 벽 모서리의 흔들림이라 따로 세어 출력한다.
+## 뒤쪽 벽에 붙은 쥐와, 앞쪽 벽에 가린 쥐. --out=<PNG>를 주면 자리마다 위(켬)·아래(끔)로 잘라 모아 저장한다.
+func _check_see_through() -> void:
+	_set_camera(true, 30.0, 45.0)
+	_view.palette_on = false
+	_view.call(&"_apply_view_mode")
+	var vision: Vision = current_scene.call(&"get_vision")
+	vision.set_active(false)
+	var tile: float = View3D.TILE
+	var half: Vector2 = _rat.data.get_placeholder_half_size()
+	var poses: Array[Array] = [
+		["북쪽 벽", Vector2(6.5 * tile, 2.0 * tile + half.y * 2.0), Vector2(70, 70)],
+		["서쪽 벽", Vector2(2.0 * tile + half.x, 8.5 * tile), Vector2(70, 70)],
+		["북서 모서리", Vector2(2.0 * tile + half.x, 2.0 * tile + half.y * 2.0), Vector2(70, 70)],
+		["기둥 남쪽 면", Vector2(11.5 * tile, 10.0 * tile + half.y * 2.0), Vector2(70, 70)],
+		["남쪽 벽에 가림", Vector2(12.5, 14.7) * tile, Vector2(-128, -102)],
+		["동쪽 기둥에 가림", Vector2(9.7, 7.5) * tile, Vector2(-100, -70)],
+	]
+	var out_path: String = ""
+	for arg: String in OS.get_cmdline_user_args():
+		if arg.begins_with("--out="):
+			out_path = arg.trim_prefix("--out=")
+	const CROP: int = 72
+	const ZOOM: int = 2
+	var sheet: Image = Image.create((CROP * ZOOM + 4) * poses.size(), (CROP * ZOOM + 4) * 2, false, Image.FORMAT_RGB8)
+	sheet.fill(Color.WHITE)
+	var feather: int = 5
+	# 시작 직후에는 화면이 아직 자리 잡지 않았다.
+	_rat.global_position = (poses[0][1] as Vector2)
+	_necromancer.global_position = (poses[0][1] as Vector2) + (poses[0][2] as Vector2)
+	_view.aim_override = _necromancer.get_body_center() + Vector2(0, 300)
+	await wait_frames(120)
+	var total_outside: int = 0
+	var lines: PackedStringArray = []
+	var hidden_changed: int = 0
+	for i: int in poses.size():
+		var pose: Array = poses[i]
+		_rat.global_position = pose[1]
+		_necromancer.global_position = (pose[1] as Vector2) + (pose[2] as Vector2)
+		_view.aim_override = _necromancer.get_body_center() + Vector2(0, 300)
+		_view.see_through_on = true
+		await wait_frames(40)
+		var on_image: Image = await _capture()
+		_view.see_through_on = false
+		await wait_frames(40)
+		var off_image: Image = await _capture()
+		_view.see_through_on = true
+		var rect: Rect2i = Rect2i(_view.get_see_rect(_rat))
+		var grown: Rect2i = rect.grow(feather)
+		var nearby: Rect2i = rect.grow(64)
+		var inside: int = 0
+		var outside: int = 0
+		var far: int = 0
+		for y: int in on_image.get_height():
+			for x: int in on_image.get_width():
+				if _close(on_image.get_pixel(x, y), off_image.get_pixel(x, y), 0.012):
+					continue
+				if grown.has_point(Vector2i(x, y)):
+					inside += 1
+				elif nearby.has_point(Vector2i(x, y)):
+					outside += 1
+				else:
+					far += 1
+		total_outside += outside
+		if i >= 4:
+			hidden_changed += inside
+		lines.append("%s: 그림 영역 안 %d, 주변 %d, 먼 곳 %d" % [pose[0], inside, outside, far])
+		var center: Vector2i = Vector2i(_view.world_to_screen(_rat.global_position, 0.0)) - Vector2i(CROP / 2, CROP * 2 / 3)
+		for row: int in 2:
+			var crop: Image = (on_image if row == 0 else off_image).get_region(Rect2i(center, Vector2i(CROP, CROP)))
+			crop.convert(Image.FORMAT_RGB8)
+			crop.resize(CROP * ZOOM, CROP * ZOOM, Image.INTERPOLATE_NEAREST)
+			sheet.blit_rect(crop, Rect2i(0, 0, CROP * ZOOM, CROP * ZOOM), Vector2i((CROP * ZOOM + 4) * i, (CROP * ZOOM + 4) * row))
+	if not out_path.is_empty():
+		sheet.save_png(out_path)
+	_report("반투명은 물체 그림과 겹치는 앞벽에만", total_outside == 0 and hidden_changed > 0, "바뀐 픽셀 수 (켬·끔 비교): %s" % " / ".join(lines))
+	vision.set_active(true)
+	_rat.global_position = Vector2(100, 100) * tile
+
+
 ## 앞벽 반투명: 시야 안 물체만 벽을 반투명하게 하고, 세기가 한 프레임에 튀지 않는다.
 func _check_front_walls() -> void:
 	_rat.global_position = Vector2(12.5, 14.7) * View3D.TILE
@@ -472,11 +558,11 @@ func _check_front_walls() -> void:
 	var vision: Vision = current_scene.call(&"get_vision")
 	var seen_by_rules: bool = vision.is_visible_at(_rat.global_position)
 	var seen_image: Image = await _capture()
-	var center: Vector2 = _view.world_to_screen(_rat.global_position, _view.object_zone_height)
+	var rect: Rect2i = Rect2i(_view.get_see_rect(_rat))
 	var changed: int = 0
 	var region: int = 0
-	for y: int in range(int(center.y), int(center.y) + 30):
-		for x: int in range(int(center.x) - 24, int(center.x) + 24):
+	for y: int in range(rect.position.y, rect.end.y):
+		for x: int in range(rect.position.x, rect.end.x):
 			region += 1
 			if not _close(hidden_image.get_pixel(x, y), seen_image.get_pixel(x, y), 0.02):
 				changed += 1
