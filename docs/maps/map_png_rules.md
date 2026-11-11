@@ -93,5 +93,5 @@ bash tests/run_all.sh
 ```
 
 - 다른 맵: `-- --in=res://art_src/maps/<맵>.png --out=res://regions/<맵>.tscn --region=res://data/regions/<맵>.tres --name=<루트 노드 이름>` (지역 데이터 `.tres`는 먼저 만들어 둔다)
-- `tests/scenarios/scenario_shallow_cave.gd`가 씬이 PNG와 같은지(다시 변환했는지), 쥐 굴 고리, 막다른 굴 입구 하나, 구간별 걷기 시간, 쥐 언데드 2마리가 모든 통로를 따라오는지를 확인한다.
+- `tests/scenarios/scenario_shallow_cave*.gd`가 씬이 PNG와 같은지(다시 변환했는지), 쥐 굴 고리, 막다른 굴 입구 하나, 구간별 걷기 시간, 쥐 언데드 2마리가 모든 통로를 따라오는지를 확인한다.
 - 맵 전체 스크린샷: `bash tools/godot.sh --path . -s tools/screenshot.gd -- --seconds=1 --scene=res://regions/shallow_cave.tscn --setup=res://tools/screenshot_setups/map_overview.gd --out=<경로>`
