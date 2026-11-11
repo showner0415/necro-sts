@@ -1,12 +1,23 @@
 class_name CaveTerrainBake
 extends Resource
 ## 미리 구운 동굴 지형 메시 (tools/map_png/make_cave_outline.gd가 만든다). 지역에 들어갈 때 불러오기만 한다.
-## 구운 파일에는 원본(맵 PNG, 씬의 벽 배치와 색, 윤곽 값, 벽 높이)의 지문이 들어 있다. 원본이 바뀌었는데 다시 굽지 않았으면 경고하고, test_cave_terrain_bake.gd가 실패한다.
-## 메시를 만드는 코드가 바뀐 것은 지문으로 알 수 없다.
+## 구운 파일에는 원본(맵 PNG, 씬의 벽 배치와 색, 윤곽 값, 벽 높이)과 메시를 만드는 코드의 지문이 들어 있다. 둘 중 하나가 바뀌었는데 다시 굽지 않았으면 경고하고, test_cave_terrain_bake.gd가 실패한다.
 
 ## 그림자 방식을 고르는 실행 인자 (확인용): --cave_shadow=off 그림자 없음, --cave_shadow=terrain 새 지형으로 그림자
 const SHADOW_ARG: String = "--cave_shadow="
 const BAKE_TOOL: String = "bash tools/godot.sh --headless --path . -s tools/map_png/make_cave_outline.gd"
+## 메시 모양을 정하는 코드. 내용이 지문에 들어간다 (주석만 고쳐도 다시 구워야 한다). 빠뜨리면 test_cave_terrain_bake.gd가 알려 준다
+const BAKE_SCRIPTS: Array[String] = [
+	"res://tools/map_png/make_cave_outline.gd",
+	"res://tools/map_png/cave_outline.gd",
+	"res://tools/map_png/map_layout.gd",
+	"res://view_3d/cave_outline_data.gd",
+	"res://view_3d/cave_terrain_mesher.gd",
+	"res://view_3d/terrain_mesher.gd",
+	"res://view_3d/terrain_cells.gd",
+	"res://view_3d/view_space.gd",
+	"res://regions/placeholder_walls.gd",
+]
 
 ## 구역마다 눈에 보이는 메시
 @export var meshes: Array[ArrayMesh] = []
@@ -19,15 +30,16 @@ const BAKE_TOOL: String = "bash tools/godot.sh --headless --path . -s tools/map_
 @export var settings_path: String = ""
 
 
-## 씬 경로로 구운 파일을 찾는다. 없으면 굽는 방법을 알리고 null, 원본이 바뀌었으면 경고하고 그대로 쓴다.
+## 씬 경로로 구운 파일을 찾는다. 없으면 굽는 방법을 알리고 null, 원본이나 코드가 바뀌었으면 경고하고 그대로 쓴다.
+## 배포판에는 맵 PNG와 스크립트 원문이 없어 지문을 잴 수 없으므로 검사하지 않는다.
 static func load_for(scene_path: String, walls: PlaceholderWalls, wall_height_px: float, cap_height_px: float) -> CaveTerrainBake:
 	var path: String = file_for(scene_path)
 	if not ResourceLoader.exists(path):
 		push_warning("동굴 지형: 구운 파일 없음 (%s). 칸 지형을 그대로 쓴다. 굽기: %s" % [path, bake_command(scene_path)])
 		return null
 	var bake: CaveTerrainBake = load(path)
-	if not bake.is_current(walls, wall_height_px, cap_height_px):
-		push_warning("동굴 지형: 원본이 바뀌었는데 다시 굽지 않았다 (%s). 다시 굽기: %s" % [path, bake_command(scene_path)])
+	if not OS.has_feature("template") and not bake.is_current(walls, wall_height_px, cap_height_px):
+		push_warning("동굴 지형: 원본이나 메시를 만드는 코드가 바뀌었는데 다시 굽지 않았다 (%s). 다시 굽기: %s" % [path, bake_command(scene_path)])
 	return bake
 
 
@@ -40,13 +52,13 @@ static func bake_command(scene_path: String) -> String:
 	return "%s -- --scene=%s" % [BAKE_TOOL, scene_path]
 
 
-## 지금 원본의 지문이 구울 때와 같은지
+## 지금 원본과 코드의 지문이 구울 때와 같은지
 func is_current(walls: PlaceholderWalls, wall_height_px: float, cap_height_px: float) -> bool:
 	return fingerprint == compute_fingerprint(walls, source_png, load(settings_path), wall_height_px, cap_height_px)
 
 
-## 메시 모양과 색을 정하는 원본의 지문
-static func compute_fingerprint(walls: PlaceholderWalls, png_path: String, settings: CaveOutlineSettings, wall_height_px: float, cap_height_px: float) -> String:
+## 메시 모양과 색을 정하는 원본과 코드의 지문
+static func compute_fingerprint(walls: PlaceholderWalls, png_path: String, settings: CaveOutlineSettings, wall_height_px: float, cap_height_px: float, scripts: Array[String] = BAKE_SCRIPTS) -> String:
 	var parts: PackedStringArray = PackedStringArray()
 	parts.append(FileAccess.get_md5(png_path) if not png_path.is_empty() else "")
 	parts.append("\n".join(walls.layout))
@@ -55,6 +67,9 @@ static func compute_fingerprint(walls: PlaceholderWalls, png_path: String, setti
 	for property: Dictionary in settings.get_property_list():
 		if property.usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
 			parts.append("%s=%s" % [property.name, var_to_str(settings.get(property.name))])
+	for script_path: String in scripts:
+		# 컴퓨터마다 줄바꿈이 달라도 지문은 같아야 한다.
+		parts.append(FileAccess.get_file_as_string(script_path).replace("\r\n", "\n"))
 	return "|".join(parts).sha256_text()
 
 

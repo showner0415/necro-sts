@@ -1,11 +1,20 @@
 extends TestCase
-## 구운 동굴 지형의 지문 (CaveTerrainBake). 원본이 바뀌었는데 다시 굽지 않았으면 실패한다.
+## 구운 동굴 지형의 지문 (CaveTerrainBake). 원본이나 메시를 만드는 코드가 바뀌었는데 다시 굽지 않았으면 실패한다.
 ## 구운 파일이 없는 컴퓨터에서는(저장소에 올리지 않는 파일이다) 굽는 방법만 출력하고 넘어간다.
 
 ## [씬, 구울 때 쓰는 명령에 덧붙일 인자]
 const SCENES: Array[Array] = [["res://regions/shallow_cave.tscn", ""], ["res://tests/view_3d/wall_test_cave.tscn", " --in="]]
 const WALL_HEIGHT: float = 128.0
 const CAP_HEIGHT: float = 6.08
+const TEMP_SCRIPT: String = "user://test_cave_terrain_bake_script.txt"
+## 굽기에 쓰는 코드가 가리키지만 메시 모양을 정하지 않는 클래스와 그 이유
+const NOT_BAKE_CLASSES: Dictionary[String, String] = {
+	"CaveTerrainBake": "구운 결과를 담기만 한다",
+	"CaveOutlineSettings": "값은 지문에 따로 들어간다",
+	"RegionView3D": "벽 높이 값만 읽고, 값은 지문에 따로 들어간다",
+	"MapSmoother": "맵 검사에서만 쓴다",
+	"PlaceholderGround": "구운 지형은 벽(from_walls)만 읽는다",
+}
 
 var _walls: PlaceholderWalls
 
@@ -17,6 +26,7 @@ func before_each() -> void:
 
 func after_each() -> void:
 	_walls.free()
+	DirAccess.remove_absolute(TEMP_SCRIPT)
 
 
 func _fingerprint(settings: CaveOutlineSettings, height: float = WALL_HEIGHT) -> String:
@@ -48,6 +58,42 @@ func test_png_changes_fingerprint() -> void:
 	assert_ne(with_png, _fingerprint(CaveOutlineSettings.new()), "PNG가 지문에 들어감")
 
 
+func _fingerprint_of_script(text: String) -> String:
+	var file: FileAccess = FileAccess.open(TEMP_SCRIPT, FileAccess.WRITE)
+	file.store_string(text)
+	file.close()
+	var scripts: Array[String] = [TEMP_SCRIPT]
+	return CaveTerrainBake.compute_fingerprint(_walls, "", CaveOutlineSettings.new(), WALL_HEIGHT, CAP_HEIGHT, scripts)
+
+
+func test_script_change_changes_fingerprint() -> void:
+	assert_ne(_fingerprint_of_script("var a = 1\n"), _fingerprint_of_script("var a = 2\n"), "코드가 바뀌면 지문이 바뀜")
+
+
+func test_line_endings_do_not_change_fingerprint() -> void:
+	assert_eq(_fingerprint_of_script("var a = 1\r\nvar b = 2\r\n"), _fingerprint_of_script("var a = 1\nvar b = 2\n"), "줄바꿈만 다르면 지문이 같음")
+
+
+func test_bake_scripts_exist() -> void:
+	for path: String in CaveTerrainBake.BAKE_SCRIPTS:
+		assert_true(FileAccess.file_exists(path), "있어야 함: %s" % path)
+
+
+## 굽기에 쓰는 코드가 새 클래스를 쓰기 시작했는데 지문 목록에 넣지 않았으면 실패한다.
+func test_bake_scripts_cover_their_classes() -> void:
+	var missing: PackedStringArray = PackedStringArray()
+	var word: RegEx = RegEx.create_from_string("\\b[A-Z][A-Za-z0-9]+\\b")
+	var classes: Dictionary = {}
+	for entry: Dictionary in ProjectSettings.get_global_class_list():
+		classes[entry["class"]] = entry["path"]
+	for path: String in CaveTerrainBake.BAKE_SCRIPTS:
+		for found: RegExMatch in word.search_all(FileAccess.get_file_as_string(path)):
+			var name: String = found.get_string()
+			if classes.has(name) and not NOT_BAKE_CLASSES.has(name) and not CaveTerrainBake.BAKE_SCRIPTS.has(classes[name]) and not missing.has(name):
+				missing.append(name)
+	assert_eq(missing, PackedStringArray(), "BAKE_SCRIPTS에 넣거나 NOT_BAKE_CLASSES에 이유를 적어야 하는 클래스")
+
+
 func test_baked_files_match_their_sources() -> void:
 	var view: RegionView3D = RegionView3D.new()
 	var height: float = view.wall_height_px
@@ -61,5 +107,5 @@ func test_baked_files_match_their_sources() -> void:
 			continue
 		var scene: Node = (load(scene_path) as PackedScene).instantiate()
 		var bake: CaveTerrainBake = load(CaveTerrainBake.file_for(scene_path))
-		assert_true(bake.is_current(scene.get_node("Walls"), height, cap), "%s: 원본이 바뀌었는데 다시 굽지 않음. 다시 굽기: %s" % [scene_path, command])
+		assert_true(bake.is_current(scene.get_node("Walls"), height, cap), "%s: 원본이나 메시를 만드는 코드가 바뀌었는데 다시 굽지 않음. 다시 굽기: %s" % [scene_path, command])
 		scene.free()

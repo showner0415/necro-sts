@@ -35,7 +35,7 @@ func _initialize() -> void:
 	var started: int = Time.get_ticks_msec()
 	var outline: CaveOutline = CaveOutline.new(rows, load(args.settings))
 	var data: CaveOutlineData = outline.build()
-	print("윤곽 계산: %dms, 격자 점 %s, 윤곽선 %d개, 윤곽선 점 %d개" % [Time.get_ticks_msec() - started, data.nodes(), data.loops.size(), _points(data)])
+	print("윤곽 계산: %dms, 격자 점 %s, 윤곽선 %d개, 윤곽선 점 %d개, 모양 지문 %s" % [Time.get_ticks_msec() - started, data.nodes(), data.loops.size(), _points(data), _shape_hash(data)])
 	var outline_path: String = "%s_outline.res" % (args.scene as String).get_basename()
 	var error: int = ResourceSaver.save(data, outline_path, ResourceSaver.FLAG_COMPRESS)
 	print("저장: %s (%s), 파일 %d KB" % [outline_path, error_string(error), FileAccess.get_file_as_bytes(outline_path).size() / 1024])
@@ -72,6 +72,11 @@ func _bake(scene_path: String, data: CaveOutlineData, walls: PlaceholderWalls, p
 	var error: int = ResourceSaver.save(bake, path, ResourceSaver.FLAG_COMPRESS)
 	print("저장: %s (%s), 파일 %d KB" % [path, error_string(error), FileAccess.get_file_as_bytes(path).size() / 1024])
 	return error
+
+
+## 윤곽 모양의 지문 앞 16글자. 값이 같으면 모양도 같다 (기준 값은 docs/plans/2026-11-10_cave_terrain_plan.md).
+func _shape_hash(data: CaveOutlineData) -> String:
+	return var_to_str([data.values, data.loops]).sha256_text().left(16)
 
 
 func _points(data: CaveOutlineData) -> int:
