@@ -45,7 +45,7 @@ const FLOOR_COLORS: Dictionary = {
 }
 const WALL_COLORS: Dictionary = {"x": "68386c"}
 
-## 윤곽 벽 지역의 길찾기가 몸을 줄여 재는 여유 (픽셀, 제안 값)
+## 윤곽 벽 지역의 길찾기가 몸을 줄여 재는 여유 (픽셀, 사용자 확정 2026-11-11)
 const OUTLINE_CLEARANCE: float = 0.0
 
 var _ext: Array[String] = []
