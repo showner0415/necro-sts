@@ -1,0 +1,30 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://regions/repair_machine.gd" id="1_machine"]
+[ext_resource type="Resource" path="res://data/items/bone.tres" id="2_bone"]
+
+[node name="RepairMachine" type="Area2D"]
+collision_layer = 0
+collision_mask = 2
+monitorable = false
+script = ExtResource("1_machine")
+cost_item = ExtResource("2_bone")
+radius = 24.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+
+[node name="Prompt" type="Label" parent="."]
+unique_name_in_owner = true
+z_index = 20
+offset_left = -60.0
+offset_top = -48.0
+offset_right = 60.0
+offset_bottom = -26.0
+grow_vertical = 0
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0.09411765, 0.078431375, 0.14509805, 1)
+theme_override_constants/outline_size = 2
+theme_override_font_sizes/font_size = 12
+horizontal_alignment = 1
+vertical_alignment = 2

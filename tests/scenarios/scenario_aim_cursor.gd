@@ -144,6 +144,20 @@ func _run() -> void:
 		return
 	await _press(KEY_ESCAPE)
 
+	# 4-1. 수리 기계 창의 칸·버튼은 화살표
+	var machine: Node2D = current_scene.find_children("*", "RepairMachine", true, false).front()
+	_necromancer.global_position = machine.global_position
+	await wait_frames(SETTLE_FRAMES)
+	await _press(KEY_F)
+	var repair_screen: RepairScreen = current_scene.get_node("RepairScreen")
+	var repair_points: Array = await _check_points({
+		"수리 칸": _center(repair_screen.get_slot_control()),
+		"수리 버튼": _center(repair_screen.get_repair_button()),
+	}, Input.CURSOR_ARROW)
+	if not _check("수리 창은 화살표", repair_screen.is_open() and repair_points[0], "수리 창 열림 %s, %s" % [repair_screen.is_open(), repair_points[1]]):
+		return
+	await _press(KEY_ESCAPE)
+
 	# 5. 시험 지역의 상자 칸은 화살표, 게임 화면은 조준점
 	# Region 타입을 쓰면 오토로드(GameState)보다 먼저 컴파일되어 실패하므로 이름으로 부른다.
 	current_scene.call(&"travel_to", load(REGION_DATA_PATH))

@@ -78,7 +78,7 @@ func get_depth_bias() -> float:
 
 
 func _is_body(node: Node2D) -> bool:
-	return node is Necromancer or node is Monster or node is Undead or node is Corpse or node is Pickup or node is LootChest or node is StorageChest or node is Bolt or node is Stone
+	return node is Necromancer or node is Monster or node is Undead or node is Corpse or node is Pickup or node is LootChest or node is StorageChest or node is RepairMachine or node is Bolt or node is Stone
 
 
 func _make_visual(node: Node2D) -> _Visual:
@@ -169,6 +169,9 @@ func _read_art(node: Node2D, visual: _Visual) -> Color:
 	elif node is StorageChest:
 		var storage: StorageChest = node as StorageChest
 		art = PlaceholderArt.for_chest(storage.box_size, storage.lid_height, storage.box_color, storage.lid_color)
+	elif node is RepairMachine:
+		var machine: RepairMachine = node as RepairMachine
+		art = PlaceholderArt.for_chest(machine.box_size, machine.top_height, machine.box_color, machine.top_color)
 	elif node is Pickup:
 		var item: Resource = (node as Pickup).stack.item
 		art = PlaceholderArt.for_box(item.get(&"placeholder_size"))
