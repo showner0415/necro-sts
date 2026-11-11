@@ -25,6 +25,8 @@ extends Resource
 @export var min_piece_px: float = 48.0
 ## 윤곽선 단순화 오차 (픽셀). 메시와 규칙이 이 윤곽선을 쓴다
 @export var simplify_px: float = 1.5
+## 시야 판정에 쓰는 작은 칸 한 변 (픽셀). 표본 간격의 배수로, 칸 크기를 나누어떨어지게 둔다
+@export var sight_cell_px: int = 8
 
 @export_group("벽 메시")
 ## 벽이 위로 갈수록 바위 쪽으로 들어가는 최대 거리 (픽셀)와 그 무늬의 크기 (픽셀)

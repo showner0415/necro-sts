@@ -96,6 +96,28 @@ func test_small_rock_speck_is_removed() -> void:
 	assert_false(outline.is_rock(Vector2i(9, 8) * 8 + Vector2i(4, 4)), "한 칸 바위는 흐려져 없어짐")
 
 
+func test_is_rock_at_reads_the_field() -> void:
+	var data: CaveOutlineData = CaveOutline.new(_room_rows(), _settings()).build()
+	assert_false(data.is_rock_at(Vector2(10, 8) * 32.0), "방 가운데는 바닥")
+	assert_true(data.is_rock_at(Vector2(16, 16)), "맵 모서리 칸은 바위")
+	assert_true(data.is_rock_at(Vector2(-10, 100)), "맵 밖은 바위")
+
+
+func test_box_has_rock_needs_overlap() -> void:
+	var data: CaveOutlineData = CaveOutline.new(_room_rows(), _settings()).build()
+	assert_false(data.box_has_rock(Vector2(10, 8) * 32.0, Vector2(10, 4)), "방 가운데의 몸")
+	assert_true(data.box_has_rock(Vector2(10, 1) * 32.0, Vector2(10, 4)), "벽에 걸친 몸")
+
+
+func test_sight_cells_follow_the_field() -> void:
+	var data: CaveOutlineData = CaveOutline.new(_room_rows(), _settings()).build()
+	var size: Vector2i = data.sight_size()
+	assert_eq(size, data.cell_count * 4, "칸 하나를 4×4로 나눔")
+	assert_eq(data.sight_cells.size(), size.x * size.y, "작은 칸 수")
+	assert_eq(data.sight_cells[0], 1, "맵 모서리는 바위")
+	assert_eq(data.sight_cells[32 * size.x + 40], 0, "방 가운데는 바닥")
+
+
 func test_encode_round_trip() -> void:
 	assert_almost_eq(CaveOutlineData.decode(CaveOutlineData.encode(0.5)), 0.5, 0.002, "문턱 값")
 	assert_eq(CaveOutlineData.encode(1.0), 255, "범위를 넘으면 잘림")

@@ -41,6 +41,9 @@ var _ready_for_queries: bool = false
 ## 벽 타일 누적 합 (make_grid_from_tiles). 몸 크기가 달라도 같아서 한 번만 센다
 var _tile_sums: PackedInt32Array = PackedInt32Array()
 var _tile_sums_walls: PlaceholderWalls
+## 윤곽 칸 상태의 누적 합 (make_grid_from_outline)
+var _outline_rock_sums: PackedInt32Array = PackedInt32Array()
+var _outline_mixed_sums: PackedInt32Array = PackedInt32Array()
 
 
 func _ready() -> void:
@@ -124,8 +127,58 @@ func _grid_for(half_size: Vector2) -> GridPath:
 	if _grids.has(key):
 		return _grids[key]
 	var walls: PlaceholderWalls = get_node_or_null(wall_tiles) as PlaceholderWalls if not wall_tiles.is_empty() else null
-	var grid: GridPath = make_grid_from_tiles(half_size, walls) if walls != null else make_grid_from_physics(half_size)
+	var grid: GridPath
+	if walls != null and walls.outline != null:
+		grid = make_grid_from_outline(half_size, walls)
+	else:
+		grid = make_grid_from_tiles(half_size, walls) if walls != null else make_grid_from_physics(half_size)
 	_grids[key] = grid
+	return grid
+
+
+## 막힌 칸을 벽 윤곽에서 계산한다: 줄인 몸 사각형이 바위뿐인 칸에 걸치면 막히고, 윤곽이 지나는 칸에 걸치면 그 자리의 바위를 표본으로 본다.
+func make_grid_from_outline(half_size: Vector2, walls: PlaceholderWalls) -> GridPath:
+	var grid: GridPath = GridPath.new(bounds, cell_size)
+	grid.nearest_search_cells = nearest_search_cells
+	var key: Vector2 = _key(half_size)
+	var data: CaveOutlineData = walls.outline
+	var tile: float = data.cell_px
+	var columns: int = data.cell_count.x
+	var rows: int = data.cell_count.y
+	var offset: Vector2 = walls.global_position
+	var size: Vector2i = grid.get_size()
+	var stride: int = columns + 1
+	if _outline_rock_sums.is_empty():
+		_outline_rock_sums = _state_sums(data, CaveOutlineData.CELL_ROCK)
+		_outline_mixed_sums = _state_sums(data, CaveOutlineData.CELL_MIXED)
+	var rock_sums: PackedInt32Array = _outline_rock_sums
+	var mixed_sums: PackedInt32Array = _outline_mixed_sums
+	var x0s: PackedInt32Array = PackedInt32Array()
+	var x1s: PackedInt32Array = PackedInt32Array()
+	for x: int in size.x:
+		var center: float = grid.cell_to_world(Vector2i(x, 0)).x - offset.x
+		x0s.append(clampi(floori((center - key.x) / tile - TILE_EPSILON), 0, columns))
+		x1s.append(clampi(floori((center + key.x) / tile + TILE_EPSILON) + 1, 0, columns))
+	for y: int in size.y:
+		var center_y: float = grid.cell_to_world(Vector2i(0, y)).y - offset.y
+		var y0: int = clampi(floori((center_y - key.y) / tile - TILE_EPSILON), 0, rows)
+		var y1: int = clampi(floori((center_y + key.y) / tile + TILE_EPSILON) + 1, 0, rows)
+		var run_start: int = -1
+		var top: int = y0 * stride
+		var bottom: int = y1 * stride
+		for x: int in size.x:
+			var x0: int = x0s[x]
+			var x1: int = x1s[x]
+			var solid: bool = rock_sums[bottom + x1] - rock_sums[top + x1] - rock_sums[bottom + x0] + rock_sums[top + x0] > 0
+			if not solid and mixed_sums[bottom + x1] - mixed_sums[top + x1] - mixed_sums[bottom + x0] + mixed_sums[top + x0] > 0:
+				solid = data.box_has_rock(Vector2(grid.cell_to_world(Vector2i(x, 0)).x - offset.x, center_y), key)
+			if solid and run_start < 0:
+				run_start = x
+			elif not solid and run_start >= 0:
+				grid.fill_solid_run(y, run_start, x)
+				run_start = -1
+		if run_start >= 0:
+			grid.fill_solid_run(y, run_start, size.x)
 	return grid
 
 
@@ -144,6 +197,21 @@ func make_grid_from_physics(half_size: Vector2) -> GridPath:
 			if not space.intersect_shape(params, 1).is_empty():
 				grid.set_solid(cell)
 	return grid
+
+
+## 윤곽 칸 상태가 state인 칸 수의 누적 합
+func _state_sums(data: CaveOutlineData, state: int) -> PackedInt32Array:
+	var columns: int = data.cell_count.x
+	var stride: int = columns + 1
+	var sums: PackedInt32Array = PackedInt32Array()
+	sums.resize(stride * (data.cell_count.y + 1))
+	for y: int in data.cell_count.y:
+		var row_count: int = 0
+		for x: int in columns:
+			if data.cell_states[y * columns + x] == state:
+				row_count += 1
+			sums[(y + 1) * stride + x + 1] = sums[y * stride + x + 1] + row_count
+	return sums
 
 
 ## 막힌 칸을 벽 타일(PlaceholderWalls)에서 바로 계산한다: 줄인 몸 사각형이 벽 타일과 겹치면 막힌 칸이다.

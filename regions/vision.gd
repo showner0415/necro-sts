@@ -58,8 +58,7 @@ func _ready() -> void:
 	rules.total_angle = total_angle
 	rules.near_radius = near_radius
 	rules.view_range = light_radius
-	if _walls != null:
-		rules.set_walls(_walls.wall_grid(), _walls.grid_size(), _walls.tile_size, _walls.global_position)
+	_set_rule_walls(rules)
 	setup_usec = Time.get_ticks_usec() - started
 
 
@@ -146,10 +145,19 @@ func _undead_sees(undead: Undead, world: Vector2) -> bool:
 func _rules_for(sight: SightData) -> VisionRules:
 	if not _sight_rules.has(sight):
 		var sight_rules: VisionRules = sight.make_rules()
-		if _walls != null:
-			sight_rules.set_walls(_walls.wall_grid(), _walls.grid_size(), _walls.tile_size, _walls.global_position)
+		_set_rule_walls(sight_rules)
 		_sight_rules[sight] = sight_rules
 	return _sight_rules[sight]
+
+
+## 시야 판정에 벽을 넣는다. 윤곽이 있는 지역은 윤곽의 작은 칸, 없으면 벽 타일이다.
+func _set_rule_walls(target: VisionRules) -> void:
+	if _walls == null:
+		return
+	if _walls.outline != null:
+		target.set_walls(_walls.outline.sight_cells, _walls.outline.sight_size(), _walls.outline.settings.sight_cell_px, _walls.global_position)
+	else:
+		target.set_walls(_walls.wall_grid(), _walls.grid_size(), _walls.tile_size, _walls.global_position)
 
 
 ## 지금 소환된 언데드 목록을 새로 만든다.

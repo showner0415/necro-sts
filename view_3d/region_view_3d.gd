@@ -33,8 +33,10 @@ const STAMINA_RING_PATH: String = "StaminaRing"
 @export var cut_cap_height_px: float = 6.08
 ## 지형 구역 한 변의 칸 수
 @export var chunk_cells: int = 16
-## 새 동굴 지형(CaveTerrainMesher)을 쓸지. 기본은 끔, 켜려면 실행 인자 --cave_terrain이나 스크린샷 설정에서 켠다
+## 윤곽이 없는 씬에도 새 동굴 지형(CaveTerrainMesher)을 쓸지. 벽에 윤곽이 있는 지역은 이 값과 상관없이 새 지형을 쓴다
 static var use_cave_terrain: bool = OS.get_cmdline_user_args().has("--cave_terrain")
+## 윤곽이 있는 지역도 칸 지형으로 그릴지 (비교·칸 색 검사용, 실행 인자 --cell_terrain)
+static var use_cell_terrain: bool = OS.get_cmdline_user_args().has("--cell_terrain")
 
 ## 카메라 앞서 가기 값 (나중에 설정에서 strength를 0까지 줄인다)
 var aim_lead: AimLead = AimLead.new()
@@ -241,7 +243,9 @@ func _build_terrain() -> ShaderMaterial:
 		if cells == null:
 			continue
 		# 새 동굴 지형은 도구에서 미리 구운 파일을 불러오기만 한다.
-		var bake: CaveTerrainBake = CaveTerrainBake.load_for(get_parent().scene_file_path, child as PlaceholderWalls, wall_height_px, cut_cap_height_px) if use_cave_terrain and child is PlaceholderWalls else null
+		var walls: PlaceholderWalls = child as PlaceholderWalls
+		var wants_cave: bool = walls != null and not use_cell_terrain and (use_cave_terrain or walls.outline != null)
+		var bake: CaveTerrainBake = CaveTerrainBake.load_for(get_parent().scene_file_path, walls, wall_height_px, cut_cap_height_px) if wants_cave else null
 		var meshes: Array[ArrayMesh] = bake.meshes if bake != null else mesher.build(cells, chunk_cells, wall_height_px, cut_cap_height_px)
 		var shadow_meshes: Array[ArrayMesh] = bake.active_shadow_meshes() if bake != null else meshes
 		_terrain_mesh_usec += Time.get_ticks_usec() - started

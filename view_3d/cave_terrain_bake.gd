@@ -3,7 +3,7 @@ extends Resource
 ## 미리 구운 동굴 지형 메시 (tools/map_png/make_cave_outline.gd가 만든다). 지역에 들어갈 때 불러오기만 한다.
 ## 구운 파일에는 원본(맵 PNG, 씬의 벽 배치와 색, 윤곽 값, 벽 높이)과 메시를 만드는 코드의 지문이 들어 있다. 둘 중 하나가 바뀌었는데 다시 굽지 않았으면 경고하고, test_cave_terrain_bake.gd가 실패한다.
 
-## 그림자 방식을 고르는 실행 인자 (확인용): --cave_shadow=off 그림자 없음, --cave_shadow=terrain 새 지형으로 그림자
+## 그림자를 끄는 실행 인자 (확인용): --cave_shadow=off
 const SHADOW_ARG: String = "--cave_shadow="
 const BAKE_TOOL: String = "bash tools/godot.sh --headless --path . -s tools/map_png/make_cave_outline.gd"
 ## 메시 모양을 정하는 코드. 내용이 지문에 들어간다 (주석만 고쳐도 다시 구워야 한다). 빠뜨리면 test_cave_terrain_bake.gd가 알려 준다
@@ -13,7 +13,6 @@ const BAKE_SCRIPTS: Array[String] = [
 	"res://tools/map_png/map_layout.gd",
 	"res://view_3d/cave_outline_data.gd",
 	"res://view_3d/cave_terrain_mesher.gd",
-	"res://view_3d/terrain_mesher.gd",
 	"res://view_3d/terrain_cells.gd",
 	"res://view_3d/view_space.gd",
 	"res://regions/placeholder_walls.gd",
@@ -21,8 +20,6 @@ const BAKE_SCRIPTS: Array[String] = [
 
 ## 구역마다 눈에 보이는 메시
 @export var meshes: Array[ArrayMesh] = []
-## 구역마다 그림자 전용 메시 (칸 상자 메시. 시야 판정이 칸 기준이라 그쪽과 맞춘다)
-@export var shadow_meshes: Array[ArrayMesh] = []
 @export var triangles: int = 0
 ## 구울 때의 원본 지문, 맵 PNG 경로 (씬의 벽 배치만 썼으면 빈 값), 윤곽 값 파일 경로
 @export var fingerprint: String = ""
@@ -73,11 +70,8 @@ static func compute_fingerprint(walls: PlaceholderWalls, png_path: String, setti
 	return "|".join(parts).sha256_text()
 
 
-## 지금 쓸 그림자 메시들
+## 지금 쓸 그림자 메시들. 규칙의 시야도 윤곽 기준이므로 눈에 보이는 메시 그대로 쓴다.
 func active_shadow_meshes() -> Array[ArrayMesh]:
-	for arg: String in OS.get_cmdline_user_args():
-		if arg == SHADOW_ARG + "off":
-			return []
-		if arg == SHADOW_ARG + "terrain":
-			return meshes
-	return shadow_meshes
+	if OS.get_cmdline_user_args().has(SHADOW_ARG + "off"):
+		return []
+	return meshes

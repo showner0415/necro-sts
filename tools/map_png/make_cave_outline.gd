@@ -35,6 +35,7 @@ func _initialize() -> void:
 	var started: int = Time.get_ticks_msec()
 	var outline: CaveOutline = CaveOutline.new(rows, load(args.settings))
 	var data: CaveOutlineData = outline.build()
+	data.source_png_md5 = FileAccess.get_md5(args["in"]) if not (args["in"] as String).is_empty() else ""
 	print("윤곽 계산: %dms, 격자 점 %s, 윤곽선 %d개, 윤곽선 점 %d개, 모양 지문 %s" % [Time.get_ticks_msec() - started, data.nodes(), data.loops.size(), _points(data), _shape_hash(data)])
 	var outline_path: String = "%s_outline.res" % (args.scene as String).get_basename()
 	var error: int = ResourceSaver.save(data, outline_path, ResourceSaver.FLAG_COMPRESS)
@@ -60,7 +61,6 @@ func _bake(scene_path: String, data: CaveOutlineData, walls: PlaceholderWalls, p
 	var cells: TerrainCells = TerrainCells.from_walls(walls)
 	var bake: CaveTerrainBake = CaveTerrainBake.new()
 	bake.meshes = CaveTerrainMesher.new().build(data, cells, walls, CHUNK_CELLS, height, cap)
-	bake.shadow_meshes = TerrainMesher.new().build(cells, CHUNK_CELLS, height, cap)
 	bake.triangles = CaveTerrainMesher.last_triangles
 	bake.source_png = png_path
 	bake.settings_path = settings_path

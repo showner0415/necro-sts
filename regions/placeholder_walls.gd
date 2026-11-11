@@ -14,6 +14,8 @@ extends Node2D
 @export var wall_chars: String = "#"
 @export var tile_size: int = 32
 @export_flags_2d_physics var wall_layer: int = 1
+## 벽 윤곽 (tools/map_png/make_cave_outline.gd가 만든다). 있으면 칸 대신 이 윤곽으로 충돌을 만들고, 길찾기와 시야 판정도 윤곽을 쓴다
+@export var outline: CaveOutlineData
 @export_group("임시 도형")
 ## 벽 윗면 색 (5a6988)과 앞면 띠 색 (8b9bb4), 띠 두께 (픽셀)
 @export var top_color: Color = Color(0.3529412, 0.4117647, 0.53333336, 1)
@@ -31,6 +33,10 @@ func _ready() -> void:
 	var body: StaticBody2D = StaticBody2D.new()
 	body.collision_layer = wall_layer
 	body.collision_mask = 0
+	if outline != null:
+		_add_outline_collision(body)
+		add_child(body)
+		return
 	for row: int in layout.size():
 		var line: String = layout[row]
 		var column: int = 0
@@ -48,6 +54,34 @@ func _ready() -> void:
 			collision.position = Vector2(run_start * tile_size, row * tile_size) + shape.size / 2.0
 			body.add_child(collision)
 	add_child(body)
+
+
+## 윤곽선을 선분 충돌로 만들고, 속이 바위뿐인 칸은 사각형으로 채운다 (선분만 있으면 속이 비어서 물리 질의가 바위 안을 바닥으로 본다).
+## 선분마다 따로 된 모양으로 둔다. cast_motion은 시작할 때 이미 닿은 모양을 통째로 건너뛰어서, 선분을 큰 모양으로 묶으면 벽에 붙은 몸이 그 벽 전체를 못 본다.
+## 선분이 1만 개가 넘어 노드 없이 shape owner에 바로 넣는다.
+func _add_outline_collision(body: StaticBody2D) -> void:
+	var segments_owner: int = body.create_shape_owner(body)
+	for loop: PackedVector2Array in outline.loops:
+		for index: int in loop.size():
+			var segment: SegmentShape2D = SegmentShape2D.new()
+			segment.a = loop[index]
+			segment.b = loop[(index + 1) % loop.size()]
+			body.shape_owner_add_shape(segments_owner, segment)
+	for row: int in outline.cell_count.y:
+		var column: int = 0
+		while column < outline.cell_count.x:
+			if outline.cell_states[row * outline.cell_count.x + column] != CaveOutlineData.CELL_ROCK:
+				column += 1
+				continue
+			var run_start: int = column
+			while column < outline.cell_count.x and outline.cell_states[row * outline.cell_count.x + column] == CaveOutlineData.CELL_ROCK:
+				column += 1
+			var shape: RectangleShape2D = RectangleShape2D.new()
+			shape.size = Vector2((column - run_start) * outline.cell_px, outline.cell_px)
+			var filled: CollisionShape2D = CollisionShape2D.new()
+			filled.shape = shape
+			filled.position = Vector2(run_start * outline.cell_px, row * outline.cell_px) + shape.size / 2.0
+			body.add_child(filled)
 
 
 ## 벽 격자 (칸마다 0 = 바닥, 1 = 벽, 2 = 배치 밖, 가로 grid_size().x칸씩 줄 순서). 처음 부를 때 만든다.

@@ -49,6 +49,7 @@ func build() -> CaveOutlineData:
 	data.values = _encoded()
 	data.cell_states = _cell_states(data.field_per_px() * settings.max_lean_px)
 	data.loops = _simplified_loops()
+	data.sight_cells = _sight_cells(data.sight_size())
 	return data
 
 
@@ -357,6 +358,17 @@ func _cell_states(lean_field: float) -> PackedByteArray:
 					high = maxf(high, value)
 			states[cy * _size.x + cx] = 2 if low - lean_field >= settings.threshold else (0 if high < settings.threshold else 1)
 	return states
+
+
+## 시야 판정용 작은 칸마다 1 = 가운데가 바위
+func _sight_cells(size: Vector2i) -> PackedByteArray:
+	var cells: PackedByteArray = PackedByteArray()
+	cells.resize(size.x * size.y)
+	var ratio: int = settings.sight_cell_px / settings.sample_px
+	for y: int in size.y:
+		for x: int in size.x:
+			cells[y * size.x + x] = 1 if is_rock(Vector2i(x * ratio + ratio / 2, y * ratio + ratio / 2)) else 0
+	return cells
 
 
 ## 마칭 스퀘어로 닫힌 윤곽선을 만들고 단순화한다.

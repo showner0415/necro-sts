@@ -2,8 +2,9 @@ extends RefCounted
 ## 스크린샷 준비: 얕은 굴에서 지금 지형과 새 동굴 지형(CaveTerrainMesher)을 같은 자리에서 비교한다. 시야는 끄고 몬스터는 치운다.
 ## bash tools/godot.sh --path . -s tools/screenshot.gd -- --seconds=2 --scene=res://regions/shallow_cave.tscn --setup=res://tools/screenshot_setups/cave_terrain.gd --out=<경로>
 ## 사용자 인자:
-##   --cave_terrain    새 지형을 쓴다 (없으면 지금 지형. 지역이 3D 층을 먼저 붙이므로 실행 인자로 켠다)
-##   --collision=1     지금 칸 충돌 경계를 빨간 선으로 겹쳐 그린다
+##   --cell_terrain    윤곽이 있는 지역도 칸 지형으로 그린다 (비교용. 지역이 3D 층을 먼저 붙이므로 실행 인자로 켠다)
+##   --cave_terrain    윤곽을 씬에 연결하지 않은 씬에 새 지형을 쓴다
+##   --collision=1     칸 경계를 빨간 선으로 겹쳐 그린다 (윤곽이 있는 지역의 실제 충돌은 이 선이 아니라 윤곽이다)
 ##   --at=<x,y>        네크로맨서를 세울 칸. 없으면 view_3d_preview와 같은 쥐 굴 바위 앞
 ##   --vision=1        시야를 켠 채 찍는다 (없으면 지형을 잘 보려고 끈다)
 ##   --aim=<x,y>       조준할 월드 방향 (없으면 동쪽). 앞벽 잘라내기 확인에 쓴다
@@ -37,7 +38,8 @@ static func run(scene: Node) -> void:
 		(scene as Region).get_vision().set_active(false)
 	if args.get("collision", "0") == "1":
 		view.add_child(_collision_lines(scene.get_node("Walls") as PlaceholderWalls))
-	print("지형: 새 지형 %s, 준비 시간 %dms, 구역 %d" % [RegionView3D.use_cave_terrain, view.get_terrain_build_usec() / 1000, view.get_terrain_chunks().size()])
+	var cave: bool = not RegionView3D.use_cell_terrain and (RegionView3D.use_cave_terrain or (scene.get_node("Walls") as PlaceholderWalls).outline != null)
+	print("지형: 새 지형 %s, 준비 시간 %dms, 구역 %d" % [cave, view.get_terrain_build_usec() / 1000, view.get_terrain_chunks().size()])
 
 
 ## 벽 칸과 바닥 칸 사이의 변마다 선을 긋는다.

@@ -45,8 +45,12 @@ const FLOOR_COLORS: Dictionary = {
 }
 const WALL_COLORS: Dictionary = {"x": "68386c"}
 
+## 윤곽 벽 지역의 길찾기가 몸을 줄여 재는 여유 (픽셀, 제안 값)
+const OUTLINE_CLEARANCE: float = 0.0
+
 var _ext: Array[String] = []
 var _ext_ids: Dictionary = {}
+var _out_path: String = ""
 
 
 func _initialize() -> void:
@@ -75,6 +79,7 @@ func _initialize() -> void:
 		if not _check_smoothed(layout, rows):
 			quit(1)
 			return
+	_out_path = args.out
 	var text: String = _build(layout, rows, args.region, args.name)
 	var file: FileAccess = FileAccess.open(args.out, FileAccess.WRITE)
 	file.store_string(text)
@@ -123,11 +128,20 @@ func _build(layout: MapLayout, rows: PackedStringArray, region_path: String, roo
 	var walls: PackedStringArray = []
 	for c: String in WALL_COLORS:
 		walls.append('"%s": %s' % [c, _color(WALL_COLORS[c])])
-	nodes.append('[node name="Walls" type="Node2D" parent="."]\nscript = %s\nlayout = PackedStringArray(%s)\nwall_chars = "%s"\nwall_colors = Dictionary[String, Color]({%s})\nfloor_colors = Dictionary[String, PackedColorArray]({%s})\n' % [
-		_id("res://regions/placeholder_walls.gd", "Script"), ", ".join(quoted), MapLayout.WALL_CHARS, ", ".join(walls), ", ".join(floors)])
+	# 윤곽 파일은 씬을 만든 뒤 tools/map_png/make_cave_outline.gd로 만든다. 있으면 충돌·길찾기·시야가 윤곽을 쓴다.
+	var outline_path: String = "%s_outline.res" % _out_path.get_basename()
+	var outline_line: String = ""
+	if ResourceLoader.exists(outline_path):
+		outline_line = "outline = %s\n" % _id(outline_path, "Resource")
+	else:
+		print("윤곽 파일 없음 (%s): 칸 충돌로 만든다. make_cave_outline.gd로 윤곽을 만든 뒤 다시 변환한다" % outline_path)
+	nodes.append('[node name="Walls" type="Node2D" parent="."]\nscript = %s\nlayout = PackedStringArray(%s)\nwall_chars = "%s"\n%swall_colors = Dictionary[String, Color]({%s})\nfloor_colors = Dictionary[String, PackedColorArray]({%s})\n' % [
+		_id("res://regions/placeholder_walls.gd", "Script"), ", ".join(quoted), MapLayout.WALL_CHARS, outline_line, ", ".join(walls), ", ".join(floors)])
 	# 벽이 모두 타일이라, 막힌 칸을 물리 질의 대신 벽 타일에서 바로 계산하게 한다.
-	nodes.append('[node name="NavigationGrid" type="Node" parent="."]\nscript = %s\nbounds = Rect2(0, 0, %d, %d)\ncell_size = %s\nwall_tiles = NodePath("../Walls")\n' % [
-		_id("res://regions/navigation_grid.gd", "Script"), layout.size.x * TILE_SIZE, layout.size.y * TILE_SIZE, NAV_CELL_SIZE])
+	# 윤곽 벽은 칸 벽과 달리 들쭉날쭉해서, 몸을 줄여 재면 길의 점이 몸이 닿지 못하는 자리에 놓여 걸린다.
+	var clearance_line: String = "clearance_margin = %s\n" % OUTLINE_CLEARANCE if not outline_line.is_empty() else ""
+	nodes.append('[node name="NavigationGrid" type="Node" parent="."]\nscript = %s\nbounds = Rect2(0, 0, %d, %d)\ncell_size = %s\n%swall_tiles = NodePath("../Walls")\n' % [
+		_id("res://regions/navigation_grid.gd", "Script"), layout.size.x * TILE_SIZE, layout.size.y * TILE_SIZE, NAV_CELL_SIZE, clearance_line])
 
 	var escapes: Array[Vector2i] = layout.cells_of("escape")
 	for i: int in escapes.size():

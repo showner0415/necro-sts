@@ -28,6 +28,7 @@ const OFFSET_WIDTH: float = 48.0
 var _png: CaveOutline
 var _scene_cells: CaveOutline
 var _data: CaveOutlineData
+var _uses_outline: bool = false
 var _bodies: Array[Dictionary] = []
 
 
@@ -41,6 +42,8 @@ func _initialize() -> void:
 	_data = load(args.outline)
 	_png = CaveOutline.new(MapLayout.from_file(args["in"]).rows, _data.settings)
 	_scene_cells = CaveOutline.new((scene.get_node("Walls") as PlaceholderWalls).layout, _data.settings)
+	_uses_outline = (scene.get_node("Walls") as PlaceholderWalls).outline != null
+	print("실제 충돌: ", "윤곽" if _uses_outline else "칸")
 	scene.free()
 	_read_bodies()
 	var names: PackedStringArray = PackedStringArray()
@@ -83,7 +86,7 @@ func _measure(group: Array[Vector2i], show_map: bool) -> void:
 		return
 	var area: _Area = _Area.new(window, _data.cell_px, ends[0], ends[1])
 	var png: Dictionary = area.measure(area.cell_solid(_png), _bodies)
-	var actual: Dictionary = area.measure(area.cell_solid(_scene_cells), _bodies)
+	var actual: Dictionary = area.measure(area.loop_solid(_data.loops) if _uses_outline else area.cell_solid(_scene_cells), _bodies)
 	var view: Dictionary = area.measure(area.loop_solid(_data.loops), _bodies)
 	var marks: PackedStringArray = PackedStringArray()
 	for index: int in _bodies.size():

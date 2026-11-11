@@ -94,6 +94,52 @@ func test_bake_scripts_cover_their_classes() -> void:
 	assert_eq(missing, PackedStringArray(), "BAKE_SCRIPTS에 넣거나 NOT_BAKE_CLASSES에 이유를 적어야 하는 클래스")
 
 
+## 충돌·길찾기·시야가 윤곽 파일을 쓰므로, PNG를 고치고 윤곽을 다시 만들지 않으면 실패한다.
+func test_outline_matches_png() -> void:
+	var outline: CaveOutlineData = load("res://regions/shallow_cave_outline.res")
+	assert_eq(outline.source_png_md5, FileAccess.get_md5("res://art_src/maps/shallow_cave.png"), "PNG를 고쳤으면 다시 만들기: %s" % CaveTerrainBake.BAKE_TOOL)
+
+
+func _world_position(node: Node2D) -> Vector2:
+	var position: Vector2 = node.position
+	var parent: Node = node.get_parent()
+	while parent is Node2D:
+		position += (parent as Node2D).position
+		parent = parent.get_parent()
+	return position
+
+
+func _collect_bodies(node: Node, found: Array[Node2D]) -> void:
+	for child: Node in node.get_children():
+		if child is Monster or child is Necromancer or child is LootChest or child is EscapePoint:
+			found.append(child)
+		else:
+			_collect_bodies(child, found)
+
+
+## 윤곽은 넓은 곳에서 PNG 바닥을 덮기도 하므로, 씬의 몸과 물건이 바위에 묻히지 않았는지 본다.
+func test_scene_objects_are_not_inside_rock() -> void:
+	var scene: Node = (load("res://regions/shallow_cave.tscn") as PackedScene).instantiate()
+	var outline: CaveOutlineData = (scene.get_node("Walls") as PlaceholderWalls).outline
+	var found: Array[Node2D] = []
+	_collect_bodies(scene, found)
+	var buried: PackedStringArray = PackedStringArray()
+	for node: Node2D in found:
+		var center: Vector2 = _world_position(node)
+		var half: Vector2 = Vector2.ONE
+		if node is Monster:
+			half = (node as Monster).data.get_placeholder_half_size()
+			center += PlaceholderBody.center((node as Monster).data)
+		elif node is Necromancer:
+			half = Vector2.ONE * (node as Necromancer).body_radius
+			center.y -= (node as Necromancer).body_radius
+		if outline.box_has_rock(center, half):
+			buried.append("%s %s" % [node.name, center])
+	assert_true(found.size() > 40, "몸과 물건을 찾음: %d" % found.size())
+	assert_eq(buried, PackedStringArray(), "바위에 묻힘")
+	scene.free()
+
+
 func test_baked_files_match_their_sources() -> void:
 	var view: RegionView3D = RegionView3D.new()
 	var height: float = view.wall_height_px
