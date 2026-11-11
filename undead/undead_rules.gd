@@ -3,6 +3,7 @@ extends RefCounted
 ## 언데드 체력 회복에 드는 뼈 계산.
 ## 필요한 뼈 = 처음 소환 비용 × (모자란 체력 / 최대 체력), 소수점은 올림.
 ## 뼈가 모자라면 가진 만큼 일부 회복한다: 뼈 하나당 최대 체력 / 처음 소환 비용.
+## 뼈 제거: 지금 체력에 해당하는 뼈 = 체력 / 뼈 하나당 체력, 소수점은 버림 (다친 만큼은 돌아오지 않는다).
 
 ## 프레임마다 깎인 체력은 1.9999처럼 정수에 살짝 못 미칠 수 있다. 올림 전에 이 단위로 맞춘다.
 const TOLERANCE: float = 0.0001
@@ -21,6 +22,15 @@ static func health_per_bone(max_health: float, bone_cost: int) -> float:
 	if bone_cost <= 0:
 		return max_health
 	return max_health / bone_cost
+
+
+## 지금 체력에 들어 있는 뼈 개수 (뼈 제거로 돌려받는 개수). 소수점은 버리고, 처음 소환 비용을 넘지 않는다.
+## 처음 소환 비용이 0이면 돌려받을 뼈도 없다.
+static func stored_bones(health: float, max_health: float, bone_cost: int) -> int:
+	if bone_cost <= 0 or max_health <= 0.0 or health <= 0.0:
+		return 0
+	# 1.9999처럼 정수에 살짝 못 미치는 값이 하나 적게 나오지 않게 맞춘 뒤 버린다.
+	return mini(floori(snappedf(health / health_per_bone(max_health, bone_cost), TOLERANCE)), bone_cost)
 
 
 ## bones개를 써서 회복한 뒤의 체력. 최대 체력을 넘지 않는다.

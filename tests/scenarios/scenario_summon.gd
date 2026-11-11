@@ -1,11 +1,13 @@
 extends ScenarioTest
-## 시나리오: 숫자키로 핫바 선택 → G로 소환 → 언데드가 쥐와 싸움 → G로 해제 → R로 체력 회복.
+## 시나리오: 숫자키로 핫바 선택 → G로 소환 → 언데드가 쥐와 싸움 → G로 해제 → R로 체력 회복 → 메뉴로 뼈 제거.
 ## 1. 2 → 1을 눌러 선택 칸이 바뀌고 선택 테두리가 따라간다
 ## 2. G: 언데드가 나오고, 처음 소환 뼈·소환 마나를 쓰고, 칸에 소환 중 테두리가 생긴다
 ## 3. 쥐를 가까이 데려오면 언데드가 쫓아가 싸우고, 네크로맨서도 같이 쏴서 잡는다. 받은 피해 횟수만큼 내구도가 1씩 준다
 ##    (언데드 쥐 혼자서는 쥐를 이기지 못하는 수치라서 같이 쏜다. 언데드 쥐 수치는 사용자가 그대로 두기로 했다)
 ## 4. G: 해제되어 언데드가 사라지고, 다친 체력이 머리뼈에 남는다
 ## 5. R: 모자란 체력 비율만큼 뼈를 써서 체력이 가득 찬다
+## 6. 인벤토리 우클릭 메뉴 "뼈 제거 (N개)": 지금 체력만큼 뼈가 인벤토리로 돌아오고, 머리뼈는 처음 소환 전 상태가 된다
+##    (마우스는 흉내 낸 입력이다)
 
 const WAIT_FRAMES: int = 3
 const FIGHT_TIMEOUT_FRAMES: int = 900
@@ -123,5 +125,30 @@ func _run() -> void:
 	evidence = "체력 %.1f → %.1f / %.1f, 뼈 %d → %d (기대 비용 %d), 안내 '%s'" % [
 		health_kept, skull.health, monster.undead_max_health, bones_before, _bones(), expected_cost, find_hud().get_message()]
 	if not _check("R로 회복", expected_cost > 0 and skull.health == monster.undead_max_health and _bones() == bones_before - expected_cost, evidence):
+		return
+
+	# 6. 메뉴로 뼈 제거
+	var screen: InventoryScreen = current_scene.get_node("InventoryScreen")
+	await _tap(KEY_TAB)
+	var skull_index: int = -1
+	for i: int in _necromancer.inventory.get_slot_count():
+		var stack: ItemStack = _necromancer.inventory.get_slot(i)
+		if stack != null and stack.skull == skull:
+			skull_index = i
+	var stored: int = _roster.get_stored_bones(skull)
+	bones_before = _bones()
+	await click_ui(screen.get_slot_control(skull_index).get_global_rect().get_center(), MOUSE_BUTTON_RIGHT)
+	var button: Button = screen.get_menu().get_button(&"remove_bones") if screen.get_menu().is_open() else null
+	var button_text: String = button.text if button != null else "(메뉴 항목 없음)"
+	if button != null:
+		await click_ui(button.get_global_rect().get_center())
+	await wait_frames(WAIT_FRAMES)
+	move_mouse_to_ui(screen.get_slot_control(skull_index).get_global_rect().get_center())
+	await wait_frames(WAIT_FRAMES)
+	var hover_info: String = screen.get_info_text().replace("\n", " / ")
+	await _tap(KEY_TAB)
+	evidence = "메뉴 '%s' 누름: 뼈 %d → %d (돌려받을 뼈 %d = 처음 소환 비용 %d), 깨움 %s, 체력 %.1f, 머리뼈는 인벤토리에 그대로 %s, 정보 줄 '%s'" % [
+		button_text, bones_before, _bones(), stored, monster.summon_bone_cost, skull.awakened, skull.health, _necromancer.inventory.get_skulls().has(skull), hover_info]
+	if not _check("메뉴로 뼈 제거", button != null and button_text == "뼈 제거 (%d개)" % stored and stored == monster.summon_bone_cost and _bones() == bones_before + stored and not skull.awakened and _necromancer.inventory.get_skulls().has(skull) and hover_info.contains("처음 소환 뼈 %d개" % monster.summon_bone_cost), evidence):
 		return
 	finish(true)
