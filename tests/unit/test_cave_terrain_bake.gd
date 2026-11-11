@@ -12,7 +12,6 @@ const NOT_BAKE_CLASSES: Dictionary[String, String] = {
 	"CaveTerrainBake": "구운 결과를 담기만 한다",
 	"CaveOutlineSettings": "값은 지문에 따로 들어간다",
 	"RegionView3D": "벽 높이 값만 읽고, 값은 지문에 따로 들어간다",
-	"MapSmoother": "맵 검사에서만 쓴다",
 	"PlaceholderGround": "구운 지형은 벽(from_walls)만 읽는다",
 }
 

@@ -2,7 +2,7 @@ class_name CaveOutline
 extends RefCounted
 ## 맵 PNG의 칸에서 동굴 벽 윤곽을 만드는 규칙. 노드에 의존하지 않는다 (docs/plans/2026-11-10_cave_terrain_plan.md의 1~7단계).
 ## 흐리기 → 노이즈 → 좁은 길목 보호 → 작은 조각 없애기 → 마칭 스퀘어 윤곽선 → 단순화. 맵 밖은 벽이다.
-## 입력은 PNG의 칸 그대로다 (MapSmoother를 거치지 않는다). 위치로 정해지는 노이즈라 값이 같으면 결과도 같다.
+## 입력은 PNG의 칸 그대로다. 위치로 정해지는 노이즈라 값이 같으면 결과도 같다.
 
 const CELL_PX: int = 32
 ## 흐리기에 쓸 표준편차의 배수 (이 밖의 칸은 무시한다)

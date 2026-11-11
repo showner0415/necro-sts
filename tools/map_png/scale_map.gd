@@ -104,7 +104,7 @@ func _thin_corridors() -> Vector2i:
 	return Vector2i(cut, kept)
 
 
-## cell 둘레 3×3의 바닥 칸이 모두 2×2 바닥 덩어리에 드는지 (MapSmoother.narrow_cells와 같은 규칙)
+## cell 둘레 3×3의 바닥 칸이 모두 2×2 바닥 덩어리에 드는지 (MapLayout.narrow_cells와 같은 규칙)
 func _neighbors_keep_blocks(cell: Vector2i) -> bool:
 	for oy: int in range(-1, 2):
 		for ox: int in range(-1, 2):
