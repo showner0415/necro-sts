@@ -21,7 +21,7 @@ signal damage_received(skull: Skull, amount: float)
 ## 비켜 서는 힘(0~1)이 이보다 작으면 무시하고 멈춘다 (멈춰 있을 때 조금씩 떨리지 않게)
 @export var spacing_deadband: float = 0.05
 ## 네크로맨서에게서 이 거리보다 먼 몬스터는 쫓지 않는다 (픽셀, 임시값. 네크로맨서의 공격 반경과 같게 둔다)
-@export var leash_distance: float = 160.0
+@export var leash_distance: float = 300.0
 ## 따라가는 중에 네크로맨서에게서 이 거리보다 멀면 catch_up_speed로 빨라진다 (픽셀, 임시값)
 @export var catch_up_distance: float = 48.0
 ## 맞았을 때 하얗게 번쩍이는 시간 (초)

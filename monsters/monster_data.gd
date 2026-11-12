@@ -43,7 +43,7 @@ enum PlaceholderShape { CIRCLE, ELLIPSE, DIAMOND }
 
 @export_group("추격")
 ## 쫓는 대상(감지 범위 밖에서 때린 공격자, 또는 보다가 놓친 대상)과 이 거리보다 멀어지면 포기한다 (픽셀)
-@export var chase_attacker_limit: float = 250.0
+@export var chase_attacker_limit: float = 350.0
 ## 쫓는 대상이 보이는 동안, 쫓기 시작한 자리(맞기 시작한 자리 또는 처음 대상을 본 자리)에서 이 거리보다 멀어지면 포기하고 그 자리로 돌아간다 (픽셀, 임시값)
 @export var chase_visible_home_limit: float = 400.0
 ## 쫓는 대상이 보이지 않게 된 뒤(벽 뒤로 숨음) 이 시간(초) 동안 다시 보지 못하면 포기한다. 다시 보면 처음부터 잰다 (임시값)
