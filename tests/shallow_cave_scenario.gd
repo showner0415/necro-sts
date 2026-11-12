@@ -43,6 +43,9 @@ const TILE: float = 32.0
 var _layout: MapLayout
 ## 굴 역할 → 굴 번호 (_find_roles)
 var _roles: Dictionary = {}
+## _phase_begin()을 부른 때의 실제 시간(밀리초)과 물리 프레임 (_phase_end가 걸린 시간을 출력한다)
+var _phase_msec: int = 0
+var _phase_frame: int = 0
 
 
 func get_start_scene() -> String:
@@ -168,6 +171,18 @@ func _find_roles() -> bool:
 		if not _roles.has(role) or _roles[role] < 0:
 			missing.append(role)
 	return _check("굴 역할 찾기", missing.is_empty(), "찾은 역할 %s, 못 찾은 역할 %s" % [_roles, missing])
+
+
+## 단계 시간 재기 시작. 시나리오가 시간 제한(tests/run_all.sh)에 가까워질 때 어느 단계가 오래 걸리는지 보려고 둔다
+func _phase_begin() -> void:
+	_phase_msec = Time.get_ticks_msec()
+	_phase_frame = Engine.get_physics_frames()
+
+
+## _phase_begin() 뒤로 걸린 실제 시간·게임 시간과, 엔진이 시작한 뒤 지난 실제 시간을 출력한다 (판정 없음)
+func _phase_end(phase: String) -> void:
+	var now: int = Time.get_ticks_msec()
+	print("[시간] %s: 실제 %.1f초, 게임 %.1f초 (엔진 시작부터 실제 %.1f초)" % [phase, (now - _phase_msec) / 1000.0, (Engine.get_physics_frames() - _phase_frame) / float(Engine.physics_ticks_per_second), now / 1000.0])
 
 
 func _seconds(value: float) -> String:
