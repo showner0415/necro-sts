@@ -12,8 +12,8 @@ const WAIT_FRAMES: int = 3
 const TIMEOUT_FRAMES: int = 600
 ## 쥐가 다가오는지 볼 프레임
 const APPROACH_FRAMES: int = 20
-## 포기시키려고 네크로맨서를 쥐에게서 이만큼 떨어뜨린다 (공격자 한계 250보다 멀게)
-const FAR_OFFSET: Vector2 = Vector2(-300, 0)
+## 포기시키려고 네크로맨서를 쥐에게서 공격자 한계(쥐 데이터의 chase_attacker_limit)보다 이만큼 더 서쪽으로 떨어뜨린다
+const FAR_MARGIN: float = 50.0
 ## 돌아가는 중에 네크로맨서를 쥐 옆(감지 범위 안)에 둔다
 const NEAR_OFFSET: Vector2 = Vector2(-30, 0)
 const IGNORE_FRAMES: int = 10
@@ -120,10 +120,15 @@ func _shoot_from_outside() -> bool:
 			"%d프레임 동안 거리 %.0f → %.0f, 상태 %s" % [APPROACH_FRAMES, before, after, _state_name(_rat)])
 
 
+## 공격자 한계보다 FAR_MARGIN 더 먼 서쪽
+func _far_offset() -> Vector2:
+	return Vector2.LEFT * (_rat.data.chase_attacker_limit + FAR_MARGIN)
+
+
 func _give_up_and_return() -> bool:
 	var origin: Vector2 = _rat.get_aggro().origin
 	var health: float = _rat.health
-	_necromancer.global_position = _rat.global_position + FAR_OFFSET
+	_necromancer.global_position = _rat.global_position + _far_offset()
 	await wait_frames(WAIT_FRAMES)
 	if not _check("공격자와 멀어지면 포기", _rat.get_aggro().state == Aggro.State.RETURNING and _rat.get_target() == null,
 			"공격자까지 %.0f (한계 %.0f), 상태 %s, 노리는 대상 %s" % [
@@ -141,7 +146,7 @@ func _give_up_and_return() -> bool:
 				_rat.global_position.distance_to(_necromancer.global_position), IGNORE_FRAMES, _state_name(_rat), _target_name(_rat)]):
 		return false
 	# 끼어들지 않게 다시 멀리 둔다.
-	_necromancer.global_position = origin + FAR_OFFSET
+	_necromancer.global_position = origin + _far_offset()
 	var frames: int = 0
 	while _rat.get_aggro().state == Aggro.State.RETURNING and frames < TIMEOUT_FRAMES:
 		await wait_frames(1)
