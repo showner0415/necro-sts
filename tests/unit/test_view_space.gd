@@ -1,7 +1,10 @@
 extends TestCase
 ## 2D 규칙 세계와 3D 화면 층 사이의 좌표 규칙 (ViewSpace)
 
-const AIM_HEIGHT: float = 6.0
+## 2D에서 몸 가운데까지 (규칙)
+const AIM_OFFSET: float = 6.0
+## 3D에서 그리는 높이 (offset과 달라도 되는지 보려고 다르게 둔다)
+const AIM_HEIGHT: float = 24.0
 const FALLBACK: Vector2 = Vector2(1, 2)
 
 
@@ -13,22 +16,22 @@ func test_one_tile_is_one_unit() -> void:
 
 
 func test_aim_point_moves_back_to_ground_and_up_to_height() -> void:
-	var point: Vector3 = ViewSpace.aim_to_3d(Vector2(32, 26), AIM_HEIGHT)
+	var point: Vector3 = ViewSpace.aim_to_3d(Vector2(32, 26), AIM_OFFSET, AIM_HEIGHT)
 	assert_almost_eq(point.x, 1.0, 0.001, "x")
 	assert_almost_eq(point.y, AIM_HEIGHT / ViewSpace.TILE, 0.001, "탄 높이")
-	assert_almost_eq(point.z, 1.0, 0.001, "몸 높이만큼 y를 되돌림")
+	assert_almost_eq(point.z, 1.0, 0.001, "몸 가운데(offset)만큼 y를 되돌림")
 
 
 func test_straight_down_ray_hits_aim_under_it() -> void:
-	var aim: Vector2 = ViewSpace.aim_from_ray(Vector3(2, 10, 3), Vector3.DOWN, AIM_HEIGHT, FALLBACK)
+	var aim: Vector2 = ViewSpace.aim_from_ray(Vector3(2, 10, 3), Vector3.DOWN, AIM_OFFSET, AIM_HEIGHT, FALLBACK)
 	assert_almost_eq(aim.x, 64.0, 0.001, "x")
-	assert_almost_eq(aim.y, 96.0 - AIM_HEIGHT, 0.001, "y는 몸 높이만큼 위쪽")
+	assert_almost_eq(aim.y, 96.0 - AIM_OFFSET, 0.001, "y는 몸 가운데(offset)만큼 위쪽")
 
 
 func test_slanted_ray_stops_at_aim_height_not_ground() -> void:
-	var target: Vector3 = ViewSpace.aim_to_3d(Vector2(100, 50), AIM_HEIGHT)
+	var target: Vector3 = ViewSpace.aim_to_3d(Vector2(100, 50), AIM_OFFSET, AIM_HEIGHT)
 	var direction: Vector3 = Vector3(0.3, -1.0, -0.5).normalized()
-	var aim: Vector2 = ViewSpace.aim_from_ray(target - direction * 20.0, direction, AIM_HEIGHT, FALLBACK)
+	var aim: Vector2 = ViewSpace.aim_from_ray(target - direction * 20.0, direction, AIM_OFFSET, AIM_HEIGHT, FALLBACK)
 	assert_almost_eq(aim.x, 100.0, 0.001, "x")
 	assert_almost_eq(aim.y, 50.0, 0.001, "y")
 
@@ -52,4 +55,4 @@ func test_screen_offset_north_goes_up_and_height_goes_up() -> void:
 
 
 func test_ray_along_plane_uses_fallback() -> void:
-	assert_eq(ViewSpace.aim_from_ray(Vector3(0, 5, 0), Vector3.RIGHT, AIM_HEIGHT, FALLBACK), FALLBACK, "평면과 나란한 광선")
+	assert_eq(ViewSpace.aim_from_ray(Vector3(0, 5, 0), Vector3.RIGHT, AIM_OFFSET, AIM_HEIGHT, FALLBACK), FALLBACK, "평면과 나란한 광선")
