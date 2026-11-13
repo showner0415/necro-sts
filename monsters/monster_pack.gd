@@ -15,9 +15,32 @@ extends Node
 ## 경보 중에 무리원마다 적을 보는(벽 광선 검사) 간격 (프레임). 무리원마다 엇갈린 프레임에 본다
 @export var sight_check_interval: int = 3
 
+@export_group("함께 배회")
+## 무리원이 배회 기준점에서 벗어나도 되는 거리 (픽셀, 임시값 64 = 2칸. 사용자 결정 2026-11-14). 밖이면 기준점 쪽으로 돌아온다
+@export var wander_radius: float = 64.0
+## 기준점이 방향을 새로 고르는 간격 (초)
+@export var wander_anchor_interval: float = 3.0
+## 기준점이 방향을 고를 때 멈춰 있기로 할 확률 (0~1)
+@export_range(0.0, 1.0) var wander_anchor_rest_chance: float = 0.3
+## 기준점이 움직이는 속도: 무리원 중 가장 느린 배회 속도에 곱한다 (1보다 작아야 무리원이 따라온다)
+@export var wander_anchor_speed_ratio: float = 0.6
+
+@export_group("디버그 표시")
+## 무리 디버그 표시(무리 소속, 경보 상태)를 켜고 끄는 키 (사용자 결정 2026-11-14). 개발 빌드에서만 듣는다
+@export var debug_toggle_key: Key = KEY_F3
+## 이 무리의 디버그 색. 투명(알파 0)이면 DEBUG_COLORS에서 무리 순서대로 고른다
+@export var debug_color: Color = Color(0, 0, 0, 0)
+
 ## _sight에 두는 표시: 벽이 가리지 않음, 그리고 그 무리원의 감지 범위 안
 const SEEN: int = 1
 const IN_DETECT: int = 2
+## 무리 디버그 색 (팔레트 안의 색: 주황, 파랑, 초록, 보라, 노랑, 청록)
+const DEBUG_COLORS: Array[Color] = [Color("f77622"), Color("0099db"), Color("63c74d"), Color("b55088"), Color("feae34"), Color("2ce8f5")]
+
+## 무리 디버그 표시가 켜져 있는지 (모든 무리가 함께 쓴다)
+static var _debug_visible: bool = false
+## 디버그 키를 마지막으로 처리한 프레임 (무리가 여럿이어도 한 번 누름에 한 번만 바꾼다)
+static var _debug_toggled_frame: int = -1
 
 var _pack: PackAttack
 var _monsters: Array[Monster] = []
@@ -38,6 +61,29 @@ var _hits: Array[Array] = []
 var _chase: ChaseClock = ChaseClock.new()
 ## 이번 싸움에서 자리의 기준 각도를 정했는지 (싸우는 멤버가 없어지면 다시 정한다)
 var _formation_set: bool = false
+## 경보를 쓰는 무리가 함께 배회하는 규칙 (대상 하나를 함께 노리는 무리는 null)
+var _wander: PackWander
+
+
+## 무리 디버그 표시가 켜져 있는지 (몬스터가 바닥 표시를 그릴 때 본다)
+static func is_debug_visible() -> bool:
+	return _debug_visible
+
+
+## 테스트·디버그용: 무리 디버그 표시를 켜거나 끈다
+static func set_debug_visible(visible: bool) -> void:
+	_debug_visible = visible
+
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	var key: InputEventKey = event as InputEventKey
+	if key == null or not key.pressed or key.echo or key.keycode != debug_toggle_key or not OS.is_debug_build():
+		return
+	var frame: int = Engine.get_process_frames()
+	if _debug_toggled_frame != frame:
+		_debug_toggled_frame = frame
+		_debug_visible = not _debug_visible
+	get_viewport().set_input_as_handled()
 
 
 ## 코드로 무리를 만들 때 (밸런스 측정, 시나리오 등). 트리에 넣기 전에 부른다.
@@ -62,6 +108,10 @@ func _physics_process(delta: float) -> void:
 			_share_one_target(delta, alive)
 		else:
 			_run_alarm(delta, alive)
+			# 경보 중이 아니면 함께 배회한다 (신호 중에도 다른 무리원은 아직 평소다).
+			if _wander != null and not _alarm.is_alert():
+				_wander.update(delta, _center(alive))
+		_share_debug(alive)
 	_hits.clear()
 	if _pack == null:
 		return
@@ -229,6 +279,45 @@ func _is_enemy(node: Node2D) -> bool:
 	return _is_alive_node(node) and (node.is_in_group(&"necromancer") or node.is_in_group(&"undead"))
 
 
+## 무리원들의 가운데 (발밑 좌표의 평균)
+func _center(monsters: Array[Monster]) -> Vector2:
+	var sum: Vector2 = Vector2.ZERO
+	var count: int = 0
+	for monster: Monster in monsters:
+		if is_instance_valid(monster):
+			sum += monster.global_position
+			count += 1
+	return sum / count if count > 0 else Vector2.ZERO
+
+
+## 무리원마다 디버그 표시에 쓸 무리 정보를 넣어 준다 (표시가 꺼져 있어도 넣는다. 그리는 쪽이 켜졌는지 본다).
+## 대상 하나를 함께 노리는 무리는 경보 상태가 없으므로 대상이 있으면 경보, 없으면 평소로 보인다.
+func _share_debug(alive: Array[Monster]) -> void:
+	for monster: Monster in alive:
+		var state: int = _alarm.state
+		if _one_target:
+			state = PackAlarm.State.ALERT if monster.get_target() != null else PackAlarm.State.CALM
+		var anchor: Vector2 = _wander.anchor if _wander != null else Vector2.ZERO
+		var radius: float = _wander.radius if _wander != null and state != PackAlarm.State.ALERT else 0.0
+		monster.set_pack_debug(debug_color, state, anchor, radius)
+
+
+## 같은 부모 아래 무리(MonsterPack)들 가운데 이 무리가 몇 번째인지 (디버그 색을 무리 순서대로 고른다)
+func _pack_order() -> int:
+	var order: int = 0
+	for sibling: Node in get_parent().get_children():
+		if sibling == self:
+			return order
+		if sibling is MonsterPack:
+			order += 1
+	return order
+
+
+## 테스트·디버그용: 함께 배회하는 기준점 (함께 배회하지 않는 무리면 null)
+func get_wander() -> PackWander:
+	return _wander
+
+
 func _nearest(monster: Monster, enemies: Array[Node2D]) -> Node2D:
 	var best: Node2D = null
 	var best_distance: float = INF
@@ -255,6 +344,9 @@ func _give_up(alive: Array[Monster]) -> void:
 		monster.clear_pack_target()
 		monster.set_alarm_signal(false)
 	_last_own_targets.clear()
+	# 포기한 자리(무리 가운데)에서 다시 함께 배회한다.
+	if _wander != null:
+		_wander.reset(_center(alive))
 
 
 func _on_member_hit(source: Node2D, member: Monster) -> void:
@@ -296,6 +388,18 @@ func _bind() -> void:
 	if _monsters.is_empty():
 		return
 	_one_target = _monsters[0].data.pack_one_target
+	if debug_color.a <= 0.0:
+		debug_color = DEBUG_COLORS[_pack_order() % DEBUG_COLORS.size()]
+	# 경보를 쓰는 무리는 함께 배회한다. 기준점은 무리 가운데에서 시작하고, 무리원 중 가장 느린 배회 속도보다 느리게 움직인다.
+	if not _one_target:
+		var slowest: float = INF
+		for monster: Monster in _monsters:
+			slowest = minf(slowest, monster.data.wander_speed)
+		var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+		rng.seed = randi()
+		_wander = PackWander.new(_center(_monsters), wander_radius, wander_anchor_interval, wander_anchor_rest_chance, slowest * wander_anchor_speed_ratio, rng)
+		for monster: Monster in _monsters:
+			monster.set_pack_wander(_wander)
 	for monster: Monster in _monsters:
 		monster.hit_by.connect(_on_member_hit.bind(monster))
 	_pack = _monsters[0].get_behavior().make_pack_attack()

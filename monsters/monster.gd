@@ -56,10 +56,21 @@ var _ai: MonsterAiState = MonsterAiState.new()
 var _sprite: FacingSprite
 ## 이보다 느리게 움직이면(벽에 미끄러질 때의 아주 작은 속도 등) 그림 방향을 바꾸지 않는다 (픽셀/초)
 const SPRITE_TURN_SPEED: float = 1.0
+## 무리 디버그 표시: 몸 반지름에 더하는 고리 여유, 경보 중 고리 두께, 원을 그리는 점 수 (픽셀)
+const DEBUG_RING_MARGIN: float = 3.0
+const DEBUG_ALERT_WIDTH: float = 2.0
+const DEBUG_ARC_POINTS: int = 24
 ## 무리에 알리는 신호를 내는 중인지 (MonsterPack이 정한다), 신호를 시작하고 흐른 시간, 깜빡임이 밝기를 바꿔 놓았는지 (신호가 끝나면 되돌린다)
 var _alarm_signalling: bool = false
 var _signal_elapsed: float = 0.0
 var _blink_on: bool = false
+## 함께 배회하는 무리의 규칙 (MonsterPack이 넣어 준다. 없으면 혼자 배회한다)
+var _pack_wander: PackWander
+## 디버그 표시(MonsterPack.is_debug_visible)에 쓰는 무리 정보: 무리 색, 경보 상태(PackAlarm.State), 배회 기준점과 반지름 (반지름 0이면 그리지 않는다)
+var _debug_color: Color = Color(0, 0, 0, 0)
+var _debug_state: int = 0
+var _debug_anchor: Vector2 = Vector2.ZERO
+var _debug_radius: float = 0.0
 
 @onready var _collision: CollisionShape2D = $CollisionShape2D
 
@@ -205,7 +216,11 @@ func _wander(delta: float) -> void:
 			_wander_direction = Vector2.ZERO
 		else:
 			_wander_direction = Vector2.from_angle(randf() * TAU)
-	velocity = _wander_direction * data.wander_speed
+	# 무리와 함께 배회하면, 무리 기준점에서 너무 멀어진 동안은 기준점 쪽으로 돌아온다 (벽은 돌아서).
+	var direction: Vector2 = _wander_direction
+	if _pack_wander != null and _pack_wander.is_outside(global_position):
+		direction = get_move_direction(_pack_wander.anchor)
+	velocity = direction * data.wander_speed
 
 
 ## 무리(MonsterPack)가 프레임마다 정해 준다: 무리 대상 (없으면 null). 있으면 자기 판단 대신 이 대상을 노린다.
@@ -308,6 +323,47 @@ func get_warning_segment() -> PackedVector2Array:
 ## 바닥의 예고 표시를 canvas에 그린다. 2D에서는 자기 자신에, 3D 화면 층에서는 바닥 캔버스에 그린다.
 func draw_ground_marks(canvas: CanvasItem) -> void:
 	_behavior.draw_overlay(canvas, indicator_color)
+	if MonsterPack.is_debug_visible() and _debug_color.a > 0.0:
+		_draw_pack_debug(canvas)
+
+
+## 무리 디버그 표시 (F3, MonsterPack): 발밑에 무리 색 고리. 평소에는 배회 기준점까지 선과 기준점 둘레,
+## 신호 중에는 채운 원, 경보 중에는 굵은 고리와 노리는 대상까지 선.
+func _draw_pack_debug(canvas: CanvasItem) -> void:
+	var ring: float = data.get_placeholder_half_size().x + DEBUG_RING_MARGIN
+	# 신호 중인 무리에서 신호를 내는 무리원만 채운 원이고, 나머지는 아직 평소처럼 그린다.
+	if _alarm_signalling:
+		canvas.draw_circle(Vector2.ZERO, ring, _debug_color)
+		return
+	match _debug_state:
+		PackAlarm.State.ALERT:
+			canvas.draw_arc(Vector2.ZERO, ring, 0.0, TAU, DEBUG_ARC_POINTS, _debug_color, DEBUG_ALERT_WIDTH)
+			if is_instance_valid(_target):
+				canvas.draw_line(Vector2.ZERO, _target.global_position - global_position, _debug_color, 1.0)
+		_:
+			canvas.draw_arc(Vector2.ZERO, ring, 0.0, TAU, DEBUG_ARC_POINTS, _debug_color, 1.0)
+			if _debug_radius > 0.0:
+				var anchor: Vector2 = _debug_anchor - global_position
+				canvas.draw_line(Vector2.ZERO, anchor, _debug_color, 1.0)
+				canvas.draw_arc(anchor, _debug_radius, 0.0, TAU, DEBUG_ARC_POINTS * 2, _debug_color, 1.0)
+
+
+## 무리(MonsterPack)가 넣어 준다: 함께 배회하는 규칙 (null이면 혼자 배회한다).
+func set_pack_wander(wander: PackWander) -> void:
+	_pack_wander = wander
+
+
+## 테스트·디버그용: 함께 배회하는 무리에 속했는지
+func has_pack_wander() -> bool:
+	return _pack_wander != null
+
+
+## 무리(MonsterPack)가 프레임마다 넣어 준다: 디버그 표시에 쓰는 무리 색, 경보 상태(PackAlarm.State), 배회 기준점과 반지름 (반지름 0이면 기준점을 그리지 않는다).
+func set_pack_debug(color: Color, state: int, anchor: Vector2, radius: float) -> void:
+	_debug_color = color
+	_debug_state = state
+	_debug_anchor = anchor
+	_debug_radius = radius
 
 
 func _draw() -> void:
