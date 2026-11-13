@@ -8,6 +8,7 @@
 #     upstream(원격 브랜치)이 있으면: upstream보다 앞선 커밋이 있을 때
 #     upstream이 없거나 원격에서 지워졌으면: 어느 원격 브랜치에도 없는 커밋이 있을 때
 #     분리된 HEAD: 어느 브랜치·원격 브랜치에도 없는 커밋이 있을 때
+#     비교판 도구가 만든 compare/… 브랜치는 원격에 올리지 않는 임시 브랜치라 알리지 않는다 (COMPARE_BRANCH_PREFIX)
 #   같은 상태로는 한 번만 알린다. 알린 상태(브랜치마다 이름, 끝 커밋, 종류)를 <git 폴더>/claude-hooks/stop_unpushed.txt에 적어 두고,
 #   그 내용이 바뀌었을 때만 다시 알린다 (새 커밋, 다른 브랜치의 커밋, 브랜치 하나만 push 등).
 #   push해서 알릴 것이 없어지면 그 파일을 비우고 아무것도 내지 않는다.
@@ -62,6 +63,7 @@ main() {
 				upstreams+=("$upstream")
 				tracks+=("$track")
 				[ "$head" = "*" ] && on_branch=1
+				[[ $ref == "refs/heads/$COMPARE_BRANCH_PREFIX"* ]] && continue
 				[[ $upstream == refs/remotes/* ]] && [ "$track" != gone ] || need_list=1
 				;;
 			refs/remotes/*)
@@ -81,6 +83,7 @@ main() {
 	# 알릴 것: 브랜치마다 이름, 끝 커밋, 종류, 수(upstream보다 앞선 것만 바로 안다. 나머지는 알릴 때 센다), 붙일 말
 	local item_names=() item_oids=() item_kinds=() item_counts=() item_suffixes=() i
 	for i in "${!names[@]}"; do
+		[[ ${names[i]} == "$COMPARE_BRANCH_PREFIX"* ]] && continue
 		if [[ ${upstreams[i]} == refs/remotes/* ]] && [ "${tracks[i]}" != gone ]; then
 			parse_track "${tracks[i]}"
 			if [ "$TRACK_AHEAD" -gt 0 ]; then

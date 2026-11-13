@@ -3,6 +3,10 @@
 # 함수는 결과를 전역 변수에 넣는다. $(...)로 받으면 subshell이 하나 더 생기는데, Windows(Git Bash)에서는 이것도 느리다.
 # git·timeout 말고는 bash 기본 기능만 쓴다 (jq, python, sed, awk 없이 돈다).
 
+# 비교판 도구(tools/compare_variants.sh)가 worktree마다 HEAD에서 만드는 브랜치 이름의 앞부분. 그 도구의 BRANCH_PREFIX와 같아야 한다.
+# 원격에 올리지 않는 임시 브랜치라 push 알림에서 뺀다.
+COMPARE_BRANCH_PREFIX="compare/"
+
 # JSON 제어 문자 표. \b \t \n \f \r 말고 나머지 제어 문자(0x01~0x1f)는 \u00XX로 쓴다. bash 문자열에는 0x00이 들어가지 않는다.
 JSON_CONTROL_CHARS=()
 JSON_CONTROL_CODES=()

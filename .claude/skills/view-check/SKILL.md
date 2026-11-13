@@ -1,6 +1,6 @@
 ---
 name: view-check
-description: 화면을 찍거나 눈으로 확인할 때 사용. 스크린샷 setup 고르기, --view_2d 평면 보기, 3D 층 화면, 3D 화면 검사를 하나씩 돌리기(tests/view_3d/check_*.gd), 전투 장면 촬영, 시야 스크린샷·연속 스크린샷·프레임 시간, 박쥐 무리 경로 그림, 두 PNG 비교, 여러 장 붙이기. "스크린샷", "찍어 줘", "화면 확인", "화면 보여 줘", "3D 화면", "앞벽", "벽 가림", "흔들림", "일렁임", "깜빡임", "시야가 어떻게 보여", "프레임 시간", "전후 사진 비교" 같은 말이 나오면 쓴다.
+description: 화면을 찍거나 눈으로 확인할 때 사용. 스크린샷 setup 고르기, --view_2d 평면 보기, 3D 층 화면, 3D 화면 검사를 하나씩 돌리기(tests/view_3d/check_*.gd), 전투 장면 촬영, 시야 스크린샷·연속 스크린샷·프레임 시간, 박쥐 무리 경로 그림, 두 PNG 비교, 여러 장 붙이기. "스크린샷", "찍어 줘", "화면 확인", "화면 보여 줘", "3D 화면", "앞벽", "벽 가림", "흔들림", "일렁임", "깜빡임", "시야가 어떻게 보여", "프레임 시간", "전후 사진 비교" 같은 말이 나오면 쓴다. 여러 안을 나란히 찍어 고르게 하는 비교판은 이 스킬이 아니라 compare-variants 에이전트가 한다.
 ---
 
 # 화면 확인
@@ -47,4 +47,5 @@ description: 화면을 찍거나 눈으로 확인할 때 사용. 스크린샷 se
 ## 5. PNG 비교와 붙이기
 
 - 두 PNG 비교: `bash tools/godot.sh --headless --path . -s tools/compare_images.gd -- <a.png> <b.png>` (달라진 픽셀 수·범위. 같으면 종료 코드 0)
-- 여러 장 붙이기: `bash tools/godot.sh --headless --path . -s tools/contact_sheet.gd -- --out=<a.png> --columns=2 <1.png> <2.png> ...`
+- 여러 장 붙이기: `bash tools/godot.sh --headless --path . -s tools/contact_sheet.gd -- --out=<a.png> --columns=2 <1.png> <2.png> ...` (크기가 달라도 된다. `--numbers`는 그림마다 번호표, `--labels=<UTF-8 글 파일>`은 번호표와 범례 `<a>_legend.txt`)
+- 여러 안을 같은 장면에서 찍어 나란히 보고 고르게 할 때(비교판)는 직접 찍지 말고 `compare-variants` 에이전트에 맡긴다 (`tools/compare_variants.sh`로 안마다 setup이나 worktree를 만들어 같은 인자로 찍는다). 사용자가 고른 것은 `decide` 스킬로 기록한다.

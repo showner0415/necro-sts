@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # tests/ 안의 모든 테스트를 한 번에 돌린다.
-#   1. 규칙 검사: Godot 없이 저장소 규칙을 본다 (tests/check_rules.sh. CLAUDE.md 크기, 스킬 머리말, 문서 속 경로, 시나리오 설명 주석,
+#   1. 규칙 검사: Godot 없이 저장소 규칙을 본다 (tests/check_rules.sh. CLAUDE.md 크기, 스킬·에이전트 머리말, 문서 속 경로, 시나리오 설명 주석,
 #      그룹·오토로드 목록, 밸런스 측정 대상, UI 시나리오, Godot 3 문법, 절대 경로, 규칙 클래스 단위 테스트, Godot 버전 일치)
 #   2. 임포트 (새 스크립트·클래스 반영, 스크립트 오류 확인)
 #   3. 단위 테스트: tests/unit/test_*.gd 전부 (한 번의 실행). 코드·씬·데이터의 색이 팔레트 안인지도 여기서 본다 (test_palette_colors.gd)

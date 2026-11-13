@@ -1,0 +1,2 @@
+# Godot가 이 폴더를 읽지 않게 한다 (에디터·임포트가 건너뛴다. Godot는 이 파일이 있는지만 보고 내용은 보지 않는다).
+# 이 폴더는 비교판 작업 폴더다 (tools/compare_variants.sh). 이 파일 말고는 .gitignore에 있고, 팔레트 검사(tests/unit/test_palette_colors.gd)도 넘어간다.

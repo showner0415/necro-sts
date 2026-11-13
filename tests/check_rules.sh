@@ -3,7 +3,8 @@
 # CLAUDE.md의 "X하면 Y도 한다" 규칙 중 기계로 볼 수 있는 것을 본다. 검사 이름과 보는 것:
 #   CLAUDE.md 크기: CLAUDE.md가 CLAUDE_MD_MAX_BYTES를 넘지 않는다
 #   스킬 머리말: .claude/skills/<폴더>/SKILL.md 맨 위에 name(폴더 이름)과 description이 있다
-#   문서 속 경로: CLAUDE.md·스킬에 백틱으로 적은 경로가 저장소에 있다
+#   에이전트 머리말: .claude/agents/<이름>.md 맨 위에 name(파일 이름)과 description이 있다
+#   문서 속 경로: CLAUDE.md·스킬·에이전트에 백틱으로 적은 경로가 저장소에 있다
 #   시나리오 설명 주석: tests/scenarios/scenario_*.gd 맨 위에 ## 설명 주석이 있다
 #   그룹 목록: 코드·씬에 글자로 쓴 그룹 이름이 모두 CLAUDE.md "### 그룹 목록"에 있고, 목록의 그룹은 게임 코드가 쓴다
 #   오토로드 목록: project.godot [autoload]의 이름과 CLAUDE.md "### 오토로드 목록"의 이름이 같다
@@ -215,10 +216,89 @@ check_claude_md_size() {
 	fi
 }
 
+# 머리말(맨 위 --- 사이)의 name과 description을 본다. 스킬과 에이전트가 같이 쓴다.
+# 인자: name이 무엇과 같아야 하는지의 말("폴더 이름"이나 "파일 이름"), 파일들.
+# 기대하는 name은 경로에서 뽑는다: SKILL.md는 그 폴더 이름, 그 밖의 .md는 확장자를 뗀 파일 이름.
+# 결과: FRONTMATTER_PROBLEMS (문제 줄), FRONTMATTER_NAMES (파일마다 기대하는 name)
+read_frontmatter() {
+	local what="$1"
+	shift
+	FRONTMATTER_PROBLEMS=()
+	FRONTMATTER_NAMES=()
+	[ $# -gt 0 ] || return 0
+	local where state found_name has_description expected
+	# 파일마다 한 줄: <파일>, <머리말 상태>, <name>, <description 있음>을 \037(단위 구분 글자)로 잇는다.
+	# 탭으로 이으면 read가 빈 칸(name이 없을 때)을 건너뛰어 뒤 칸이 당겨진다.
+	# 머리말 상태: 1 = --- 로 열고 닫음, 0 = 닫는 --- 가 없음, -1 = 첫 줄이 --- 가 아님
+	while IFS=$'\037' read -r where state found_name has_description; do
+		if [[ $where == */SKILL.md ]]; then
+			expected="${where%/SKILL.md}"
+			expected="${expected##*/}"
+		else
+			expected="${where##*/}"
+			expected="${expected%.md}"
+		fi
+		FRONTMATTER_NAMES+=("$expected")
+		if [ "$state" = "-1" ]; then
+			FRONTMATTER_PROBLEMS+=("${where}: 첫 줄이 --- 가 아니다 (머리말이 없다)")
+			continue
+		fi
+		if [ "$state" = "0" ]; then
+			FRONTMATTER_PROBLEMS+=("${where}: 머리말을 닫는 --- 줄이 없다")
+			continue
+		fi
+		if [ -z "$found_name" ]; then
+			FRONTMATTER_PROBLEMS+=("${where}: name이 없다")
+		elif [ "$found_name" != "$expected" ]; then
+			FRONTMATTER_PROBLEMS+=("${where}: name(${found_name})이 ${what}(${expected})과 다르다")
+		elif [[ ! "$found_name" =~ ^[a-z0-9-]+$ ]]; then
+			FRONTMATTER_PROBLEMS+=("${where}: name은 소문자·숫자·하이픈만 쓴다 (${found_name})")
+		fi
+		if [ "$has_description" != "1" ]; then
+			FRONTMATTER_PROBLEMS+=("${where}: description이 없다")
+		fi
+	done < <(awk -v q="'" '
+		function report() {
+			if (file == "") return
+			printf "%s\037%d\037%s\037%d\n", file, (state == 2 ? 1 : (state == -1 ? -1 : 0)), found_name, has_description
+		}
+		{ sub(/\r$/, "") }
+		FNR == 1 {
+			report()
+			file = FILENAME
+			found_name = ""
+			has_description = 0
+			block = 0
+			state = ($0 == "---") ? 1 : -1
+			next
+		}
+		state != 1 { next }
+		$0 == "---" { state = 2; next }
+		block && /^[ \t]+[^ \t]/ { has_description = 1; next }
+		{ block = 0 }
+		/^name:/ {
+			value = $0
+			sub(/^name:[ \t]*/, "", value)
+			sub(/[ \t]+$/, "", value)
+			gsub("^[\"" q "]|[\"" q "]$", "", value)
+			found_name = value
+			next
+		}
+		/^description:/ {
+			value = $0
+			sub(/^description:[ \t]*/, "", value)
+			sub(/[ \t]+$/, "", value)
+			if (value ~ /^[>|][-+]?$/) block = 1
+			else if (value != "" && value != "\"\"" && value != q q) has_description = 1
+		}
+		END { report() }
+	' "$@")
+}
+
 # 스킬(.claude/skills/<폴더>/SKILL.md)은 맨 위 머리말의 name과 description으로 불린다.
 check_skill_frontmatter() {
 	local name="스킬 머리말"
-	local problems=() skills=() files=()
+	local problems=() files=()
 	local dir file
 	for dir in .claude/skills/*/; do
 		[ -d "$dir" ] || continue
@@ -229,73 +309,37 @@ check_skill_frontmatter() {
 		fi
 		files+=("$file")
 	done
-	local where state skill_name has_description folder
-	if [ ${#files[@]} -gt 0 ]; then
-		# 파일마다 한 줄: "<파일>\t<머리말 상태>\t<name>\t<description 있음>"
-		# 머리말 상태: 1 = --- 로 열고 닫음, 0 = 닫는 --- 가 없음, -1 = 첫 줄이 --- 가 아님
-		while IFS=$'\t' read -r where state skill_name has_description; do
-			folder="${where%/SKILL.md}"
-			folder="${folder##*/}"
-			if [ "$state" = "-1" ]; then
-				problems+=("${where}: 첫 줄이 --- 가 아니다 (머리말이 없다)")
-				continue
-			fi
-			if [ "$state" = "0" ]; then
-				problems+=("${where}: 머리말을 닫는 --- 줄이 없다")
-				continue
-			fi
-			if [ -z "$skill_name" ]; then
-				problems+=("${where}: name이 없다")
-			elif [ "$skill_name" != "$folder" ]; then
-				problems+=("${where}: name(${skill_name})이 폴더 이름(${folder})과 다르다")
-			elif [[ ! "$skill_name" =~ ^[a-z0-9-]+$ ]]; then
-				problems+=("${where}: name은 소문자·숫자·하이픈만 쓴다 (${skill_name})")
-			fi
-			if [ "$has_description" != "1" ]; then
-				problems+=("${where}: description이 없다")
-			fi
-			skills+=("$folder")
-		done < <(awk -v q="'" '
-			function report() {
-				if (file == "") return
-				printf "%s\t%d\t%s\t%d\n", file, (state == 2 ? 1 : (state == -1 ? -1 : 0)), skill_name, has_description
-			}
-			{ sub(/\r$/, "") }
-			FNR == 1 {
-				report()
-				file = FILENAME
-				skill_name = ""
-				has_description = 0
-				block = 0
-				state = ($0 == "---") ? 1 : -1
-				next
-			}
-			state != 1 { next }
-			$0 == "---" { state = 2; next }
-			block && /^[ \t]+[^ \t]/ { has_description = 1; next }
-			{ block = 0 }
-			/^name:/ {
-				value = $0
-				sub(/^name:[ \t]*/, "", value)
-				sub(/[ \t]+$/, "", value)
-				gsub("^[\"" q "]|[\"" q "]$", "", value)
-				skill_name = value
-				next
-			}
-			/^description:/ {
-				value = $0
-				sub(/^description:[ \t]*/, "", value)
-				sub(/[ \t]+$/, "", value)
-				if (value ~ /^[>|][-+]?$/) block = 1
-				else if (value != "" && value != "\"\"" && value != q q) has_description = 1
-			}
-			END { report() }
-		' "${files[@]}")
-	fi
+	read_frontmatter "폴더 이름" "${files[@]}"
+	problems+=("${FRONTMATTER_PROBLEMS[@]}")
 	if [ ${#problems[@]} -gt 0 ]; then
 		fail_check "$name" "머리말이 잘못된 스킬이 있다. SKILL.md 맨 위를 '---', 'name: <폴더 이름>', 'description: <언제 쓰는지와 그때 나오는 말>', '---' 순서로 쓴다" "${problems[@]}"
 	else
-		pass_check "$name" "스킬 ${#skills[@]}개: ${skills[*]}"
+		pass_check "$name" "스킬 ${#FRONTMATTER_NAMES[@]}개: ${FRONTMATTER_NAMES[*]}"
+	fi
+}
+
+# 프로젝트 서브에이전트(.claude/agents/<이름>.md)는 맨 위 머리말의 description을 보고 맡겨진다. name은 파일 이름과 같게 둔다.
+check_agent_frontmatter() {
+	local name="에이전트 머리말"
+	local problems=() files=() file
+	for file in .claude/agents/*.md; do
+		[ -e "$file" ] || continue
+		if [ ! -s "$file" ]; then
+			problems+=("${file}: 비어 있다")
+			continue
+		fi
+		files+=("$file")
+	done
+	if [ ${#files[@]} -eq 0 ] && [ ${#problems[@]} -eq 0 ]; then
+		pass_check "$name" "에이전트 없음"
+		return
+	fi
+	read_frontmatter "파일 이름" "${files[@]}"
+	problems+=("${FRONTMATTER_PROBLEMS[@]}")
+	if [ ${#problems[@]} -gt 0 ]; then
+		fail_check "$name" "머리말이 잘못된 에이전트가 있다. .claude/agents/<이름>.md 맨 위를 '---', 'name: <파일 이름>', 'description: <언제 맡기는지와 그때 나오는 말>', (tools 등), '---' 순서로 쓴다" "${problems[@]}"
+	else
+		pass_check "$name" "에이전트 ${#FRONTMATTER_NAMES[@]}개: ${FRONTMATTER_NAMES[*]}"
 	fi
 }
 
@@ -346,16 +390,16 @@ extract_doc_paths() {
 	' "$@"
 }
 
-# CLAUDE.md와 스킬에 적은 경로(파일·폴더·res://)가 저장소에 있는지. 파일을 옮기거나 이름을 바꾼 뒤 문서가 낡으면 잡는다.
+# CLAUDE.md, 스킬, 에이전트에 적은 경로(파일·폴더·res://)가 저장소에 있는지. 파일을 옮기거나 이름을 바꾼 뒤 문서가 낡으면 잡는다.
 check_doc_paths() {
 	local name="문서 속 경로"
 	local docs=() file
 	[ -f CLAUDE.md ] && docs+=("CLAUDE.md")
-	for file in .claude/skills/*/SKILL.md; do
+	for file in .claude/skills/*/SKILL.md .claude/agents/*.md; do
 		[ -f "$file" ] && docs+=("$file")
 	done
 	if [ ${#docs[@]} -eq 0 ]; then
-		fail_check "$name" "검사할 문서(CLAUDE.md, 스킬)가 없다"
+		fail_check "$name" "검사할 문서(CLAUDE.md, 스킬, 에이전트)가 없다"
 		return
 	fi
 	# 저장소의 파일·폴더·파일 이름. git이 보는 것만 센다: .gitignore에 있는 파일은 컴퓨터마다 있거나 없어서,
@@ -1267,6 +1311,7 @@ check_godot_version() {
 CHECKS=(
 	check_claude_md_size
 	check_skill_frontmatter
+	check_agent_frontmatter
 	check_doc_paths
 	check_scenario_headers
 	check_group_list

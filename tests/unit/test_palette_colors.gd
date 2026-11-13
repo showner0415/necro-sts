@@ -9,8 +9,12 @@ extends TestCase
 
 const PALETTE_DIR: String = "res://assets/palette"
 const SEARCH_ROOT: String = "res://"
-## 검사하지 않는 폴더 (Godot 캐시, 에셋 원본)
-const SKIP_DIRS: PackedStringArray = [".godot", ".git", "art_src", "addons"]
+## 검사하지 않는 폴더 이름 (Godot 캐시, git, Claude 설정과 그 안의 worktree 사본, 에셋 원본, 플러그인).
+## Windows에서는 점으로 시작하는 폴더도 목록에 나오므로 적어 둔다.
+const SKIP_DIRS: PackedStringArray = [".godot", ".git", ".claude", "art_src", "addons"]
+## 검사하지 않는 폴더 (경로가 똑같을 때만): 비교판 작업 폴더. 안마다 쓴 setup과 코드 안의 worktree 사본이 있다 (tools/compare_variants.sh).
+## .gdignore가 있는 폴더를 모두 넘기지 않고 경로로 적는다 (게임 폴더에 .gdignore가 잘못 생겨도 그 폴더는 검사하게).
+const SKIP_PATHS: PackedStringArray = ["res://compare"]
 const EXTENSIONS: PackedStringArray = ["gd", "tscn", "tres"]
 
 var _palette: Dictionary[String, bool] = {}
@@ -40,8 +44,9 @@ func _load_palette() -> Dictionary[String, bool]:
 
 func _collect_files(dir: String, result: PackedStringArray) -> void:
 	for sub: String in DirAccess.get_directories_at(dir):
-		if not SKIP_DIRS.has(sub):
-			_collect_files(dir.path_join(sub), result)
+		var path: String = dir.path_join(sub)
+		if not SKIP_DIRS.has(sub) and not SKIP_PATHS.has(path):
+			_collect_files(path, result)
 	for file_name: String in DirAccess.get_files_at(dir):
 		if EXTENSIONS.has(file_name.get_extension()):
 			result.append(dir.path_join(file_name))

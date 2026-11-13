@@ -12,6 +12,7 @@
 #      같은 이름의 원격 브랜치가 있으면 그것과 비교한다. 분리된 HEAD와 끝나지 않은 병합·리베이스도 알린다.
 #   3. 커밋하지 않은 변경 수 (수정, 새 파일, 충돌. 새 폴더는 하나로 센다). 처음 MAX_LISTED_FILES개는 이름도 보여 준다.
 #   4. 다른 로컬 브랜치 중 upstream보다 앞서거나 뒤처진 것, 원격에 없는 커밋이 있는 것.
+#      비교판 도구의 compare/… 브랜치(COMPARE_BRANCH_PREFIX)는 원격에 올리지 않으므로 여기서 빼고, 남아 있으면 수만 Claude에게 알린다.
 #   5. 이번 fetch로 바뀐 원격 브랜치 (다른 컴퓨터에서 push한 것)와, 최근에 커밋된 원격 브랜치 몇 개.
 #   6. GODOT_PATH: 없음 / 파일 없음 / 정상. 파일이 있으면 "--version"으로 버전을 읽어 GODOT_VERSION_REQUIRED와 비교한다.
 #      클라우드 세션(CLAUDE_CODE_REMOTE=true)에서 GODOT_PATH가 없으면 건너뛴다 (Godot가 없는 곳이다).
@@ -455,9 +456,10 @@ check_worktree() {
 }
 
 check_other_branches() {
-	local name upstream same why parts=() counted=0 others=0 need_list=0
+	local name upstream same why parts=() counted=0 others=0 need_list=0 compare_count=0
 	for name in "${BRANCH_NAMES[@]}"; do
 		[ "$name" = "$CURRENT_BRANCH" ] && continue
+		[[ $name == "$COMPARE_BRANCH_PREFIX"* ]] && continue
 		if [[ ${BRANCH_UPSTREAM[$name]} != refs/remotes/* ]] || [ "${BRANCH_TRACK[$name]}" = gone ]; then
 			need_list=1
 			break
@@ -466,6 +468,10 @@ check_other_branches() {
 	[ $need_list -eq 1 ] && list_commits_not_on_remotes
 	for name in "${BRANCH_NAMES[@]}"; do
 		[ "$name" = "$CURRENT_BRANCH" ] && continue
+		if [[ $name == "$COMPARE_BRANCH_PREFIX"* ]]; then
+			compare_count=$((compare_count + 1))
+			continue
+		fi
 		others=$((others + 1))
 		upstream=${BRANCH_UPSTREAM[$name]}
 		if [[ $upstream == refs/remotes/* ]]; then
@@ -501,6 +507,9 @@ check_other_branches() {
 			UNPUSHED+=("$name($why)")
 		fi
 	done
+	if [ $compare_count -gt 0 ]; then
+		STATUS+=("- 비교판 작업 브랜치(${COMPARE_BRANCH_PREFIX}…) ${compare_count}개: 원격에 올리지 않는 임시 브랜치라 push 알림에서 뺐다. 목록과 남은 비교 폴더: bash tools/compare_variants.sh list. 다 본 비교는 사용자에게 묻고 clean으로 지운다")
+	fi
 	if [ $others -eq 0 ]; then
 		STATUS+=("- 다른 로컬 브랜치: 없음")
 		return 0
