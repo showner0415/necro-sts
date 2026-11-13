@@ -107,6 +107,7 @@ func finish(success: bool) -> void:
 # --- 밸런스 측정 ---
 
 ## 측정 안에서만 고블린 데이터를 바꾼다 (실제 .tres는 바꾸지 않는다): --burst=3 --burst_interval=0.15 --stone_damage=1 --stone_cooldown=2
+## 언데드 투석병의 체력·공격력 배율만: --goblin_undead_health_ratio=0.65 --goblin_undead_damage_ratio=0.7
 func apply_goblin_args() -> void:
 	var data: MonsterData = load("res://data/monsters/goblin_slinger.tres")
 	_kept_goblin_data = data
@@ -119,6 +120,10 @@ func apply_goblin_args() -> void:
 			data.contact_damage = arg.trim_prefix("--stone_damage=").to_float()
 		elif arg.begins_with("--stone_cooldown="):
 			data.attack_cooldown = arg.trim_prefix("--stone_cooldown=").to_float()
+		elif arg.begins_with("--goblin_undead_health_ratio="):
+			data.undead_health_ratio_override = arg.trim_prefix("--goblin_undead_health_ratio=").to_float()
+		elif arg.begins_with("--goblin_undead_damage_ratio="):
+			data.undead_damage_ratio_override = arg.trim_prefix("--goblin_undead_damage_ratio=").to_float()
 
 
 ## 측정 스크립트가 판 사이에 scene_path 씬을 새로 불러오고 전역 상태(인벤토리·핫바)를 비운다.
