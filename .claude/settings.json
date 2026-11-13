@@ -3,6 +3,10 @@
   "permissions": {
     "allow": [
       "Bash(bash tools/godot.sh *)",
+      "Bash(bash tests/check_rules.sh*)",
+      "Bash(bash tests/run_all.sh*)",
+      "Bash(bash tools/list_scenarios.sh*)",
+      "Bash(bash tools/compare_variants.sh *)",
       "Bash(git status*)",
       "Bash(git diff*)",
       "Bash(git log*)",
