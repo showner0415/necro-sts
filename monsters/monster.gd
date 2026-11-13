@@ -2,7 +2,7 @@ class_name Monster
 extends CharacterBody2D
 ## MonsterData 하나로 움직이는 몬스터.
 ## 배회하다가 네크로맨서나 언데드가 감지 범위에 들어오면 그중 가장 가까운 대상을 노린다.
-## 감지 범위에 아무도 없을 때 맞으면 공격한 대상을 쫓고, 너무 멀어지면 포기하고 맞기 시작한 자리로 돌아간다 (Aggro).
+## 감지 범위에 아무도 없을 때 맞으면 공격한 대상을 쫓고, 종별 추격 포기 조건을 넘으면 포기한다 (Aggro). 포기해도 돌아가지 않고 그 자리에서 배회한다.
 ## 무리(MonsterPack)에 속해 있으면 무리가 정한 대상(set_pack_target)을 자기 판단보다 먼저 노린다.
 ## 대상과 어떻게 싸울지는 데이터의 행동 조각(data.behavior)이 정하고, 수치는 적일 때의 값(data.get_enemy_stats())을 쓴다.
 ## 죽으면 드랍 목록(data.drops)의 확률을 굴려 나온 것을 담은 시체(Corpse)를 남긴다. 네크로맨서가 시체에서 채집한다.
@@ -12,8 +12,6 @@ extends CharacterBody2D
 @export var corpse_scene: PackedScene
 ## 맞았을 때 하얗게 번쩍이는 시간 (초)
 @export var hit_flash_duration: float = 0.1
-## 포기하고 돌아갈 때, 맞기 시작한 자리에서 이 거리 안이면 다 돌아온 것으로 본다 (픽셀)
-@export var return_arrive_distance: float = 4.0
 ## 날아다니는 몬스터(data.flying)가 쓰는 충돌층과, 부딪히는 대상(벽)
 @export_flags_2d_physics var flying_layer: int = 32
 @export_flags_2d_physics var flying_mask: int = 1
@@ -34,8 +32,6 @@ var _target: Node2D
 var _own_target: Node2D
 ## 무리(MonsterPack)가 정한 대상. 있으면 _own_target 대신 이것을 노린다.
 var _pack_target: Node2D
-## 무리 싸움을 시작한 자리 (무리가 포기하면 돌아갈 곳)
-var _pack_home: Vector2
 ## 네크로맨서에게 맞은 표시가 남은 시간 (0이면 없음)
 var _necromancer_mark_left: float = 0.0
 ## 네크로맨서에게 맞은 횟수. 언데드가 "방금 맞았다"(계기)를 알아보는 데 쓴다.
@@ -47,12 +43,11 @@ var _behavior: MonsterBehavior
 var _knockback: Knockback = Knockback.new()
 ## 벽을 돌아서 가는 방향을 정한다 (벽이 없으면 곧장)
 var _path_follower: PathFollower
-## 평소에 감지해서 보던 대상과, 처음 그 대상을 본 자리 (놓치면 그 대상을 쫓는다)
+## 평소에 감지해서 보던 대상 (놓치면 그 대상을 쫓는다)
 var _seen_target: Node2D
-var _seen_origin: Vector2
 ## 감지 범위 밖에서 맞았을 때 공격자를 쫓는 규칙
 var _aggro: Aggro
-## 평소 → 발견 → 싸움 → 찾기 → 돌아가기
+## 평소 → 발견 → 싸움 → 찾기
 var _ai: MonsterAiState = MonsterAiState.new()
 ## 그림이 있는 몬스터(data.has_sprite())의 8방향 그림. 없으면 null이고 임시 도형으로 그린다
 var _sprite: FacingSprite
@@ -65,7 +60,7 @@ const SPRITE_TURN_SPEED: float = 1.0
 func _ready() -> void:
 	health = data.max_health
 	_behavior = data.make_enemy_behavior()
-	_aggro = Aggro.new(data.chase_attacker_limit, data.chase_visible_home_limit, data.chase_lost_time, return_arrive_distance)
+	_aggro = Aggro.new(data.chase_attacker_limit, data.chase_lost_time, data.chase_time_limit)
 	_collision.shape = PlaceholderBody.make_shape(data)
 	_collision.rotation = PlaceholderBody.shape_rotation(data)
 	_collision.position = PlaceholderBody.center(data)
@@ -92,23 +87,16 @@ func _physics_process(delta: float) -> void:
 	var attacker_alive: bool = is_instance_valid(attacker) and not attacker.is_queued_for_deletion()
 	var attacker_visible: bool = attacker_alive and _path_follower.can_see(self, attacker.global_position)
 	_aggro.update(global_position, nearest != null, attacker_alive, attacker.global_position if attacker_alive else Vector2.ZERO, attacker_visible, delta)
-	match _aggro.state:
-		Aggro.State.CHASING:
-			_own_target = _aggro.attacker as Node2D
-		Aggro.State.RETURNING:
-			_own_target = null
-		_:
-			_own_target = nearest
+	# 쫓다가 포기하면(Aggro가 평소로 돌아가면) 그 자리에서 감지 범위 안의 대상만 다시 본다.
+	_own_target = _aggro.attacker as Node2D if _aggro.state == Aggro.State.CHASING else nearest
 	# 무리에 대상이 있으면 자기 판단과 상관없이 그 대상을 노린다.
 	_target = _pack_target if _is_alive_node(_pack_target) else _own_target
 	var target_visible: bool = _target != null and _path_follower.can_see(self, _target.global_position)
-	_ai.update(_target != null, _behavior.is_busy(), _aggro.state == Aggro.State.RETURNING, target_visible)
+	_ai.update(_target != null, _behavior.is_busy(), target_visible)
 	# 하던 동작(돌진 예고 등)은 대상이 사라져도 이어 간다. 찾기(대상이 벽 뒤)는 지금은 길을 따라 쫓는 것을 그대로 쓴다.
 	if _ai.is_fighting():
 		_behavior.act(self, data.get_enemy_stats(), _target, delta)
 		_apply_spacing()
-	elif _ai.state == MonsterAiState.State.RETURNING:
-		velocity = get_move_direction(_aggro.origin) * data.move_speed
 	else:
 		_wander(delta)
 	if _knockback.is_active():
@@ -142,7 +130,7 @@ func get_target() -> Node2D:
 	return _target
 
 
-## 테스트·디버그용: 지금 상태 (평소·발견·싸움·찾기·돌아가기)
+## 테스트·디버그용: 지금 상태 (평소·발견·싸움·찾기)
 func get_ai_state() -> MonsterAiState.State:
 	return _ai.state
 
@@ -162,7 +150,7 @@ func get_path_follower() -> PathFollower:
 	return _path_follower
 
 
-## 테스트·디버그용: 공격자 추격 상태 (Aggro.State)와 맞기 시작한 자리
+## 테스트·디버그용: 공격자 추격 상태 (Aggro.State)
 func get_aggro() -> Aggro:
 	return _aggro
 
@@ -210,26 +198,19 @@ func _wander(delta: float) -> void:
 
 
 ## 무리(MonsterPack)가 프레임마다 정해 준다: 무리 대상 (없으면 null). 있으면 자기 판단 대신 이 대상을 노린다.
-## 무리 대상이 처음 생길 때의 자리를 기억해 두었다가, 무리가 포기하면(return_home) 그리로 돌아간다.
 func set_pack_target(target: Node2D) -> void:
-	if target != null and _pack_target == null:
-		_pack_home = _aggro.origin if _aggro.state != Aggro.State.IDLE else global_position
 	_pack_target = target
 
 
-## 무리가 함께 포기했을 때 부른다. 무리 싸움을 시작한 자리로 돌아간다 (돌아가는 동안 감지·피격으로 대상을 바꾸지 않는다).
-func return_home() -> void:
+## 무리가 함께 포기했을 때 부른다. 돌아가지 않고 그 자리에서 평소 행동(배회)을 한다. 스스로 쫓던 것도 그만둔다.
+func clear_pack_target() -> void:
 	_pack_target = null
-	_aggro.start_return(_pack_home)
+	_aggro.give_up()
 
 
-## 이 몬스터가 무리 대상 target을 아직 원하는지: 감지 범위 안이거나,
-## 공격한 대상을 쫓는 한계 안(대상과 chase_attacker_limit, 무리 싸움을 시작한 자리에서 chase_home_limit)이면 원한다.
-func wants_pack_target(target: Node2D) -> bool:
-	var distance: float = global_position.distance_to(target.global_position)
-	if distance <= data.detect_range:
-		return true
-	return distance <= data.chase_attacker_limit and global_position.distance_to(_pack_home) <= data.chase_home_limit
+## point(발밑 좌표)가 보이는지: 몸 가운데에서 point까지 벽이 가리지 않는지 (거리는 보지 않는다). 무리가 시야를 합칠 때 쓴다.
+func can_see_point(point: Vector2) -> bool:
+	return _path_follower.can_see(self, point)
 
 
 ## 무리 판단용: 무리 대상과 상관없이 이 몬스터가 스스로 노렸을 대상 (감지·공격자 쫓기 규칙)
@@ -245,7 +226,7 @@ func _is_alive_node(node: Node2D) -> bool:
 func take_damage(amount: float, source: Node2D = null) -> void:
 	if health <= 0.0:
 		return
-	_aggro.on_hit(source, global_position, _find_nearest_target() != null)
+	_aggro.on_hit(source, _find_nearest_target() != null)
 	if source != null and source.is_in_group(&"necromancer"):
 		_necromancer_mark_left = necromancer_mark_duration
 		_necromancer_hits += 1
@@ -294,20 +275,17 @@ func _draw() -> void:
 		PlaceholderBody.draw(self, data, get_placeholder_tint(), PlaceholderBody.center(data))
 
 
-## 평소(IDLE)에 보던 대상을 기억했다가, 놓치면(벽 뒤로 숨거나 감지 범위를 벗어남) 공격자를 쫓을 때와 같은 한계까지 쫓는다.
-## 쫓는 한계의 "시작 자리"는 처음 대상을 본 자리다.
+## 평소(IDLE)에 보던 대상을 기억했다가, 놓치면(벽 뒤로 숨거나 감지 범위를 벗어남) 공격자를 쫓을 때와 같은 포기 조건까지 쫓는다.
 func _remember_seen_target(nearest: Node2D) -> void:
 	if _aggro.state != Aggro.State.IDLE:
 		_seen_target = null
 		return
 	if nearest != null:
-		if _seen_target == null:
-			_seen_origin = global_position
 		_seen_target = nearest
 		return
 	# 사라진 객체는 형이 있는 인자로 넘기면 오류이므로 여기서 바로 확인한다.
 	if is_instance_valid(_seen_target) and not _seen_target.is_queued_for_deletion():
-		_aggro.start_chase(_seen_target, _seen_origin)
+		_aggro.start_chase(_seen_target)
 	_seen_target = null
 
 

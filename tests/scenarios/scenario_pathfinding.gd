@@ -5,6 +5,7 @@ extends ScenarioTest
 ## 3. 막다른 굴의 쥐는 감지 거리 안이어도 벽 너머 네크로맨서를 감지하지 못함
 ## 4. 쥐가 보던 네크로맨서가 벽 뒤로 숨으면, 놓친 대상을 쫓아 꺾인 길로 돌아서 옴
 ## 5. 멧돼지가 보던 네크로맨서가 벽 뒤(돌진 거리 안)로 숨으면, 예고하지 않고 돌아서 오고 벽이 없어진 뒤에 예고함
+## 5-1. 실제 멧돼지 값으로는 숨은 대상을 못 본 지 3초에 포기하고, 돌아가지 않고 그 자리에 머묾 (5는 포기 시간을 늘린 데이터 복사본으로 길찾기만 본다)
 ## 6. 멧돼지 돌진이 벽에 막혀 그 자리에서 끝남
 ## 6-1. 벽 바로 앞의 네크로맨서에게 가까이 붙은 멧돼지는, 돌진 방향으로 벽까지 거리가 min_charge_room(지금 64px)보다 짧으면 예고하지 않고 물러나 거리를 벌린 뒤 예고함
 ## 7. 벽 너머 쥐에게 쏜 탄이 벽에 막혀 사라짐
@@ -59,6 +60,11 @@ const WALL_NECRO_TILE: Vector2 = Vector2(14, 11.5)
 ## 이 칸 열보다 왼쪽으로 와야 꺾인 길로 돌아온 것이다
 const DETOUR_MAX_COLUMN: float = 10.5
 const BOAR_TIMEOUT_FRAMES: int = 1200
+## 5. 우회를 확인할 멧돼지의 "못 본 시간" 한계 (초). 실제 값(3초)으로는 우회(약 7초) 전에 포기한다
+const BOAR_DETOUR_LOST_TIME: float = 20.0
+## 5-1. 포기하는 시각이 chase_lost_time에서 벗어나도 되는 시간 (초), 포기한 뒤 지켜보는 시간 (프레임)
+const BOAR_GIVE_UP_TOLERANCE: float = 0.2
+const BOAR_STAY_FRAMES: int = 60
 ## 7. 탄: 마우스를 누르고 있는 시간과 지켜보는 시간 (프레임)
 const BOLT_PRESS_FRAMES: int = 10
 const BOLT_WATCH_FRAMES: int = 60
@@ -137,6 +143,8 @@ func _run() -> void:
 	if not await _rat_goes_around():
 		return
 	if not await _boar_goes_around():
+		return
+	if not await _boar_gives_up_when_hidden():
 		return
 	if not await _charge_stops_at_wall():
 		return
@@ -294,7 +302,11 @@ func _wait_target(monster: Monster) -> int:
 
 func _boar_goes_around() -> bool:
 	_necromancer.global_position = _tile(BOAR_SEEN_NECRO_TILE)
-	var boar: Monster = _spawn(BOAR_PATH, WALL_BOAR_TILE)
+	# 실제 멧돼지는 못 본 지 3초면 포기해서 이 우회(약 7초)를 하지 못한다. 길찾기만 보려고 포기 시간을 늘린 복사본을 쓴다.
+	var patient: MonsterData = (load(BOAR_PATH) as MonsterData).duplicate()
+	patient.chase_lost_time = BOAR_DETOUR_LOST_TIME
+	patient.chase_time_limit = 0.0
+	var boar: Monster = _spawn(BOAR_PATH, WALL_BOAR_TILE, patient)
 	if await _wait_target(boar) < 0:
 		boar.queue_free()
 		return _check("멧돼지가 네크로맨서를 봄", false, "%d프레임 안에 대상을 정하지 않음" % TARGET_FRAMES)
@@ -319,6 +331,34 @@ func _boar_goes_around() -> bool:
 	boar.queue_free()
 	await wait_frames(2)
 	return _check("멧돼지가 벽 너머에서는 돌진하지 않고 돌아서 옴", ok, evidence)
+
+
+# --- 5-1. 실제 멧돼지는 벽 뒤로 숨은 대상을 못 본 지 chase_lost_time초(지금 3초)면 포기하고 그 자리에 머묾 ---
+
+func _boar_gives_up_when_hidden() -> bool:
+	_necromancer.global_position = _tile(BOAR_SEEN_NECRO_TILE)
+	var boar: Monster = _spawn(BOAR_PATH, WALL_BOAR_TILE)
+	if await _wait_target(boar) < 0:
+		boar.queue_free()
+		return _check("멧돼지가 네크로맨서를 봄 (실제 값)", false, "%d프레임 안에 대상을 정하지 않음" % TARGET_FRAMES)
+	_necromancer.global_position = _tile(WALL_NECRO_TILE)
+	await wait_frames(1)
+	var frames: int = 0
+	while frames < BOAR_TIMEOUT_FRAMES and boar.get_target() != null:
+		await wait_frames(1)
+		frames += 1
+	var gave_up_at: Vector2 = boar.global_position
+	var seconds: float = frames / float(Engine.physics_ticks_per_second)
+	await wait_frames(BOAR_STAY_FRAMES)
+	var moved: float = boar.global_position.distance_to(gave_up_at)
+	# 포기한 뒤에는 배회만 한다 (배회 속도로 BOAR_STAY_FRAMES 동안 갈 수 있는 거리 안).
+	var allowance: float = boar.data.wander_speed * BOAR_STAY_FRAMES / float(Engine.physics_ticks_per_second) + 1.0
+	var ok: bool = absf(seconds - boar.data.chase_lost_time) <= BOAR_GIVE_UP_TOLERANCE and boar.get_target() == null and moved <= allowance
+	var evidence: String = "숨은 뒤 %.1f초에 포기 (못 본 시간 한계 %.1f초), %d프레임 뒤 노리는 대상 %s, 포기한 자리에서 %.1f 움직임 (배회만이면 %.1f 안)" % [
+		seconds, boar.data.chase_lost_time, BOAR_STAY_FRAMES, boar.get_target(), moved, allowance]
+	boar.queue_free()
+	await wait_frames(2)
+	return _check("실제 멧돼지는 숨은 대상을 포기하고 그 자리에 머묾", ok, evidence)
 
 
 # --- 6. 돌진이 벽에 막힘 ---

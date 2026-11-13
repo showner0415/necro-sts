@@ -1,7 +1,7 @@
 extends ScenarioTest
 ## 시나리오: 몬스터 타게팅.
-## 감지 범위 밖에서 쥐를 쏘면 공격자를 노리고 다가옴 → 공격자와 너무 멀어지면(쥐 데이터의 chase_attacker_limit, 지금 350) 포기하고 맞기 시작한 자리로 돌아감
-## (돌아가는 중에는 감지 범위에 들어와도 무시, 체력 그대로) → 다시 쏘면 쫓아오다 감지 범위에 들어오면 가장 가까운 대상
+## 감지 범위 밖에서 쥐를 쏘면 공격자를 노리고 다가옴 → 공격자와 너무 멀어지면(쥐 데이터의 chase_attacker_limit, 지금 350) 포기하고, 맞기 시작한 자리로 돌아가지 않고 포기한 자리에 머묾
+## (체력 그대로, 감지 범위에 들어오면 바로 다시 노림) → 다시 쏘면 쫓아오다 감지 범위에 들어오면 가장 가까운 대상
 ## → 감지 범위 안에서 언데드와 싸우는 중에는 네크로맨서가 쏴도 가장 가까운 대상(언데드)을 계속 노림.
 ##
 ## 쥐 두 마리만 남기고 다른 몬스터는 치운다. 쥐 데이터는 복사해서 바꾼다 (실제 데이터 파일은 바꾸지 않는다).
@@ -14,9 +14,17 @@ const TIMEOUT_FRAMES: int = 600
 const APPROACH_FRAMES: int = 20
 ## 포기시키려고 네크로맨서를 쥐에게서 공격자 한계(쥐 데이터의 chase_attacker_limit)보다 이만큼 더 서쪽으로 떨어뜨린다
 const FAR_MARGIN: float = 50.0
-## 돌아가는 중에 네크로맨서를 쥐 옆(감지 범위 안)에 둔다
+## 포기한 뒤 네크로맨서를 쥐 옆(감지 범위 안)에 둔다
 const NEAR_OFFSET: Vector2 = Vector2(-30, 0)
-const IGNORE_FRAMES: int = 10
+## 포기시키기 전에 더 쫓아오게 두는 시간 (프레임). 감지 범위에 들어오기 전까지만 쫓게 한다
+const CHASE_FRAMES: int = 40
+## 포기하기 전에 맞기 시작한 자리에서 이만큼은 쫓아왔어야 한다 (픽셀)
+const MIN_CHASED: float = 25.0
+## 포기한 뒤 지켜보는 시간 (프레임)과, 그동안 포기한 자리에서 벗어나도 되는 거리 (픽셀)
+const STAY_FRAMES: int = 120
+const STAY_TOLERANCE: float = 2.0
+## 감지 범위에 들어온 대상을 다시 노리기까지 기다리는 시간 (프레임)
+const REDETECT_FRAMES: int = 10
 const RAT_SKULL_PATH: String = "res://data/skulls/rat_skull.tres"
 const BONE_PATH: String = "res://data/items/bone.tres"
 const BONES: int = 10
@@ -30,6 +38,8 @@ const FIGHT_FRAMES: int = 90
 var _necromancer: Necromancer
 var _rat: Monster
 var _fight_rat: Monster
+## 처음 쥐가 맞기 시작한 자리 (포기한 뒤 이리로 돌아가지 않는지 본다)
+var _hit_position: Vector2
 
 
 func get_start_scene() -> String:
@@ -76,7 +86,7 @@ func _run() -> void:
 
 	if not await _shoot_from_outside():
 		return
-	if not await _give_up_and_return():
+	if not await _give_up_and_stay():
 		return
 	if not await _chase_then_nearest():
 		return
@@ -106,12 +116,12 @@ func _shoot_from_outside() -> bool:
 			"쥐까지 %.0f (감지 %.0f, 사거리 %.0f), 노리는 대상 %s" % [distance, _rat.data.detect_range, _necromancer.attack.projectile_range, _target_name(_rat)]):
 		return false
 	var frames: int = await _shoot_once(_rat)
-	var hit_position: Vector2 = _rat.global_position
+	_hit_position = _rat.global_position
 	await wait_frames(1)
 	var aggro: Aggro = _rat.get_aggro()
-	if not _check("맞으면 공격자를 노림", frames >= 0 and aggro.state == Aggro.State.CHASING and _rat.get_target() == _necromancer and aggro.origin.distance_to(hit_position) < 2.0,
-			"%d프레임 만에 맞음 (체력 %.0f/%.0f), 상태 %s, 노리는 대상 %s, 맞기 시작한 자리 %s" % [
-				frames, _rat.health, _rat.data.max_health, _state_name(_rat), _target_name(_rat), aggro.origin.round()]):
+	if not _check("맞으면 공격자를 노림", frames >= 0 and aggro.state == Aggro.State.CHASING and _rat.get_target() == _necromancer,
+			"%d프레임 만에 맞음 (체력 %.0f/%.0f), 상태 %s, 노리는 대상 %s" % [
+				frames, _rat.health, _rat.data.max_health, _state_name(_rat), _target_name(_rat)]):
 		return false
 	var before: float = _rat.global_position.distance_to(_necromancer.global_position)
 	await wait_frames(APPROACH_FRAMES)
@@ -125,35 +135,45 @@ func _far_offset() -> Vector2:
 	return Vector2.LEFT * (_rat.data.chase_attacker_limit + FAR_MARGIN)
 
 
-func _give_up_and_return() -> bool:
-	var origin: Vector2 = _rat.get_aggro().origin
+## 쫓아오게 둔 뒤 공격자를 한계 밖으로 옮긴다: 포기하고, 맞기 시작한 자리로 돌아가지 않고 포기한 자리에 머문다.
+func _give_up_and_stay() -> bool:
+	await wait_frames(CHASE_FRAMES)
 	var health: float = _rat.health
 	_necromancer.global_position = _rat.global_position + _far_offset()
 	await wait_frames(WAIT_FRAMES)
-	if not _check("공격자와 멀어지면 포기", _rat.get_aggro().state == Aggro.State.RETURNING and _rat.get_target() == null,
-			"공격자까지 %.0f (한계 %.0f), 상태 %s, 노리는 대상 %s" % [
-				_rat.global_position.distance_to(_necromancer.global_position), _rat.data.chase_attacker_limit, _state_name(_rat), _target_name(_rat)]):
+	var gave_up_at: Vector2 = _rat.global_position
+	var chased: float = gave_up_at.distance_to(_hit_position)
+	if not _check("공격자와 멀어지면 포기", _rat.get_aggro().state == Aggro.State.IDLE and _rat.get_target() == null and chased > MIN_CHASED,
+			"공격자까지 %.0f (한계 %.0f), 상태 %s, 노리는 대상 %s, 맞기 시작한 자리에서 %.0f 쫓아옴" % [
+				_rat.global_position.distance_to(_necromancer.global_position), _rat.data.chase_attacker_limit, _state_name(_rat), _target_name(_rat), chased]):
 		return false
 
-	# 돌아가는 중에는 바로 옆(감지 범위 안)에 있어도 노리지 않는다.
-	_necromancer.global_position = _rat.global_position + NEAR_OFFSET
-	var ignored: bool = true
-	for i: int in IGNORE_FRAMES:
-		await wait_frames(1)
-		ignored = ignored and _rat.get_aggro().state == Aggro.State.RETURNING and _rat.get_target() == null
-	if not _check("돌아가는 중에는 감지 무시", ignored,
-			"감지 범위 안(%.0f)에서 %d프레임 동안 상태 %s, 노리는 대상 %s" % [
-				_rat.global_position.distance_to(_necromancer.global_position), IGNORE_FRAMES, _state_name(_rat), _target_name(_rat)]):
+	# 돌아가지 않는다: 포기한 자리에서 평소 행동을 한다 (이 쥐는 배회 속도가 0이라 그 자리에 서 있는다).
+	await wait_frames(STAY_FRAMES)
+	var moved: float = _rat.global_position.distance_to(gave_up_at)
+	var from_hit: float = _rat.global_position.distance_to(_hit_position)
+	if not _check("포기한 자리에 머묾 (돌아가지 않음)", moved <= STAY_TOLERANCE and from_hit > MIN_CHASED and _rat.health == health and _rat.get_aggro().state == Aggro.State.IDLE,
+			"%d프레임 뒤 포기한 자리에서 %.1f, 맞기 시작한 자리에서 %.0f, 체력 %.0f (포기하기 전 %.0f, 회복 안 함), 상태 %s" % [
+				STAY_FRAMES, moved, from_hit, _rat.health, health, _state_name(_rat)]):
 		return false
-	# 끼어들지 않게 다시 멀리 둔다.
-	_necromancer.global_position = origin + _far_offset()
-	var frames: int = 0
-	while _rat.get_aggro().state == Aggro.State.RETURNING and frames < TIMEOUT_FRAMES:
+
+	# 돌아가는 동안 감지를 무시하던 규칙은 없다: 감지 범위에 들어오면 바로 다시 노린다.
+	_necromancer.global_position = _rat.global_position + NEAR_OFFSET
+	var frames: int = -1
+	for i: int in REDETECT_FRAMES:
 		await wait_frames(1)
-		frames += 1
-	return _check("맞기 시작한 자리로 돌아감", _rat.get_aggro().state == Aggro.State.IDLE and _rat.global_position.distance_to(origin) <= _rat.return_arrive_distance + 1.0 and _rat.health == health,
-			"%d프레임 만에 도착, 맞기 시작한 자리까지 %.1f, 체력 %.0f (돌아가기 전 %.0f, 회복 안 함)" % [
-				frames, _rat.global_position.distance_to(origin), _rat.health, health])
+		if _rat.get_target() == _necromancer:
+			frames = i + 1
+			break
+	if not _check("포기한 뒤 감지 범위에 들어오면 바로 노림", frames >= 0 and _rat.get_aggro().state == Aggro.State.IDLE,
+			"감지 범위 안(%.0f)에 두고 %d프레임 만에 노리는 대상 %s, 상태 %s" % [
+				_rat.global_position.distance_to(_necromancer.global_position), frames, _target_name(_rat), _state_name(_rat)]):
+		return false
+	# 다음 단계를 위해 다시 포기시킨다 (보던 대상을 놓쳐 쫓다가, 한계 밖이라 바로 포기한다).
+	_necromancer.global_position = _rat.global_position + _far_offset()
+	await wait_frames(WAIT_FRAMES)
+	return _check("다시 멀어지면 다시 포기", _rat.get_aggro().state == Aggro.State.IDLE and _rat.get_target() == null,
+			"상태 %s, 노리는 대상 %s" % [_state_name(_rat), _target_name(_rat)])
 
 
 func _chase_then_nearest() -> bool:

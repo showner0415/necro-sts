@@ -42,14 +42,14 @@ enum PlaceholderShape { CIRCLE, ELLIPSE, DIAMOND }
 @export var attack_cooldown: float = 1.0
 
 @export_group("추격")
-## 쫓는 대상(감지 범위 밖에서 때린 공격자, 또는 보다가 놓친 대상)과 이 거리보다 멀어지면 포기한다 (픽셀)
+## 종별 추격 포기 조건 (ChaseClock). 값이 0인 조건은 쓰지 않는다. 포기해도 돌아가지 않고 그 자리에서 평소 행동을 한다.
+## 무리(MonsterPack)는 무리원 모두가 자기 조건을 넘어야 함께 포기한다.
+## 쫓는 대상(감지 범위 밖에서 때린 공격자, 보다가 놓친 대상, 무리 대상)과 이 거리보다 멀어지면 포기한다 (픽셀)
 @export var chase_attacker_limit: float = 350.0
-## 쫓는 대상이 보이는 동안, 쫓기 시작한 자리(맞기 시작한 자리 또는 처음 대상을 본 자리)에서 이 거리보다 멀어지면 포기하고 그 자리로 돌아간다 (픽셀, 임시값)
-@export var chase_visible_home_limit: float = 400.0
-## 쫓는 대상이 보이지 않게 된 뒤(벽 뒤로 숨음) 이 시간(초) 동안 다시 보지 못하면 포기한다. 다시 보면 처음부터 잰다 (임시값)
+## 쫓는 대상을 이 시간(초) 넘게 보지 못하면(벽 뒤로 숨음) 포기한다. 다시 보면 처음부터 잰다 (임시값)
 @export var chase_lost_time: float = 5.0
-## 무리(MonsterPack)가 함께 포기하는 한계: 무리 싸움을 시작한 자리에서 이 거리보다 멀어진 멤버는 무리 대상을 더 원하지 않는다 (픽셀)
-@export var chase_home_limit: float = 150.0
+## 감지 범위 밖의(또는 안 보이는) 대상을 이 시간(초) 넘게 쫓으면 포기한다. 감지 범위 안에서 보이거나 맞으면 처음부터 잰다 (임시값)
+@export var chase_time_limit: float = 0.0
 
 @export_group("배회")
 @export var wander_speed: float = 15.0

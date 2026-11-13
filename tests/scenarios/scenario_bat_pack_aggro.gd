@@ -2,20 +2,24 @@ extends ScenarioTest
 ## 시나리오: 박쥐 무리의 공동 어그로.
 ## 감지 범위 밖에서 한 마리만 쏴도 세 마리 모두 네크로맨서를 노림 → 언데드가 한 마리를 치면 모두 언데드로 바뀜
 ## (가까이 다른 대상이 있어도 가장 최근 어그로를 따름) → 네크로맨서가 다시 치면 모두 네크로맨서 →
-## 모두가 쫓기 한계를 넘으면 무리가 함께 포기하고 각자 무리 싸움을 시작한 자리로 돌아감.
+## 모두가 추격 포기 조건(대상과 350px)을 넘으면 무리가 함께 포기하고, 돌아가지 않고 그 자리에서 평소 행동(배회)을 함.
 ## 박쥐 말고 다른 몬스터는 치운다. 네크로맨서는 체력을 크게 해서 죽지 않게 한다.
 
 const TIMEOUT_FRAMES: int = 120
-const RETURN_TIMEOUT_FRAMES: int = 900
+## 포기한 뒤 지켜보는 시간 (프레임)과, 그동안 배회로 움직여도 되는 거리 (픽셀. 배회 속도 15로 2초면 30)
+const STAY_FRAMES: int = 120
+const STAY_ALLOWANCE: float = 40.0
+## 포기할 때 적어도 한 마리는 처음 자리에서 이만큼 떨어져 있어야 "돌아가지 않음"을 볼 수 있다 (픽셀)
+const MIN_AWAY: float = 60.0
+## 포기시키기 전에 싸우게 두는 시간 (프레임). 박쥐가 처음 자리에서 멀어진다
+const FIGHT_FRAMES: int = 120
 ## 박쥐 무리 가운데에서 이만큼 떨어져 선다 (감지 범위 110 밖, 사거리 160 안)
 const STAND_OFFSET: Vector2 = Vector2(150, 0)
-## 무리가 포기하도록 네크로맨서를 옮기는 거리 (쫓기 한계 250 밖)
+## 무리가 포기하도록 네크로맨서를 옮기는 거리 (추격 포기 거리 350 밖)
 const FAR_OFFSET: Vector2 = Vector2(700, 0)
 const RAT_SKULL_PATH: String = "res://data/skulls/rat_skull.tres"
 const BONE_PATH: String = "res://data/items/bone.tres"
 const BONES: int = 30
-## 다 돌아왔다고 보는 거리 (Monster.return_arrive_distance보다 조금 넉넉하게)
-const HOME_TOLERANCE: float = 8.0
 
 var _necromancer: Necromancer
 var _bats: Array[Monster] = []
@@ -68,6 +72,10 @@ func _run() -> void:
 			_bats.append(monster)
 		else:
 			monster.free()
+	# 박쥐마다 처음 있던 자리 (포기한 뒤 이리로 돌아가지 않는지 본다)
+	var homes: Array[Vector2] = []
+	for bat: Monster in _bats:
+		homes.append(bat.global_position)
 	var pack_center: Vector2 = Vector2.ZERO
 	for bat: Monster in _bats:
 		pack_center += bat.global_position / _bats.size()
@@ -127,33 +135,38 @@ func _run() -> void:
 		finish(false)
 		return
 
-	# 5. 언데드를 내리고 네크로맨서가 멀리 가면 무리가 함께 포기하고, 각자 시작한 자리로 돌아감
+	# 5. 언데드를 내리고 네크로맨서가 멀리 가면 무리가 함께 포기하고, 돌아가지 않고 그 자리에서 평소 행동(배회)을 한다
 	_necromancer.summoner.toggle_selected()
+	# 박쥐가 네크로맨서 곁으로 날아와 처음 자리에서 멀어지게 둔다.
+	await wait_frames(FIGHT_FRAMES)
 	_necromancer.global_position += FAR_OFFSET
 	var gave_up: int = -1
 	for frame: int in TIMEOUT_FRAMES:
-		if _bats.all(func(bat: Monster) -> bool: return bat.get_target() == null and bat.get_aggro().state == Aggro.State.RETURNING):
+		if _bats.all(func(bat: Monster) -> bool: return bat.get_target() == null and bat.get_aggro().state == Aggro.State.IDLE):
 			gave_up = frame
 			break
 		await wait_frames(1)
 	if not _check("함께 포기", gave_up >= 0, "네크로맨서를 %s만큼 옮기고 %d프레임 만에: %s" % [FAR_OFFSET, gave_up, _describe()]):
 		finish(false)
 		return
-	var homes: Array[Vector2] = []
-	for bat: Monster in _bats:
-		homes.append(bat.get_aggro().origin)
-	var back: int = -1
-	for frame: int in RETURN_TIMEOUT_FRAMES:
-		if _bats.all(func(bat: Monster) -> bool: return bat.get_aggro().state == Aggro.State.IDLE):
-			back = frame
-			break
-		await wait_frames(1)
-	var distances: Array = []
+	var gave_up_at: Array[Vector2] = []
+	var from_home: Array[float] = []
 	for i: int in _bats.size():
-		distances.append("%.1f" % _bats[i].global_position.distance_to(homes[i]))
-	_check("각자 시작한 자리로 돌아감", back >= 0 and _bats.all(func(bat: Monster) -> bool: return bat.get_target() == null),
-		"%d프레임 만에 모두 평소 상태, 돌아갈 자리까지 거리 %s (도착 기준 %.0f): %s" % [back, distances, HOME_TOLERANCE, _describe()])
-	finish(back >= 0)
+		gave_up_at.append(_bats[i].global_position)
+		from_home.append(_bats[i].global_position.distance_to(homes[i]))
+	await wait_frames(STAY_FRAMES)
+	var moved: Array[float] = []
+	var home_now: Array = []
+	for i: int in _bats.size():
+		moved.append(_bats[i].global_position.distance_to(gave_up_at[i]))
+		home_now.append("%.0f" % _bats[i].global_position.distance_to(homes[i]))
+	# 배회 속도로는 STAY_FRAMES 동안 STAY_ALLOWANCE 안에서만 움직인다. 예전처럼 돌아가면(속도 100) 그보다 훨씬 멀리 간다.
+	var stayed: bool = moved.max() <= STAY_ALLOWANCE and from_home.max() > MIN_AWAY \
+			and _bats.all(func(bat: Monster) -> bool: return bat.get_target() == null and bat.get_aggro().state == Aggro.State.IDLE)
+	_check("포기한 자리에서 평소 행동 (돌아가지 않음)", stayed,
+		"포기할 때 처음 자리에서 %s 떨어져 있었고, %d프레임 뒤 포기한 자리에서 움직인 거리 %s (배회만이면 %.0f 안), 처음 자리까지 %s: %s" % [
+			from_home.map(func(d: float) -> String: return "%.0f" % d), STAY_FRAMES, moved.map(func(d: float) -> String: return "%.0f" % d), STAY_ALLOWANCE, home_now, _describe()])
+	finish(stayed)
 
 
 ## 쥐 언데드를 소환해 돌려준다 (네크로맨서 옆에 나온다).

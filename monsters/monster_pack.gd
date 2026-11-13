@@ -1,6 +1,7 @@
 class_name MonsterPack
 extends Node
 ## 몬스터 무리. members의 몬스터들이 함께 싸우고(한 멤버라도 어그로가 끌리면 무리 전체가 그 대상을 노린다, PackAggro),
+## 무리원 모두가 종별 추격 포기 조건을 넘으면 함께 포기해 그 자리에서 평소 행동을 한다.
 ## 함께 동시 공격을 하도록 시각을 맞춘다 (예: 박쥐 3마리의 동시 돌진).
 ## 첫 멤버의 행동 조각이 make_pack_attack()으로 규칙(PackAttack)을 만들고, 모든 멤버의 행동 조각에 join_pack()으로 나눠 준다.
 ## 동시 공격을 지원하지 않는 행동 조각이면 아무것도 하지 않는다.
@@ -19,8 +20,8 @@ var _aggro: PackAggro = PackAggro.new()
 var _last_own_targets: Dictionary = {}
 ## 이번 프레임에 멤버를 때린 쪽들 (순서대로, 마지막이 가장 최근)
 var _hits: Array[Node2D] = []
-## 함께 포기하고 돌아가는 중인지
-var _returning: bool = false
+## 무리가 쫓다가 포기하는 조건을 재는 시계 (무리원 모두의 눈을 합쳐서 잰다)
+var _chase: ChaseClock = ChaseClock.new()
 ## 이번 싸움에서 자리의 기준 각도를 정했는지 (싸우는 멤버가 없어지면 다시 정한다)
 var _formation_set: bool = false
 
@@ -41,7 +42,7 @@ func _physics_process(delta: float) -> void:
 	if not _set_up:
 		_set_up = true
 		_bind()
-	_share_targets()
+	_share_targets(delta)
 	if _pack == null:
 		return
 	var fighting: Array[Monster] = []
@@ -79,15 +80,11 @@ func _assign_slots(fighting: Array[Monster]) -> void:
 
 ## 무리는 함께 싸운다 (PackAggro): 한 멤버라도 어그로가 끌리면(맞음, 또는 대상이 없다가 새로 감지함)
 ## 그 대상이 무리 대상이 되고, 모든 멤버가 자기 판단과 상관없이 무리 대상을 노린다. 가장 최근 어그로가 이긴다.
-## 멤버 아무도 무리 대상을 원하지 않게 되면(Monster.wants_pack_target) 무리가 함께 포기하고 각자 시작한 자리로 돌아간다.
-func _share_targets() -> void:
+## 무리원 모두가 자기 종의 추격 포기 조건(ChaseClock)을 넘으면 무리가 함께 포기하고, 그 자리에서 평소 행동을 한다 (돌아가지 않는다).
+func _share_targets(delta: float) -> void:
 	var alive: Array[Monster] = _alive_members()
-	# 함께 포기하고 돌아가는 중에는, 모두 다 돌아갈 때까지 어그로를 받지 않는다 (몬스터 타게팅의 돌아가기 규칙과 같다).
-	if _returning:
-		_returning = alive.any(func(monster: Monster) -> bool: return monster.get_aggro().state == Aggro.State.RETURNING)
+	if alive.is_empty():
 		_hits.clear()
-		for monster: Monster in alive:
-			_last_own_targets[monster] = null
 		return
 	for monster: Monster in alive:
 		var own: Node2D = monster.get_own_target()
@@ -95,11 +92,17 @@ func _share_targets() -> void:
 		if own != null and not is_instance_valid(last):
 			_aggro.on_aggro(own)
 		_last_own_targets[monster] = own
+	var was_hit: bool = false
 	for source: Node2D in _hits:
 		if is_instance_valid(source) and not source.is_queued_for_deletion():
 			_aggro.on_aggro(source)
+			was_hit = true
 	_hits.clear()
-	_aggro.resolve()
+	# 대상이 새로 생기거나 바뀌면 포기 조건을 처음부터 잰다. 같은 대상에게 다시 맞으면 추격 시간만 다시 잰다.
+	if _aggro.resolve():
+		_chase.reset()
+	elif was_hit:
+		_chase.on_hit()
 	var target: Node2D = _aggro.target as Node2D if is_instance_valid(_aggro.target) else null
 	if _aggro.target != null and (target == null or target.is_queued_for_deletion()):
 		_give_up(alive)
@@ -108,17 +111,33 @@ func _share_targets() -> void:
 		return
 	for monster: Monster in alive:
 		monster.set_pack_target(target)
-	if not alive.any(func(monster: Monster) -> bool: return monster.wants_pack_target(target)):
+	# 무리원 하나라도 대상을 보고 있으면 무리 전체가 보는 것이다.
+	var seen: bool = false
+	var detected: bool = false
+	for monster: Monster in alive:
+		if not monster.can_see_point(target.global_position):
+			continue
+		seen = true
+		if monster.global_position.distance_to(target.global_position) <= monster.data.detect_range:
+			detected = true
+			break
+	_chase.update(delta, seen, detected)
+	if alive.all(func(monster: Monster) -> bool: return _member_gives_up(monster, target)):
 		_give_up(alive)
 
 
-## 무리가 함께 포기한다. 무리 대상을 따르던 멤버는 각자 무리 싸움을 시작한 자리로 돌아간다.
+## 이 멤버가 자기 종의 추격 포기 조건을 넘었는지
+func _member_gives_up(monster: Monster, target: Node2D) -> bool:
+	return _chase.gives_up(monster.global_position.distance_to(target.global_position),
+			monster.data.chase_attacker_limit, monster.data.chase_lost_time, monster.data.chase_time_limit)
+
+
+## 무리가 함께 포기한다. 멤버는 돌아가지 않고 그 자리에서 평소 행동(배회)을 한다.
 func _give_up(alive: Array[Monster]) -> void:
 	_aggro.give_up()
 	for monster: Monster in alive:
-		monster.return_home()
+		monster.clear_pack_target()
 	_last_own_targets.clear()
-	_returning = true
 
 
 func _on_member_hit(source: Node2D) -> void:
