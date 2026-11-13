@@ -7,7 +7,7 @@ extends Resource
 @export var damage: float = 1.0
 ## 한 번 쏠 때 쓰는 마나. 0이면 마나를 쓰지 않는다.
 @export var mana_cost: float = 0.0
-## 발사 간격 (초)
+## 탄이 나간 뒤 다음 탄을 쏠 수 있을 때까지의 시간 (후딜레이, 초). 공격 버튼을 누르면 선딜레이 없이 바로 쏜다
 @export var cooldown: float = 0.4
 @export var projectile_speed: float = 200.0
 ## 탄이 사라지기 전까지 날아가는 거리

@@ -1,7 +1,9 @@
 extends ScenarioTest
 ## 시나리오: 투사체 (고블린 돌). 포물선은 그림만이고 예측 지점에 그림자 원이 그려진다.
-## 그림자는 돌마다 하나, 시야에 숨지 않음 → 한 방향으로 계속 걷는 대상은 맞음 → 던진 뒤 방향을 바꾸면 피함 →
+## 던지기 전에 멈춤 → 그림자는 돌마다 하나, 시야에 숨지 않음, 돌과 함께 사라짐 → 한 방향으로 계속 걷는 대상은 맞음 → 던진 뒤 방향을 바꾸면 피함 →
 ## 고블린 투석병 vs 고블린 언데드 1마리와 2마리 싸움이 30초 안에 끝남.
+## 싸움에서는 네크로맨서를 "necromancer" 그룹에서 빼서 고블린이 노리지 않게 한다. 그동안 돌이 네크로맨서를 지나가지 않고 몸에 막힐 수 있다
+## (돌의 pass_groups가 그룹으로 본다. 2026-11-13에 시드 8개로 재 보니 던진 돌 170개 중 센 169개에서 막힌 돌 0개).
 ## 고블린은 데이터 복사로 움직이지 않게 고정하고, 예측은 "정확"(비율 1, 오차 0)으로 시험한 뒤 실제 값도 출력한다. 실제 .tres는 바꾸지 않는다.
 
 const GOBLIN_PATH: String = "res://data/monsters/goblin_slinger.tres"
@@ -172,8 +174,9 @@ func _walker_report() -> void:
 ## 고블린 1마리 vs 고블린 언데드 count마리: 네크로맨서는 구경만 한다.
 func _duel(count: int) -> bool:
 	_clear_monsters()
-	for node: Node in get_nodes_in_group(&"undead"):
-		node.free()
+	# 언데드 노드를 직접 지우면 소환 기록(UndeadRoster)에 남아서, 나중에 해제할 때 지워진 노드를 찾는다.
+	_necromancer.summoner.roster.unsummon_all()
+	await wait_frames(1)
 	_necromancer.global_position = STAGE
 	_necromancer.remove_from_group(&"necromancer")
 	_necromancer.mana.maximum = 100000.0
@@ -199,7 +202,6 @@ func _duel(count: int) -> bool:
 			break
 	var goblin_alive: bool = is_instance_valid(goblin) and not goblin.is_queued_for_deletion()
 	var undead_left: int = get_nodes_in_group(&"undead").size()
-	for node: Node in get_nodes_in_group(&"undead"):
-		node.free()
+	_necromancer.summoner.roster.unsummon_all()
 	_necromancer.add_to_group(&"necromancer")
 	return _check("고블린 vs 언데드 %d마리가 30초 안에 끝남" % count, frames < DUEL_FRAMES, "%.1f초, 고블린 살아 있음 %s, 남은 언데드 %d" % [frames / 60.0, goblin_alive, undead_left])

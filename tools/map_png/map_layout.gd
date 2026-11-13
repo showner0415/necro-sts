@@ -33,6 +33,8 @@ const ROOM_CHARS: String = "12b"
 const WALL_CHARS: String = "#x"
 ## 물건 칸의 바닥 종류를 정할 이웃이 없을 때
 const DEFAULT_FLOOR: String = "."
+## 굴 가운데에서 이 거리(칸) 안에는 바위를 두지 않는다
+const ROOM_CORE_RADIUS: float = 3.0
 
 var size: Vector2i
 ## 줄마다 칸 글자
@@ -51,6 +53,46 @@ var rocks: Array[Dictionary] = []
 var _room_of: PackedInt32Array = PackedInt32Array()
 ## 칸마다 통로 덩어리 번호 (통로가 아니면 -1)
 var _passage_of: PackedInt32Array = PackedInt32Array()
+
+
+## rows의 바닥 칸이 모두 2×2 바닥 덩어리에 드는지 (이동하는 길이 최소 2칸인지). 어긋난 칸들을 돌려준다.
+static func narrow_cells(source_rows: PackedStringArray) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for y: int in source_rows.size():
+		for x: int in source_rows[y].length():
+			if _is_floor_char(source_rows, Vector2i(x, y)) and not _in_floor_block(source_rows, Vector2i(x, y)):
+				result.append(Vector2i(x, y))
+	return result
+
+
+## rows에서 start로부터 4방향으로 걸어서 닿는 바닥 칸들
+static func reachable(source_rows: PackedStringArray, start: Vector2i) -> Dictionary:
+	var seen: Dictionary = {start: true}
+	var stack: Array[Vector2i] = [start]
+	while not stack.is_empty():
+		var cell: Vector2i = stack.pop_back()
+		for offset: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+			var next: Vector2i = cell + offset
+			if not seen.has(next) and _is_floor_char(source_rows, next):
+				seen[next] = true
+				stack.append(next)
+	return seen
+
+
+static func _is_floor_char(source_rows: PackedStringArray, cell: Vector2i) -> bool:
+	if cell.y < 0 or cell.y >= source_rows.size() or cell.x < 0 or cell.x >= source_rows[cell.y].length():
+		return false
+	return not WALL_CHARS.contains(source_rows[cell.y][cell.x])
+
+
+## cell을 덮는 2×2 바닥 덩어리가 있는지
+static func _in_floor_block(source_rows: PackedStringArray, cell: Vector2i) -> bool:
+	for oy: int in 2:
+		for ox: int in 2:
+			var corner: Vector2i = cell - Vector2i(ox, oy)
+			if _is_floor_char(source_rows, corner) and _is_floor_char(source_rows, corner + Vector2i.RIGHT) and _is_floor_char(source_rows, corner + Vector2i.DOWN) and _is_floor_char(source_rows, corner + Vector2i.ONE):
+				return true
+	return false
 
 
 static func from_image(image: Image) -> MapLayout:
@@ -340,7 +382,7 @@ func _find_rocks() -> void:
 
 
 ## 바위 규칙 (docs/maps/map_png_rules.md): 최소 2×2 (모든 칸이 2×2 바위 덩어리에 든다), 굴 중심(다듬기 보호 구역)에 두지 않는다.
-## 둘레 길이 2칸 이상인지는 바닥 검사(MapSmoother.narrow_cells)가 본다.
+## 둘레 길이 2칸 이상인지는 바닥 검사(narrow_cells)가 본다.
 func _check_rocks() -> void:
 	for rock: Dictionary in rocks:
 		var cells: Dictionary = {}
@@ -356,12 +398,12 @@ func _check_rocks() -> void:
 					in_block = true
 			if not in_block:
 				thin.append(cell)
-			if Vector2(cell).distance_to(center) <= MapSmoother.ROOM_CORE_RADIUS:
+			if Vector2(cell).distance_to(center) <= ROOM_CORE_RADIUS:
 				in_core.append(cell)
 		if not thin.is_empty():
 			errors.append("바위가 2×2보다 가는 곳 (굴 %d, 칸 %s)" % [rock.room, thin])
 		if not in_core.is_empty():
-			errors.append("바위가 굴 중심(가운데에서 %.0f칸) 안에 있음 (굴 %d, 칸 %s)" % [MapSmoother.ROOM_CORE_RADIUS, rock.room, in_core])
+			errors.append("바위가 굴 중심(가운데에서 %.0f칸) 안에 있음 (굴 %d, 칸 %s)" % [ROOM_CORE_RADIUS, rock.room, in_core])
 
 
 func _link(a: int, b: int) -> void:

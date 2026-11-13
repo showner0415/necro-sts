@@ -1,7 +1,7 @@
 class_name Necromancer
 extends CharacterBody2D
 ## 플레이어 캐릭터.
-## move_* 입력으로 움직이고(run을 누르고 있으면 뛰기, roll로 구르기. 둘 다 스태미나를 쓴다), attack을 누르고 있으면 마우스 방향으로 약한 탄을 쏘고 (마나 비용은 attack 데이터),
+## move_* 입력으로 움직이고(run을 누르고 있으면 뛰기, roll로 구르기. 둘 다 스태미나를 쓴다), attack을 누르면 그 순간의 마우스 방향으로 약한 탄을 쏘고(누르고 있으면 후딜레이(attack.cooldown)마다 이어서 쏜다, 마나 비용은 attack 데이터),
 ## pickup을 누르면 줍기 범위 안에서 가장 가까운 대상을 다룬다: 바닥 더미면 바로 줍고, 시체면 채집을 시작한다.
 ## 채집은 시간이 걸리고(Harvest), 움직이거나(구르기 포함) 피해를 받으면 취소된다. 인벤토리를 열어도 계속된다.
 ## 인벤토리는 이 노드가 아니라 전역 상태(GameState)에 있고, 지역 씬이 inventory에 넣어 준다.
@@ -123,7 +123,7 @@ func _physics_process(delta: float) -> void:
 		velocity = _roll_direction * (roll_distance / roll_duration)
 		is_running = false
 	else:
-		# 쏘는 동안(공격 버튼을 누르고 있는 동안)은 느려지고 뛸 수 없다.
+		# 쏘는 동안(공격 버튼을 누르고 있는 동안)은 느려지고 뛸 수 없다. 걷기는 된다.
 		var attacking: bool = actions_enabled and _attack_held
 		is_running = run_held and input_direction != Vector2.ZERO and stamina.can_run() and not attacking
 		var speed: float = attack_move_speed if attacking else (run_speed if is_running else move_speed)
@@ -144,8 +144,9 @@ func _physics_process(delta: float) -> void:
 	# 뗀 것은 직접 읽는다: 떼는 순간 마우스가 UI 위에 있어도 공격이 멈추게 한다.
 	if not Input.is_action_pressed(&"attack"):
 		_attack_held = false
-	if actions_enabled and _attack_held and _attack_timer == 0.0:
-		_shoot()
+	# 누르고 있으면 후딜레이가 끝나자마자 다음 탄을 쏜다.
+	if _attack_held:
+		_try_shoot()
 
 	if _harvest != null:
 		# 움직이면(구르기 포함) 취소된다.
@@ -160,6 +161,8 @@ func _physics_process(delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"attack"):
 		_attack_held = true
+		# 누른 순간 쏜다. 다음 물리 프레임 전에 떼어도(짧은 클릭) 공격이 나간다.
+		_try_shoot()
 	if actions_enabled and event.is_action_pressed(&"pickup"):
 		_interact_nearest()
 	# 구르기도 이동이라 인벤토리가 열려 있어도 된다. UI가 Space를 받으면(버튼 누르기) 여기로 오지 않는다.
@@ -193,6 +196,13 @@ func get_aim_position() -> Vector2:
 ## 구르기 시작 뒤 roll_invincible_duration 동안 무적
 func is_invincible() -> bool:
 	return is_rolling() and _roll_elapsed < roll_invincible_duration
+
+
+## 지금 조준 위치로 쏜다. 공격할 수 없거나(인벤토리를 엶 등) 후딜레이 중이면 무시한다 (예약하지 않는다)
+func _try_shoot() -> void:
+	if not actions_enabled or _attack_timer > 0.0:
+		return
+	_shoot()
 
 
 ## 테스트·디버그용: 게임 화면에서 누른 공격 버튼을 아직 떼지 않았는지.

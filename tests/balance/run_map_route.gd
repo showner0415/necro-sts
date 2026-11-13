@@ -22,6 +22,7 @@ const BONE_PATH: String = "res://data/items/bone.tres"
 const UNDEAD_BONES: int = 40
 const BAT_PATH: String = "res://data/monsters/bat.tres"
 const BAT_PATHS = preload("res://tests/bat_nest_paths.gd")
+const OUTLINE_ROWS = preload("res://tests/outline_rows.gd")
 const RAT_PATH: String = "res://data/monsters/rat.tres"
 const CHARGE_PATH: String = "res://data/behaviors/charge.tres"
 ## 시간 초과한 판의 위치 기록 간격 (초)과, 끝에서 몇 초 동안 움직인 거리를 볼지
@@ -195,7 +196,7 @@ func _pass(route_id: StringName, undead_count: int, skill_id: StringName, run: i
 
 	var goals: Array[Vector2] = []
 	if route.has("nest_path"):
-		var nest: Dictionary = BAT_PATHS.measure((current_scene.get_node("Walls") as PlaceholderWalls).layout, _layout.objects, current_scene.get_node("NavigationGrid"),
+		var nest: Dictionary = BAT_PATHS.measure(OUTLINE_ROWS.of(current_scene.get_node("Walls") as PlaceholderWalls), _layout.objects, current_scene.get_node("NavigationGrid"),
 			(load(BAT_PATH) as MonsterData).detect_range, Vector2i(_layout.rooms[_roles.fork].center.round()), Vector2i(_layout.rooms[_roles.junction].center.round()), NEST_SNEAK_MARGIN)
 		goals.append_array(BAT_PATHS.waypoints(nest["default_path"] if route["nest_path"] == "default" else nest["sneak_path"], NEST_WAYPOINT_EVERY))
 	for role: String in route["via"]:

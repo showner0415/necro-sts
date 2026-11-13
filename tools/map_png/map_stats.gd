@@ -1,6 +1,6 @@
 extends SceneTree
 ## 맵 배치 PNG의 바닥 통계를 출력한다 (docs/maps/map_png_rules.md의 "굴과 통로" 기준을 확인할 때).
-## - 바닥 중 굴과 통로의 칸 수·비율. PNG 그대로와, 변환할 때처럼 벽 가장자리를 다듬은 뒤(MapSmoother, 기본 씨앗) 둘 다
+## - 바닥 중 굴과 통로의 칸 수·비율
 ## - 통로 덩어리마다: 칸 수, 이어 주는 굴, 가장 넓은 곳의 폭, 길목(3×3 바닥에 들지 못하는 칸 = 폭 2칸 이하) 칸 수
 ##   폭은 그 자리에 들어가는 가장 큰 원의 지름이다 (가장 가까운 벽 칸까지 거리 × 2). 굴에서 2칸 안의 칸은 굴 쪽으로 넓어 보이므로 뺀다.
 ##
@@ -26,9 +26,7 @@ func _initialize() -> void:
 		quit(1)
 		return
 	print("PNG: ", path)
-	print("바닥 (PNG 그대로): ", _ratio(layout))
-	var smoothed: MapLayout = MapLayout.from_rows(MapSmoother.smooth(layout, MapSmoother.DEFAULT_SEED), layout.objects)
-	print("바닥 (다듬은 뒤): ", _ratio(smoothed))
+	print("바닥: ", _ratio(layout))
 	for line: String in _passages(layout):
 		print(line)
 	quit()

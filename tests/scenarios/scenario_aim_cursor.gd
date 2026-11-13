@@ -1,9 +1,10 @@
 extends ScenarioTest
-## 시나리오: 조준점 커서. 거점에서 시작해 창고를 보고, 시험 지역으로 가서 상자를 본다.
+## 시나리오: 조준점 커서. 거점에서 시작해 창고·수리 창을 보고, 시험 지역으로 가서 상자를 본다.
 ## 1. HUD의 AimCursor가 창 배율에 맞는 그림을 넣었고, 기본 커서 모양이 십자(조준점)다
-## 2. 게임 화면과 장식용 HUD(체력 바, 뼈 개수, 안내 문구) 위에서는 조준점, 핫바 칸 위에서는 화살표
+## 2. 게임 화면과 장식용 HUD(체력 바, 마나 바, 뼈 개수, 안내 문구) 위에서는 조준점, 핫바 칸 위에서는 화살표
 ## 3. 인벤토리 칸·창 위, 우클릭 메뉴 위에서는 화살표. 인벤토리가 열려 있어도 게임 화면 위는 조준점
 ## 4. 창고 칸 위에서는 화살표 (거점)
+## 4-1. 수리 기계 창의 칸·버튼 위에서는 화살표 (거점)
 ## 5. 시험 지역의 상자 칸 위에서는 화살표, 게임 화면은 조준점
 ## 커서 모양은 마우스 아래 컨트롤로 정해진다: 컨트롤이 없으면 기본 모양(십자 = 조준점), 있으면 그 컨트롤의 모양.
 ## 실제 시스템 커서가 그렇게 보이는지(따라오는 느낌 포함)는 눈으로 확인해야 한다.
@@ -141,6 +142,20 @@ func _run() -> void:
 	var storage_screen: InventoryScreen = current_scene.get_node("StorageScreen")
 	var storage_points: Array = await _check_points({"창고 칸": _center(storage_screen.get_slot_control(0))}, Input.CURSOR_ARROW)
 	if not _check("창고는 화살표", storage_screen.is_open() and storage_points[0], "창고 열림 %s, %s" % [storage_screen.is_open(), storage_points[1]]):
+		return
+	await _press(KEY_ESCAPE)
+
+	# 4-1. 수리 기계 창의 칸·버튼은 화살표
+	var machine: Node2D = current_scene.find_children("*", "RepairMachine", true, false).front()
+	_necromancer.global_position = machine.global_position
+	await wait_frames(SETTLE_FRAMES)
+	await _press(KEY_F)
+	var repair_screen: RepairScreen = current_scene.get_node("RepairScreen")
+	var repair_points: Array = await _check_points({
+		"수리 칸": _center(repair_screen.get_slot_control()),
+		"수리 버튼": _center(repair_screen.get_repair_button()),
+	}, Input.CURSOR_ARROW)
+	if not _check("수리 창은 화살표", repair_screen.is_open() and repair_points[0], "수리 창 열림 %s, %s" % [repair_screen.is_open(), repair_points[1]]):
 		return
 	await _press(KEY_ESCAPE)
 

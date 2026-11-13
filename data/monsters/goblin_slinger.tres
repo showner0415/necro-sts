@@ -1,10 +1,11 @@
-[gd_resource type="Resource" script_class="MonsterData" format=3]
+[gd_resource type="Resource" script_class="MonsterData" format=3 uid="uid://gf827jxlxqio"]
 
-[ext_resource type="Script" path="res://monsters/monster_data.gd" id="1_monster"]
-[ext_resource type="Resource" path="res://data/items/bone.tres" id="2_bone"]
-[ext_resource type="Script" path="res://items/drop_entry.gd" id="3_drop"]
+[ext_resource type="Script" uid="uid://dcry712wjd7tf" path="res://monsters/monster_data.gd" id="1_monster"]
+[ext_resource type="Resource" uid="uid://brhml51uwa1vq" path="res://data/items/bone.tres" id="2_bone"]
+[ext_resource type="Script" uid="uid://bcih3jlpk6ss2" path="res://items/drop_entry.gd" id="3_drop"]
 [ext_resource type="Resource" path="res://data/skulls/goblin_slinger_skull.tres" id="4_skull"]
 [ext_resource type="Resource" path="res://data/behaviors/throw.tres" id="5_throw"]
+[ext_resource type="Resource" path="res://data/behaviors/throw_undead.tres" id="6_throw_undead"]
 
 [sub_resource type="Resource" id="Resource_drop_bone"]
 script = ExtResource("3_drop")
@@ -21,23 +22,21 @@ script = ExtResource("1_monster")
 id = &"goblin_slinger"
 display_name = "고블린 투석병"
 behavior = ExtResource("5_throw")
-combat_spacing = 32.0
-throw_burst_count = 1
-throw_burst_interval = 0.25
-throw_lead_ratios = Array[float]([0.8])
-throw_aim_errors = Array[float]([6.0])
+undead_behavior = ExtResource("6_throw_undead")
 max_health = 6.0
 move_speed = 45.0
+combat_spacing = 32.0
+throw_lead_ratios = Array[float]([0.8])
+throw_aim_errors = Array[float]([6.0])
 detect_range = 150.0
 attack_range = 140.0
 contact_damage = 2.0
 attack_cooldown = 2.0
 drops = Array[ExtResource("3_drop")]([SubResource("Resource_drop_bone"), SubResource("Resource_drop_skull")])
-harvest_base_time = 1.0
 summon_bone_cost = 5
 summon_mana_cost = 4.0
 undead_upkeep_mana_per_second = 1.3
-undead_death_durability_loss = 3.0
+undead_damage_ratio_override = 0.5
 undead_placeholder_color = Color(0.91764706, 0.83137256, 0.6666667, 1)
 placeholder_color = Color(0.24313726, 0.5372549, 0.28235295, 1)
 placeholder_radius = 6.0

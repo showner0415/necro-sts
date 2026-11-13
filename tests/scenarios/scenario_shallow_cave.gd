@@ -1,6 +1,6 @@
-extends ScenarioTest
-## 시나리오: 얕은 굴 그레이박스. 배치 PNG(art_src/maps/shallow_cave.png)와 만든 씬(regions/shallow_cave.tscn)을 같이 본다.
-## 1. 씬이 PNG(를 다듬은 결과)와 같다 (PNG를 고치고 tools/map_from_png.gd를 다시 돌리지 않았으면 실패). 바닥은 최소 2칸, 모든 물건에 걸어서 닿음. 몬스터·상자·탈출 지점 수
+extends ShallowCaveScenario
+## 시나리오: 얕은 굴 그레이박스(앞·뒤 절반 모두)의 구조. 배치 PNG(art_src/maps/shallow_cave.png)와 만든 씬(regions/shallow_cave.tscn)을 같이 본다. 걷기는 scenario_shallow_cave_walk.gd, 언데드는 scenario_shallow_cave_undead.gd.
+## 1. 씬이 PNG와 같다 (PNG를 고치고 tools/map_from_png.gd를 다시 돌리지 않았으면 실패). 바닥은 최소 2칸, 모든 물건에 걸어서 닿음. 몬스터·상자·탈출 지점 수
 ## 1-1. 길찾기 격자: 벽 타일에서 바로 계산한 막힌 칸이 물리 질의로 잰 것과 같다 (두 방법의 시간 출력)
 ## 2. 굴 역할을 찾고, 굴마다 입구 수와 이어진 굴이 설계 문서(docs/maps/shallow_cave_design.md 배치도)와 같다. 2칸 길목은 "좁은 길목 8곳" 표의 통로에만 있다
 ## 3. 쥐가 사는 굴들이 고리로 이어져 있다 (입구 굴·쥐 둥지·물웅덩이 굴과 그 사이를 잇는 작은 굴 사이에 돌아오는 길이 있다)
@@ -9,81 +9,18 @@ extends ScenarioTest
 ## 5-1. 박쥐 길 (tests/bat_nest_paths.gd, 박쥐의 처음 자리 기준): 갈림 굴 쪽 입구에서 합류 굴 쪽 출구까지 가장 짧은 길(기본 길)은
 ##    박쥐에게 감지되고, 감지되는 곳은 입구에서 BAT_DETECT_DEPTH칸 이상 들어선 뒤다. 감지 범위보다 BAT_SNEAK_MARGIN 더 떨어져 지나는 길(몰래 가는 길)이 있다. 두 길의 길이·걷는 시간을 출력한다
 ## 5-2. 빛 드는 굴의 합류 굴 쪽 입구에 서면 가장 가까운 멧돼지(처음 자리)가 화면 안에 보이고, 입구 칸은 모두 멧돼지 감지 거리 밖이다
-## 6. 다듬은 뒤에도 박쥐 둥지에 박쥐가 돌 공간(도는 반경 + 몸의 원이 벽에 닿지 않는 자리)이 있다. 2배 맵은 다른 큰 굴도 넓어서 "유일"은 보지 않는다 (사용자 결정, 2026-11-10)
-## 7. 멧돼지가 사는 굴마다 돌진(돌진 최대 거리 + 지나치는 거리)보다 긴 곧고 트인 길(3칸 폭)이 있고, 가장 긴 것도 BOAR_LANE_MAX칸을 넘지 않는다 (바위가 긴 직선을 끊어 돌진을 피할 곳이 있게).
+## 6. 박쥐 둥지에 박쥐가 돌 공간(도는 반경 + 몸의 원이 벽에 닿지 않는 자리)이 있다. 2배 맵은 다른 큰 굴도 넓어서 "유일"은 보지 않는다 (사용자 결정, 2026-11-10)
+## 7. 멧돼지가 사는 굴마다 돌진(돌진 최대 거리 + 지나치는 거리)보다 긴 곧고 트인 길(3칸 폭)이 있고. 가장 긴 것이 BOAR_LANE_MAX칸을 넘는지는 출력만 한다 (바위가 긴 직선을 끊어 돌진을 피할 곳이 있게).
 ##    굴 안만, 가로·세로만 잰다 (통로까지 이어 재지 않음, 대각선과 문을 지나는 줄은 기준에서 뺌)
-## 8. 구간별 걷기 시간 (걷기, 몬스터는 없앰): 도착 지점 → 입구 굴, 입구 굴 → 갈림 굴, 갈림 굴 → 합류 굴(박쥐 길, 거미 길),
-##    합류 굴 → 동굴 입구, 도착 지점 → 동굴 입구 전체. 문서 기준값과 함께 출력한다
-## 9. 쥐 언데드 2마리를 데리고, 이어진 두 굴 사이를 모두 한 번씩 오간다 (순서는 PNG의 굴 연결에서 만든다). 굴에 닿을 때마다 2마리 모두 따라와 곁에 모인다 (휘어진 통로에서 걸리지 않음)
-## 10. 굴 안의 바위마다: 다듬은 씬에서도 바위 칸이 모두 벽이고, 네크로맨서가 바위 한쪽에서 반대쪽으로 가면 언데드 2마리가 바위를 돌아 따라와 곁에 모인다
-## 11. 갈림 굴에서 갈림길 하나(박쥐 길, 거미 길 각각)를 넘어 합류 굴의 탈출 B로 거점에 간다. 그동안 멧돼지는 아무도 노리지 않는다 (멧돼지만 남긴다)
-## 12. 지역을 나갔다 다시 들어오면 몬스터가 처음 상태로 다시 놓인다 (임시 규칙)
 
-const MAP_PNG: String = "res://art_src/maps/shallow_cave.png"
-const CAVE_SCENE: String = "res://regions/shallow_cave.tscn"
-const BASE_SCENE: String = "res://regions/base.tscn"
-const CAVE_REGION: String = "res://data/regions/shallow_cave.tres"
-const BASE_REGION: String = "res://data/regions/base.tres"
-const VIEW_ROCK_SETUP: String = "res://tools/screenshot_setups/view_rock.gd"
 const BAT_PATH: String = "res://data/monsters/bat.tres"
 const DIVE_PATH: String = "res://data/behaviors/dive.tres"
 const CHARGE_PATH: String = "res://data/behaviors/charge.tres"
-## 문서(docs/maps/shallow_cave_design.md 4장)의 걷기 시간 기준 (초)
-const TARGET_TO_ENTRANCE: float = 10.0
-const TARGET_TO_FORK: float = 40.0
-const TARGET_FORK_TO_JUNCTION: float = 60.0
-const TARGET_JUNCTION_TO_MOUTH: float = 25.0
-const TARGET_TOTAL: float = 210.0
-## 굴 역할마다 [입구 수, 이어진 굴 역할들] (배치도 그대로)
-const EXPECTED_ROOMS: Dictionary = {
-	"base": [1, ["entrance"]],
-	"entrance": [4, ["base", "rat_nest", "puddle", "mushroom"]],
-	"mushroom": [2, ["entrance", "rat_nest"]],
-	"rat_nest": [6, ["entrance", "mushroom", "view_rock", "collapsed", "side", "fork"]],
-	"view_rock": [1, ["rat_nest"]],
-	"collapsed": [1, ["rat_nest"]],
-	"side": [2, ["rat_nest", "puddle"]],
-	"puddle": [4, ["entrance", "side", "fork", "dead_end"]],
-	"dead_end": [1, ["puddle"]],
-	"fork": [5, ["rat_nest", "puddle", "bat_nest", "spider_gate", "shelter"]],
-	"shelter": [1, ["fork"]],
-	"bat_nest": [4, ["fork", "nest_back", "bat_lower", "junction"]],
-	"nest_back": [1, ["bat_nest"]],
-	"bat_lower": [1, ["bat_nest"]],
-	"spider_gate": [3, ["fork", "web", "spider_side"]],
-	"web": [2, ["spider_gate", "egg"]],
-	"spider_side": [2, ["spider_gate", "egg"]],
-	"egg": [4, ["web", "spider_side", "junction", "mud"]],
-	"junction": [5, ["bat_nest", "egg", "junction_side", "light_room", "cave_mouth"]],
-	"junction_side": [1, ["junction"]],
-	"light_room": [2, ["junction", "cave_mouth"]],
-	"mud": [2, ["egg", "cave_mouth"]],
-	"cave_mouth": [3, ["junction", "light_room", "mud"]],
-}
 ## 설계 문서 "좁은 길목 8곳": 2칸 길목이 있어야 하는 통로 (양 끝 굴 역할). 다른 통로에는 길목이 없어야 한다
 const CHOKE_PAIRS: Array = [
 	["puddle", "dead_end"], ["fork", "bat_nest"], ["fork", "spider_gate"], ["web", "egg"],
 	["egg", "junction"], ["bat_nest", "junction"], ["junction", "light_room"], ["junction", "cave_mouth"],
 ]
-## 굴 가운데에서 이 거리 안이면 닿은 것으로 본다 (픽셀)
-const ARRIVE_DISTANCE: float = 16.0
-## 한 구간을 걷는 최대 시간 (프레임). 도착 지점 → 동굴 입구 전체도 한 구간이다
-const WALK_TIMEOUT_FRAMES: int = 60 * 300
-const SETTLE_FRAMES: int = 6
-const SCENE_TIMEOUT_FRAMES: int = 300
-const TILE: float = 32.0
-const RAT_SKULL_PATH: String = "res://data/skulls/rat_skull.tres"
-const BONE_PATH: String = "res://data/items/bone.tres"
-const BONES: int = 20
-## 굴에 닿은 뒤 언데드가 모여야 하는 시간 (프레임)과 거리 (픽셀). 시험 통로 시나리오(scenario_pathfinding.gd)와 같다
-const GATHER_FRAMES: int = 300
-const GATHER_DISTANCE: float = 40.0
-## 오래 걷는 동안 쥐 2마리의 유지비로 마나가 바닥나 해제되지 않게 올려 두는 자연 회복 (초당)
-const TEST_MANA_REGEN: float = 10.0
-## 10. 바위 양쪽의 서는 자리: 바위 가장자리에서 이만큼(칸) 떨어진 곳 (먼 것부터 해 본다). 그 자리가 2×2 바닥에 들어야 한다
-const ROCK_SIDE_GAPS: Array[float] = [2.0, 1.0]
-## 10. 바위를 가로지르는 방향 후보 (가로, 세로, 대각선 둘)
-const ROCK_DIRECTIONS: Array[Vector2] = [Vector2(1, 0), Vector2(0, 1), Vector2(0.7071, 0.7071), Vector2(0.7071, -0.7071)]
 ## 5. 전망 자리에 선 뒤 카메라가 자리 잡기를 기다리는 프레임
 const VIEW_SETTLE_FRAMES: int = 10
 ## 5. 바로 가는 길이 없다고 보려면, 전망 자리에서 박쥐 둥지까지 걷는 걸음 수가 곧은 거리의 이 배 이상이어야 한다
@@ -93,61 +30,20 @@ const BAT_DETECT_DEPTH: float = 3.0
 ## 5-1. 몰래 가는 길은 박쥐 감지 범위보다 이만큼(픽셀) 더 떨어져 지나야 한다. 박쥐는 싸우지 않을 때 배회하므로(초당 15px), 둥지에 닿기까지 옮겨 간 만큼의 여유
 const BAT_SNEAK_MARGIN: float = 96.0
 const BAT_PATHS = preload("res://tests/bat_nest_paths.gd")
+const OUTLINE_ROWS = preload("res://tests/outline_rows.gd")
 const NAV_GRID_CHECK = preload("res://tests/nav_grid_check.gd")
 ## 5-2. 멧돼지가 화면 가장자리에서 이만큼(픽셀) 안쪽에 있어야 보인다고 본다
 const BOAR_VIEW_MARGIN: float = 16.0
 const BOAR_PATH: String = "res://data/monsters/boar.tres"
-## 7. 멧돼지 굴의 가장 긴 3칸 폭 곧은 길이 이보다 길면 안 된다 (칸, 제안값)
+## 7. 멧돼지 굴의 가장 긴 3칸 폭 곧은 길의 기준 (칸). 윤곽으로 바꾼 뒤 넘는 굴이 있어 멧돼지 밸런스 조정 때까지 출력만 한다 (사용자 결정, 2026-11-11)
 const BOAR_LANE_MAX: float = 13.0
-## 11. 탈출 지점에 선 뒤 거점에 가기를 기다리는 최대 프레임 (탈출 3초 + 여유)
-const ESCAPE_WAIT_FRAMES: int = 60 * 5
 ## 7. 멧돼지 굴 곧은 길은 가로·세로만 본다 (대각선은 기준에서 뺌, 사용자 결정 2026-11-08)
 const LANE_DIRECTIONS: Array[Vector2i] = [Vector2i(1, 0), Vector2i(0, 1)]
 ## 7. 곧은 길과 직각으로 트인 폭이 이 이하인 칸은 문으로 보고 줄을 끊는다 (칸)
 const LANE_DOOR_SPAN: int = 5
 
-var _layout: MapLayout
-## 굴 역할 → 굴 번호 (_find_roles)
-var _roles: Dictionary = {}
 
-
-func get_start_scene() -> String:
-	return CAVE_SCENE
-
-
-func _on_scene_ready() -> void:
-	_run()
-
-
-func _check(step_name: String, ok: bool, evidence: String) -> bool:
-	if ok:
-		pass_step(step_name, evidence)
-	else:
-		fail_step(step_name, evidence)
-		finish(false)
-	return ok
-
-
-func _rooms_with(object: String) -> Array[int]:
-	var result: Array[int] = []
-	for cell: Vector2i in _layout.cells_of(object):
-		var room: int = _layout.room_at(cell)
-		if room >= 0 and not result.has(room):
-			result.append(room)
-	return result
-
-
-func _room_center(room: int) -> Vector2:
-	return (_layout.rooms[room].center + Vector2(0.5, 0.5)) * TILE
-
-
-func _cell_center(cell: Vector2i) -> Vector2:
-	return (Vector2(cell) + Vector2(0.5, 0.5)) * TILE
-
-
-func _run() -> void:
-	_layout = MapLayout.from_file(MAP_PNG)
-	await wait_frames(SETTLE_FRAMES)
+func _run_steps() -> void:
 	if not await _matches_png():
 		return
 	if not _tile_grid_matches():
@@ -170,129 +66,27 @@ func _run() -> void:
 		return
 	if not _boar_lanes():
 		return
-	if not await _walk_times():
-		return
-	if not await _undead_follow():
-		return
-	if not await _around_rocks():
-		return
-	if not await _escape_without_boars():
-		return
-	if not await _monsters_reset():
-		return
 	finish(true)
 
 
 # --- 1. 씬이 PNG와 같다 ---
 
-func _monster_cells() -> int:
-	var count: int = 0
-	for object: String in ["rat", "boar", "bat", "goblin_slinger", "spider"]:
-		count += _layout.cells_of(object).size()
-	return count
-
-
 func _matches_png() -> bool:
 	var walls: PlaceholderWalls = current_scene.get_node("Walls")
-	# 씬의 벽·바닥은 PNG를 기본 씨앗으로 다듬은 결과와 같아야 한다 (tools/map_from_png.gd).
-	var smoothed: PackedStringArray = MapSmoother.smooth(_layout, MapSmoother.DEFAULT_SEED)
-	var same_layout: bool = walls.layout == smoothed
-	var narrow: Array[Vector2i] = MapSmoother.narrow_cells(walls.layout)
-	var reach: Dictionary = MapSmoother.reachable(walls.layout, _layout.cells_of("spawn")[0])
+	var same_layout: bool = walls.layout == _layout.rows
+	var narrow: Array[Vector2i] = MapLayout.narrow_cells(walls.layout)
+	var reach: Dictionary = MapLayout.reachable(walls.layout, _layout.cells_of("spawn")[0])
 	var unreachable: int = _layout.objects.filter(func(o: Dictionary) -> bool: return not reach.has(o.cell)).size()
-	var changed: int = 0
-	for y: int in smoothed.size():
-		for x: int in smoothed[y].length():
-			if MapLayout.WALL_CHARS.contains(smoothed[y][x]) != _layout.is_wall(Vector2i(x, y)):
-				changed += 1
 	var monsters: int = get_nodes_in_group(&"monsters").size()
 	var chests: int = current_scene.find_children("*", "LootChest", true, false).size()
 	var escapes: int = current_scene.find_children("*", "EscapePoint", true, false).size()
 	var nav: NavigationGrid = current_scene.get_node("NavigationGrid")
-	var ok: bool = _layout.errors.is_empty() and same_layout and changed > 0 and narrow.is_empty() and unreachable == 0 and monsters == _monster_cells() and chests == _layout.cells_of("chest").size() and escapes == _layout.cells_of("escape").size() and nav.has_walls()
-	return _check("씬이 배치 PNG와 같음", ok, "PNG %d×%d칸, 읽기 문제 %s, 벽·바닥이 PNG를 다듬은 결과와 같음 %s (다듬어 바뀐 칸 %d), 2칸보다 좁은 바닥 %s, 도착 지점에서 닿지 않는 물건 %d, 몬스터 %d (PNG %d), 상자 %d (PNG %d), 탈출 지점 %d (PNG %d), 길찾기 벽 있음 %s" % [
-		_layout.size.x, _layout.size.y, _layout.errors, same_layout, changed, narrow, unreachable, monsters, _monster_cells(), chests, _layout.cells_of("chest").size(), escapes, _layout.cells_of("escape").size(), nav.has_walls()])
+	var ok: bool = _layout.errors.is_empty() and same_layout and narrow.is_empty() and unreachable == 0 and monsters == _monster_cells() and chests == _layout.cells_of("chest").size() and escapes == _layout.cells_of("escape").size() and nav.has_walls()
+	return _check("씬이 배치 PNG와 같음", ok, "PNG %d×%d칸, 읽기 문제 %s, 벽·바닥이 PNG와 같음 %s, 2칸보다 좁은 바닥 %s, 도착 지점에서 닿지 않는 물건 %d, 몬스터 %d (PNG %d), 상자 %d (PNG %d), 탈출 지점 %d (PNG %d), 길찾기 벽 있음 %s" % [
+		_layout.size.x, _layout.size.y, _layout.errors, same_layout, narrow, unreachable, monsters, _monster_cells(), chests, _layout.cells_of("chest").size(), escapes, _layout.cells_of("escape").size(), nav.has_walls()])
 
 
-# --- 2. 굴 역할과 연결 ---
-
-## 굴마다 역할을 내용물과 연결로 찾는다. 못 찾은 역할이 있으면 실패
-func _find_roles() -> bool:
-	_roles.clear()
-	var base: int = _layout.room_at(_layout.cells_of("spawn")[0])
-	_roles.base = base
-	for room: int in _rooms_with("escape"):
-		if _layout.rooms[base].neighbors.has(room):
-			_roles.entrance = room
-		elif _layout.rooms[room].entrances == 1:
-			_roles.shelter = room
-		else:
-			_roles.junction = room
-	if _roles.has("entrance"):
-		_roles.fork = _find_fork(_roles.entrance)
-	var bat_rooms: Array[int] = _rooms_with("bat")
-	for room: int in bat_rooms:
-		if _layout.rooms[room].entrances > 1:
-			_roles.bat_nest = room
-		else:
-			_roles.bat_lower = room
-	var view: Vector2i = load(VIEW_ROCK_SETUP).spot(_layout)
-	if view.x >= 0:
-		_roles.view_rock = _layout.room_at(view)
-	if _roles.has("entrance") and _roles.has("view_rock"):
-		for room: int in _layout.rooms[_roles.entrance].neighbors:
-			if room == base:
-				continue
-			if _layout.rooms[room].neighbors.has(_roles.view_rock):
-				_roles.rat_nest = room
-			elif _layout.rooms[room].neighbors.has(_roles.get("fork", -1)):
-				_roles.puddle = room
-			else:
-				_roles.mushroom = room
-	if _roles.has("rat_nest") and _roles.has("puddle"):
-		for room: int in _layout.rooms[_roles.rat_nest].neighbors:
-			if _layout.rooms[_roles.puddle].neighbors.has(room) and _layout.rooms[room].entrances == 2:
-				_roles.side = room
-	for room: int in _layout.rooms.size():
-		if _layout.rooms[room].neighbors.size() != 1 or room == _roles.get("view_rock", -1):
-			continue
-		var only: int = _layout.rooms[room].neighbors[0]
-		if only == _roles.get("puddle", -1):
-			_roles.dead_end = room
-		elif only == _roles.get("rat_nest", -1):
-			_roles.collapsed = room
-		elif only == _roles.get("bat_nest", -1) and not bat_rooms.has(room):
-			_roles.nest_back = room
-		elif only == _roles.get("junction", -1):
-			_roles.junction_side = room
-	var spider_rooms: Array[int] = _rooms_with("spider")
-	for room: int in spider_rooms:
-		if _layout.rooms[room].neighbors.has(_roles.get("fork", -1)):
-			_roles.spider_gate = room
-		elif _layout.rooms[room].neighbors.has(_roles.get("junction", -1)):
-			_roles.egg = room
-		else:
-			_roles.web = room
-	for room: int in _layout.rooms.size():
-		var neighbors: Array = _layout.rooms[room].neighbors
-		if not spider_rooms.has(room) and neighbors.has(_roles.get("spider_gate", -1)) and neighbors.has(_roles.get("egg", -1)):
-			_roles.spider_side = room
-	var mouth_rooms: Array[int] = _rooms_with("light")
-	if not mouth_rooms.is_empty():
-		_roles.cave_mouth = mouth_rooms[0]
-	for room: int in _rooms_with("boar"):
-		if room == _roles.get("cave_mouth", -1):
-			continue
-		if _layout.rooms[room].neighbors.has(_roles.get("junction", -1)):
-			_roles.light_room = room
-		else:
-			_roles.mud = room
-	var missing: PackedStringArray = []
-	for role: String in EXPECTED_ROOMS:
-		if not _roles.has(role) or _roles[role] < 0:
-			missing.append(role)
-	return _check("굴 역할 찾기", missing.is_empty(), "찾은 역할 %s, 못 찾은 역할 %s" % [_roles, missing])
-
+# --- 2. 굴 연결 ---
 
 func _connections() -> bool:
 	var wrong: PackedStringArray = []
@@ -410,8 +204,8 @@ func _view_rock() -> bool:
 	var seen: int = bats.filter(func(b: Node2D) -> bool:
 		var offset: Vector2 = _screen_offset(necromancer.global_position, b.global_position).abs()
 		return offset.x <= half_screen.x and offset.y <= half_screen.y).size()
-	# 전망 자리에서 박쥐 둥지의 가장 가까운 칸까지, 다듬은 바닥을 따라 걷는 걸음 수와 곧은 거리
-	var rows: PackedStringArray = (current_scene.get_node("Walls") as PlaceholderWalls).layout
+	# 전망 자리에서 박쥐 둥지의 가장 가까운 칸까지, 바닥을 따라 걷는 걸음 수와 곧은 거리
+	var rows: PackedStringArray = OUTLINE_ROWS.of(current_scene.get_node("Walls") as PlaceholderWalls)
 	var steps: Dictionary = _steps_from(rows, spot)
 	var nearest: Vector2i = Vector2i(-1, -1)
 	var nearest_steps: int = 0
@@ -467,7 +261,7 @@ func _steps_from(rows: PackedStringArray, start: Vector2i) -> Dictionary:
 # --- 5-1. 박쥐 길: 들어선 뒤 감지, 몰래 가는 길 ---
 
 func _bat_path() -> bool:
-	var rows: PackedStringArray = (current_scene.get_node("Walls") as PlaceholderWalls).layout
+	var rows: PackedStringArray = OUTLINE_ROWS.of(current_scene.get_node("Walls") as PlaceholderWalls)
 	var nav: NavigationGrid = current_scene.get_node("NavigationGrid")
 	var detect_range: float = (load(BAT_PATH) as MonsterData).detect_range
 	var fork_cell: Vector2i = Vector2i(_layout.rooms[_roles.fork].center.round())
@@ -509,23 +303,23 @@ func _boar_seen_first() -> bool:
 # --- 6. 박쥐 둥지가 유일한 넓은 방 ---
 
 func _wide_bat_nest() -> bool:
-	var rows: PackedStringArray = (current_scene.get_node("Walls") as PlaceholderWalls).layout
-	var smoothed: MapLayout = MapLayout.from_rows(rows, _layout.objects)
+	var rows: PackedStringArray = OUTLINE_ROWS.of(current_scene.get_node("Walls") as PlaceholderWalls)
+	var scene_layout: MapLayout = MapLayout.from_rows(rows, _layout.objects)
 	var dive: Resource = load(DIVE_PATH)
 	var bat_half: Vector2 = (load(BAT_PATH) as MonsterData).get_placeholder_half_size()
 	var need: float = (dive.orbit_radius_max + maxf(bat_half.x, bat_half.y)) / TILE
 	var open_cells: Dictionary = {}
 	var widest: Dictionary = {}
-	for y: int in smoothed.size.y:
-		for x: int in smoothed.size.x:
-			var room: int = smoothed.room_at(Vector2i(x, y))
+	for y: int in scene_layout.size.y:
+		for x: int in scene_layout.size.x:
+			var room: int = scene_layout.room_at(Vector2i(x, y))
 			if room < 0:
 				continue
-			var clear: float = _clear_radius(smoothed, Vector2i(x, y))
+			var clear: float = _clear_radius(scene_layout, Vector2i(x, y))
 			widest[room] = maxf(widest.get(room, 0.0), clear)
 			if clear >= need:
 				open_cells[room] = open_cells.get(room, 0) + 1
-	var nest: int = smoothed.room_at(_layout.cells_of("bat")[0])
+	var nest: int = scene_layout.room_at(_layout.cells_of("bat")[0])
 	var role_of: Dictionary = {}
 	for role: String in _roles:
 		role_of[_roles[role]] = role
@@ -535,7 +329,7 @@ func _wide_bat_nest() -> bool:
 		if room == nest:
 			continue
 		others.append("%s %d칸/%.1f" % [role_of.get(room, str(room)), open_cells.get(room, 0), widest[room]])
-	return _check("박쥐 둥지에 박쥐가 돌 공간이 있음", ok, "다듬은 뒤, 반지름 %.1f칸(도는 반경 최대 %.0f + 박쥐 몸 %.0f px) 원이 벽에 닿지 않는 자리 / 가장 큰 원 반지름(칸): 박쥐 둥지 %d칸/%.1f, 다른 굴 %s" % [
+	return _check("박쥐 둥지에 박쥐가 돌 공간이 있음", ok, "반지름 %.1f칸(도는 반경 최대 %.0f + 박쥐 몸 %.0f px) 원이 벽에 닿지 않는 자리 / 가장 큰 원 반지름(칸): 박쥐 둥지 %d칸/%.1f, 다른 굴 %s" % [
 		need, dive.orbit_radius_max, maxf(bat_half.x, bat_half.y), open_cells.get(nest, 0), widest[nest], ", ".join(others)])
 
 
@@ -552,24 +346,24 @@ func _clear_radius(layout: MapLayout, cell: Vector2i) -> float:
 # --- 7. 멧돼지 굴의 곧고 트인 길 ---
 
 func _boar_lanes() -> bool:
-	var rows: PackedStringArray = (current_scene.get_node("Walls") as PlaceholderWalls).layout
-	var smoothed: MapLayout = MapLayout.from_rows(rows, _layout.objects)
+	var rows: PackedStringArray = OUTLINE_ROWS.of(current_scene.get_node("Walls") as PlaceholderWalls)
+	var scene_layout: MapLayout = MapLayout.from_rows(rows, _layout.objects)
 	var charge: Resource = load(CHARGE_PATH)
 	var need: float = (charge.charge_distance + charge.overshoot_distance) / TILE
 	var results: PackedStringArray = []
 	var ok: bool = true
 	for room: int in _rooms_with("boar"):
-		var room_after: int = smoothed.room_at(Vector2i(_layout.rooms[room].center.round()))
+		var room_after: int = scene_layout.room_at(Vector2i(_layout.rooms[room].center.round()))
 		var best: float = 0.0
-		for y: int in smoothed.size.y:
-			for x: int in smoothed.size.x:
-				if smoothed.room_at(Vector2i(x, y)) != room_after:
+		for y: int in scene_layout.size.y:
+			for x: int in scene_layout.size.x:
+				if scene_layout.room_at(Vector2i(x, y)) != room_after:
 					continue
 				for direction: Vector2i in LANE_DIRECTIONS:
-					best = maxf(best, _lane_length(smoothed, Vector2i(x, y), direction, room_after))
-		ok = ok and best >= need and best <= BOAR_LANE_MAX
+					best = maxf(best, _lane_length(scene_layout, Vector2i(x, y), direction, room_after))
+		ok = ok and best >= need
 		results.append("굴 %d 가장 긴 곧은 길 %.1f칸" % [room, best])
-	return _check("멧돼지 굴에 곧고 트인 길", ok and not results.is_empty(), "3칸 폭(가운데 칸 둘레 3×3이 바닥)으로 곧게 이어지는 길, 돌진 최대 %.0f + 지나치는 %.0f px = %.1f칸 이상, %.0f칸 이하여야 함: %s" % [
+	return _check("멧돼지 굴에 곧고 트인 길", ok and not results.is_empty(), "3칸 폭(가운데 칸 둘레 3×3이 바닥)으로 곧게 이어지는 길, 돌진 최대 %.0f + 지나치는 %.0f px = %.1f칸 이상이어야 함 (기준 %.0f칸을 넘는지는 판정하지 않고 출력만 한다, 멧돼지 밸런스 조정 때 다시 본다): %s" % [
 		charge.charge_distance, charge.overshoot_distance, need, BOAR_LANE_MAX, ", ".join(results)])
 
 
@@ -602,286 +396,3 @@ func _open_3x3(layout: MapLayout, cell: Vector2i) -> bool:
 			if layout.is_wall(cell + Vector2i(ox, oy)):
 				return false
 	return true
-
-
-# --- 8. 걷기 시간 ---
-
-func _walk_times() -> bool:
-	for node: Node in get_nodes_in_group(&"monsters"):
-		node.queue_free()
-	await wait_frames(2)
-	var necromancer: Necromancer = find_necromancer()
-	var spawn: Vector2 = _cell_center(_layout.cells_of("spawn")[0])
-	necromancer.global_position = spawn
-	await wait_frames(2)
-	var nav: NavigationGrid = current_scene.get_node("NavigationGrid")
-	var started: int = Time.get_ticks_msec()
-	nav.get_grid(Vector2(necromancer.body_radius, necromancer.body_radius))
-	var grid_ms: int = Time.get_ticks_msec() - started
-	var to_entrance: float = await _walk_to(necromancer, _room_center(_roles.entrance))
-	var to_fork: float = await _walk_to(necromancer, _room_center(_roles.fork))
-	var bat_path: float = await _walk_rooms(necromancer, ["bat_nest", "junction"])
-	var to_mouth: float = await _walk_rooms(necromancer, ["cave_mouth"])
-	await _walk_to(necromancer, _room_center(_roles.junction))
-	# 거미 길은 합류 굴에서 거꾸로 걸어 잰다 (같은 길이다)
-	var spider_path: float = await _walk_rooms(necromancer, ["egg", "web", "spider_gate", "fork"])
-	necromancer.global_position = spawn
-	await wait_frames(2)
-	var total: float = await _walk_to(necromancer, _room_center(_roles.cave_mouth))
-	var ok: bool = to_entrance > 0.0 and to_fork > 0.0 and bat_path > 0.0 and spider_path > 0.0 and to_mouth > 0.0 and total > 0.0
-	return _check("구간별 걷기 시간", ok, "도착 지점 → 입구 굴 %s (기준 약 %.0f초), 입구 굴 → 갈림 굴 %s (기준 약 %.0f초), 갈림 굴 → 합류 굴 박쥐 길 %s · 거미 길 %s (기준 약 %.0f초, 굴 가운데를 지나며), 합류 굴 → 동굴 입구 %s (기준 약 %.0f초), 도착 지점 → 동굴 입구 전체 %s (가장 짧은 길, 기준 약 %.0f초), 걷기 %.0f/초, 네크로맨서 크기 길찾기 칸 계산 %dms" % [
-		_seconds(to_entrance), TARGET_TO_ENTRANCE, _seconds(to_fork), TARGET_TO_FORK, _seconds(bat_path), _seconds(spider_path), TARGET_FORK_TO_JUNCTION,
-		_seconds(to_mouth), TARGET_JUNCTION_TO_MOUTH, _seconds(total), TARGET_TOTAL, necromancer.move_speed, grid_ms])
-
-
-## 굴 역할 순서대로 굴 가운데를 지나 걷는다. 걸린 시간 합(초), 하나라도 못 가면 -1
-func _walk_rooms(necromancer: Necromancer, roles: Array) -> float:
-	var total: float = 0.0
-	for role: String in roles:
-		var walked: float = await _walk_to(necromancer, _room_center(_roles[role]))
-		if walked < 0.0:
-			return -1.0
-		total += walked
-	return total
-
-
-func _seconds(value: float) -> String:
-	return "%.1f초" % value if value > 0.0 else "닿지 못함"
-
-
-func _find_fork(entrance: int) -> int:
-	for first: int in _layout.rooms[entrance].neighbors:
-		for second: int in _layout.rooms[first].neighbors:
-			if second != entrance and not _layout.rooms[entrance].neighbors.has(second) and _layout.rooms[second].entrances >= 3:
-				return second
-	return -1
-
-
-## 네크로맨서를 길찾기 방향으로 걸려서 goal까지 간다. 걸린 시간(초), 못 가면 -1.
-func _walk_to(necromancer: Necromancer, goal: Vector2) -> float:
-	var follower: PathFollower = PathFollower.new(Vector2(necromancer.body_radius, necromancer.body_radius), Vector2(0, -necromancer.body_radius))
-	var frames: int = 0
-	while necromancer.global_position.distance_to(goal) > ARRIVE_DISTANCE and frames < WALK_TIMEOUT_FRAMES:
-		press_moves(follower.get_direction(necromancer, goal))
-		await wait_frames(1)
-		frames += 1
-	press_moves(Vector2.ZERO)
-	await wait_frames(2)
-	if frames >= WALK_TIMEOUT_FRAMES:
-		return -1.0
-	return frames / float(Engine.physics_ticks_per_second)
-
-
-# --- 9. 언데드 2마리가 통로를 따라옴 ---
-
-func _undead_follow() -> bool:
-	var necromancer: Necromancer = find_necromancer()
-	necromancer.mana.regen_per_second = TEST_MANA_REGEN
-	var hotbar: Hotbar = root.get_node("GameState").hotbar
-	necromancer.inventory.try_add(ItemStack.of_item(load(BONE_PATH), BONES))
-	for i: int in 2:
-		var skull: Skull = Skull.create(load(RAT_SKULL_PATH))
-		necromancer.inventory.try_add(ItemStack.of_skull(skull))
-		hotbar.assign(i, skull)
-		hotbar.select(i)
-		necromancer.summoner.toggle_selected()
-	await wait_frames(SETTLE_FRAMES)
-	var undead: Array[Node] = get_nodes_in_group(&"undead")
-	if not _check("쥐 언데드 2마리 소환", undead.size() == 2, "언데드 %d마리" % undead.size()):
-		return false
-	var route: Array[int] = _follow_route(_layout.room_at(Vector2i((necromancer.global_position / TILE).floor())))
-	if not _check("굴 사이를 모두 오가는 순서", route.size() >= 2, "출발 굴 %d, 도착할 굴 %s" % [_layout.room_at(Vector2i((necromancer.global_position / TILE).floor())), route]):
-		return false
-	var legs: PackedStringArray = []
-	var worst_gather: int = 0
-	for room: int in route:
-		var center: Vector2 = _layout.rooms[room].center.round()
-		var walked: float = await _walk_to(necromancer, _room_center(room))
-		if walked < 0.0:
-			return _check("언데드 2마리가 통로를 따라옴", false, "굴 %d(칸 %s)에 닿지 못함 (지난 구간 %s)" % [room, center, ", ".join(legs)])
-		var gathered: int = -1
-		for frame: int in GATHER_FRAMES:
-			if get_nodes_in_group(&"undead").all(func(u: Node) -> bool: return (u as Node2D).global_position.distance_to(necromancer.global_position) <= GATHER_DISTANCE):
-				gathered = frame
-				break
-			await wait_frames(1)
-		var count: int = get_nodes_in_group(&"undead").size()
-		if gathered < 0 or count != 2:
-			var distances: PackedStringArray = []
-			for u: Node in get_nodes_in_group(&"undead"):
-				distances.append("%.0f (칸 %s)" % [(u as Node2D).global_position.distance_to(necromancer.global_position), ((u as Node2D).global_position / TILE).snapped(Vector2(0.1, 0.1))])
-			return _check("언데드 2마리가 통로를 따라옴", false, "칸 %s에서 %d프레임 안에 모이지 않음: 언데드 %d마리, 거리 %s (지난 구간 %s)" % [center, GATHER_FRAMES, count, ", ".join(distances), ", ".join(legs)])
-		worst_gather = maxi(worst_gather, gathered)
-		legs.append("굴 %d %.1f초/%d프레임" % [room, walked, gathered])
-	return _check("언데드 2마리가 통로를 따라옴", true, "굴 사이 통로 %d개를 모두 오감 (%d구간), 굴마다 (걷기 / 멈춘 뒤 모두 %.0f 안에 모이기까지): %s, 가장 늦게 모인 것 %d프레임" % [route.size() / 2, route.size(), GATHER_DISTANCE, ", ".join(legs), worst_gather])
-
-
-## start에서 이어진 굴로 갔다가 돌아오기를 되풀이해, 이어진 두 굴 사이를 모두 한 번씩 오가는 굴 순서 (start는 빼고 도착하는 굴들)
-func _follow_route(start: int) -> Array[int]:
-	var route: Array[int] = []
-	_visit_links(start, route, {})
-	return route
-
-
-func _visit_links(room: int, route: Array[int], used: Dictionary) -> void:
-	for next: int in _layout.rooms[room].neighbors:
-		var key: Vector2i = Vector2i(mini(room, next), maxi(room, next))
-		if used.has(key):
-			continue
-		used[key] = true
-		route.append(next)
-		_visit_links(next, route, used)
-		route.append(room)
-
-
-# --- 10. 언데드가 바위를 돌아 따라옴 ---
-
-func _around_rocks() -> bool:
-	var scene_rows: PackedStringArray = (current_scene.get_node("Walls") as PlaceholderWalls).layout
-	var carved: Array[Vector2i] = []
-	for rock: Dictionary in _layout.rocks:
-		for cell: Vector2i in rock.cells:
-			if not MapLayout.WALL_CHARS.contains(scene_rows[cell.y][cell.x]):
-				carved.append(cell)
-	if not _check("다듬어도 바위가 남음", not _layout.rocks.is_empty() and carved.is_empty(), "바위 %d개, 다듬은 씬에서 바닥이 된 바위 칸 %s" % [_layout.rocks.size(), carved]):
-		return false
-	var necromancer: Necromancer = find_necromancer()
-	var results: PackedStringArray = []
-	for rock: Dictionary in _layout.rocks:
-		var sides: Array[Vector2] = _rock_sides(rock, scene_rows)
-		var rect: Rect2i = rock.rect
-		if sides.is_empty():
-			return _check("언데드가 바위를 돌아 따라옴", false, "굴 %d의 바위 %s 양쪽에 설 자리가 없음" % [rock.room, rect])
-		if await _walk_to(necromancer, sides[0]) < 0.0:
-			return _check("언데드가 바위를 돌아 따라옴", false, "굴 %d의 바위 %s 한쪽(%s)에 닿지 못함" % [rock.room, rect, sides[0] / TILE])
-		var start_gather: int = await _gather_frames(necromancer)
-		var walked: float = await _walk_to(necromancer, sides[1])
-		var gathered: int = await _gather_frames(necromancer)
-		if start_gather < 0 or walked < 0.0 or gathered < 0:
-			var distances: PackedStringArray = []
-			for u: Node in get_nodes_in_group(&"undead"):
-				distances.append("%.0f (칸 %s)" % [(u as Node2D).global_position.distance_to(necromancer.global_position), ((u as Node2D).global_position / TILE).snapped(Vector2(0.1, 0.1))])
-			return _check("언데드가 바위를 돌아 따라옴", false, "굴 %d의 바위 %s: 처음 모임 %d프레임, 반대쪽까지 걷기 %.1f초, 반대쪽에서 모임 %d프레임 (%d프레임 안), 거리 %s" % [rock.room, rect, start_gather, walked, gathered, GATHER_FRAMES, ", ".join(distances)])
-		results.append("굴 %d %d×%d %.1f초/%d프레임" % [rock.room, rect.size.x, rect.size.y, walked, gathered])
-	return _check("언데드가 바위를 돌아 따라옴", true, "바위 %d개 모두 한쪽에서 모은 뒤 바위 너머 반대쪽으로 감 (두 자리를 잇는 직선이 바위를 지남), 바위마다 (반대쪽까지 걷기 / 멈춘 뒤 모두 %.0f 안에 모이기까지): %s" % [_layout.rocks.size(), GATHER_DISTANCE, ", ".join(results)])
-
-
-## 바위를 가운데 두고 마주 보는 두 자리 (월드 좌표). 바위 가장자리에서 ROCK_SIDE_GAPS칸(먼 것부터) 떨어지고,
-## 둘 다 설 수 있는(2×2 바닥에 드는) 첫 거리·방향을 쓴다. 없으면 빈 배열
-func _rock_sides(rock: Dictionary, rows: PackedStringArray) -> Array[Vector2]:
-	var rect: Rect2i = rock.rect
-	var center: Vector2 = Vector2(rect.position) + Vector2(rect.size) * 0.5
-	for gap: float in ROCK_SIDE_GAPS:
-		for direction: Vector2 in ROCK_DIRECTIONS:
-			var half: float = 0.0
-			for cell: Vector2i in rock.cells:
-				half = maxf(half, absf((Vector2(cell) + Vector2(0.5, 0.5) - center).dot(direction)) + 0.5 * (absf(direction.x) + absf(direction.y)))
-			var sides: Array[Vector2] = []
-			for side_sign: float in [-1.0, 1.0]:
-				var point: Vector2 = center + direction * side_sign * (half + gap)
-				if _open_around(rows, Vector2i(point.floor()), rock.cells):
-					sides.append(point * TILE)
-			if sides.size() == 2:
-				return sides
-	return [] as Array[Vector2]
-
-
-## cell이 바닥이고 2×2 바닥 덩어리에 드는지 (바위 둘레 길 규칙과 같은 기준. 그 바위 칸은 바닥이 아니다)
-func _open_around(rows: PackedStringArray, cell: Vector2i, rock_cells: Array) -> bool:
-	for corner: Vector2i in [cell, cell - Vector2i(1, 0), cell - Vector2i(0, 1), cell - Vector2i(1, 1)]:
-		var open: bool = true
-		for c: Vector2i in [corner, corner + Vector2i(1, 0), corner + Vector2i(0, 1), corner + Vector2i(1, 1)]:
-			if rock_cells.has(c) or c.y < 0 or c.y >= rows.size() or c.x < 0 or c.x >= rows[c.y].length() or MapLayout.WALL_CHARS.contains(rows[c.y][c.x]):
-				open = false
-		if open:
-			return true
-	return false
-
-
-## 언데드가 모두 네크로맨서 곁(GATHER_DISTANCE)에 모이기까지 걸린 프레임. GATHER_FRAMES 안에 못 모이거나 2마리가 아니면 -1
-func _gather_frames(necromancer: Necromancer) -> int:
-	for frame: int in GATHER_FRAMES:
-		var undead: Array[Node] = get_nodes_in_group(&"undead")
-		if undead.size() == 2 and undead.all(func(u: Node) -> bool: return (u as Node2D).global_position.distance_to(necromancer.global_position) <= GATHER_DISTANCE):
-			return frame
-		await wait_frames(1)
-	return -1
-
-
-# --- 11. 갈림길 하나를 넘어 멧돼지를 만나지 않고 탈출 B ---
-
-func _escape_without_boars() -> bool:
-	var results: PackedStringArray = []
-	for route: Array in [["bat_nest", "junction"], ["spider_gate", "web", "egg", "junction"]]:
-		current_scene.call(&"travel_to", load(BASE_REGION))
-		if not await _wait_scene(BASE_SCENE):
-			return _check("탈출 B까지 멧돼지 없이", false, "거점에 가지 못함")
-		current_scene.call(&"travel_to", load(CAVE_REGION))
-		if not await _wait_scene(CAVE_SCENE):
-			return _check("탈출 B까지 멧돼지 없이", false, "얕은 굴에 다시 들어가지 못함")
-		await wait_frames(SETTLE_FRAMES)
-		var boars: Array[Monster] = []
-		for node: Node in get_nodes_in_group(&"monsters"):
-			if (node as Monster).data.id == &"boar":
-				boars.append(node as Monster)
-			else:
-				node.queue_free()
-		var necromancer: Necromancer = find_necromancer()
-		necromancer.global_position = _room_center(_roles.fork)
-		await wait_frames(2)
-		var goals: Array[Vector2] = []
-		for role: String in route:
-			goals.append(_room_center(_roles[role]))
-		for cell: Vector2i in _layout.cells_of("escape"):
-			if _layout.room_at(cell) == _roles.junction:
-				goals.append(_cell_center(cell))
-		var targeted: PackedStringArray = []
-		var frames: int = 0
-		var follower: PathFollower = PathFollower.new(Vector2(necromancer.body_radius, necromancer.body_radius), Vector2(0, -necromancer.body_radius))
-		for goal: Vector2 in goals:
-			while necromancer.global_position.distance_to(goal) > ARRIVE_DISTANCE and frames < WALK_TIMEOUT_FRAMES:
-				press_moves(follower.get_direction(necromancer, goal))
-				await wait_frames(1)
-				frames += 1
-				_note_boar_targets(boars, targeted)
-		press_moves(Vector2.ZERO)
-		var escaped: bool = false
-		for i: int in ESCAPE_WAIT_FRAMES:
-			await wait_frames(1)
-			if current_scene != null and current_scene.scene_file_path == BASE_SCENE:
-				escaped = true
-				break
-			_note_boar_targets(boars, targeted)
-		var name: String = "박쥐 길" if route[0] == "bat_nest" else "거미 길"
-		results.append("%s: 갈림 굴 → 탈출 B %.1f초, 거점 도착 %s, 멧돼지 %d마리 중 누군가를 노린 멧돼지 %s" % [name, frames / float(Engine.physics_ticks_per_second), escaped, boars.size(), targeted])
-		if not escaped or not targeted.is_empty() or boars.is_empty():
-			return _check("탈출 B까지 멧돼지 없이", false, " / ".join(results))
-	return _check("탈출 B까지 멧돼지 없이", true, "멧돼지만 남긴 채 갈림 굴에서 걸음: " + " / ".join(results))
-
-
-func _note_boar_targets(boars: Array[Monster], targeted: PackedStringArray) -> void:
-	for boar: Monster in boars:
-		if is_instance_valid(boar) and boar.get_target() != null and not targeted.has(boar.name):
-			targeted.append(boar.name)
-
-
-# --- 12. 다시 들어오면 몬스터가 다시 놓임 ---
-
-func _monsters_reset() -> bool:
-	current_scene.call(&"travel_to", load(BASE_REGION))
-	if not await _wait_scene(BASE_SCENE):
-		return _check("거점으로", false, "거점에 가지 못함")
-	current_scene.call(&"travel_to", load(CAVE_REGION))
-	if not await _wait_scene(CAVE_SCENE):
-		return _check("얕은 굴로", false, "얕은 굴에 다시 들어가지 못함")
-	await wait_frames(SETTLE_FRAMES)
-	var count: int = get_nodes_in_group(&"monsters").size()
-	return _check("다시 들어오면 몬스터가 처음대로", count == _monster_cells(), "몬스터를 없앤 뒤 거점에 갔다 오니 몬스터 %d마리 (PNG의 몬스터 %d)" % [count, _monster_cells()])
-
-
-func _wait_scene(path: String) -> bool:
-	for i: int in SCENE_TIMEOUT_FRAMES:
-		await wait_frames(1)
-		if current_scene != null and current_scene.scene_file_path == path and current_scene.is_node_ready():
-			return true
-	return false

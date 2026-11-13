@@ -1,15 +1,13 @@
-[gd_resource type="Resource" script_class="AttackData" format=3]
+[gd_resource type="Resource" script_class="AttackData" format=3 uid="uid://633sv2cnc4pf"]
 
-[ext_resource type="Script" path="res://necromancer/attack_data.gd" id="1_attack"]
+[ext_resource type="Script" uid="uid://cry1rqededwlg" path="res://necromancer/attack_data.gd" id="1_attack"]
 
 [resource]
 script = ExtResource("1_attack")
 id = &"basic_attack"
 display_name = "기본 공격"
-damage = 1.0
-mana_cost = 0.0
 cooldown = 0.8
-projectile_speed = 200.0
-projectile_range = 160.0
-projectile_visual_radius = 3.0
-projectile_hit_radius = 3.0
+projectile_speed = 800.0
+projectile_range = 300.0
+projectile_visual_radius = 6.0
+projectile_hit_radius = 6.0

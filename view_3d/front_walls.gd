@@ -103,7 +103,7 @@ func update_walls(delta: float, nodes: Array[Node2D]) -> void:
 	_aim_weight = move_toward(_aim_weight, on_target, step)
 	var feet: Vector2 = _necromancer.global_position
 	var aim_height: float = _view.get_aim_height()
-	var aim_ground: Vector2 = _view.get_aim_position() + Vector2(0, aim_height)
+	var aim_ground: Vector2 = _view.get_aim_position() + Vector2(0, _view.get_aim_offset())
 	var cut_zones: PackedVector4Array = PackedVector4Array([_zone(_view.world_to_screen(feet, player_zone_height), cut_radius_player, _player_weight), _zone(_view.world_to_screen(aim_ground, aim_height), cut_radius_aim, _aim_weight)])
 	_material.set_shader_parameter(&"cut_zones", cut_zones)
 	_material.set_shader_parameter(&"cut_world", PackedVector2Array([feet / ViewSpace.TILE, aim_ground / ViewSpace.TILE]))

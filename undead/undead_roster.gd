@@ -13,6 +13,7 @@ extends RefCounted
 ## - 인벤토리에서 사라지면(버리기) 죽은 판정, 핫바에서만 빠지면 일반 해제
 ## - 살아 있는 수만큼 마나가 초당 빠지고, 마나가 0이 되면 전부 일반 해제
 ## - 해제된 머리뼈의 체력은 뼈로 회복한다 (UndeadRules)
+## - 뼈 제거: 해제된 머리뼈의 지금 체력에 해당하는 뼈를 인벤토리로 돌려받고, 머리뼈는 처음 소환 전 상태가 된다 (내구도는 그대로)
 
 ## 소환·회복을 시도한 결과
 enum Result {
@@ -34,8 +35,10 @@ enum Result {
 	NOT_AWAKENED,
 	## 회복: 이미 가득 참
 	FULL_HEALTH,
-	## 회복: 뼈가 하나도 없음
+	## 회복: 뼈가 하나도 없음 / 뼈 제거: 머리뼈에 돌려받을 뼈가 없음
 	NO_BONES,
+	## 뼈 제거: 돌려받을 뼈를 넣을 자리가 인벤토리에 없음
+	INVENTORY_FULL,
 }
 
 signal summoned(skull: Skull)
@@ -205,6 +208,46 @@ func heal(skull: Skull) -> Result:
 	var used: int = mini(needed, _inventory.get_count(_bone_id))
 	skull.health = UndeadRules.health_after_heal(skull.health, monster.undead_max_health, monster.summon_bone_cost, used)
 	_inventory.remove_count(_bone_id, used)
+	changed.emit()
+	return Result.OK
+
+
+## 뼈 제거로 돌려받을 뼈 개수 (지금 체력만큼). 깨우지 않은 머리뼈는 0.
+func get_stored_bones(skull: Skull) -> int:
+	var monster: MonsterData = get_monster(skull)
+	if skull == null or monster == null or not skull.awakened:
+		return 0
+	return UndeadRules.stored_bones(skull.health, monster.undead_max_health, monster.summon_bone_cost)
+
+
+## 지금 뼈를 제거할 수 있는지만 확인한다 (아무것도 바꾸지 않는다). bone_item은 돌려받을 뼈 아이템.
+func check_remove_bones(skull: Skull, bone_item: ItemData) -> Result:
+	if skull == null or not _inventory.get_skulls().has(skull):
+		return Result.NO_SKULL
+	if is_summoned(skull):
+		return Result.SUMMONED
+	if get_monster(skull) == null:
+		return Result.UNKNOWN_MONSTER
+	if not skull.awakened:
+		return Result.NOT_AWAKENED
+	var bones: int = get_stored_bones(skull)
+	if bones == 0:
+		return Result.NO_BONES
+	if not _inventory.can_add(ItemStack.of_item(bone_item, bones)):
+		return Result.INVENTORY_FULL
+	return Result.OK
+
+
+## 해제된 머리뼈에서 뼈를 빼서 인벤토리로 돌려준다. 머리뼈는 처음 소환 전 상태(깨우지 않음, 체력 0)가 된다.
+## 다시 쓰려면 처음 소환 비용을 다시 낸다. 내구도는 그대로다.
+func remove_bones(skull: Skull, bone_item: ItemData) -> Result:
+	var check: Result = check_remove_bones(skull, bone_item)
+	if check != Result.OK:
+		return check
+	var bones: int = get_stored_bones(skull)
+	skull.awakened = false
+	skull.health = 0.0
+	_inventory.try_add(ItemStack.of_item(bone_item, bones))
 	changed.emit()
 	return Result.OK
 

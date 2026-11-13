@@ -13,7 +13,7 @@ const NEIGHBORS_4: Array[Vector2i] = [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP
 const NEIGHBORS_8: Array[Vector2i] = [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN, Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)]
 
 
-## rows: 다듬은 칸 글자 (씬의 PlaceholderWalls.layout), objects: PNG의 물건 목록, from_cell·to_cell: 둥지 양쪽 굴의 아무 칸.
+## rows: 칸 글자 (윤곽이 있는 지역은 tests/outline_rows.gd의 실제 바닥), objects: PNG의 물건 목록, from_cell·to_cell: 둥지 양쪽 굴의 아무 칸.
 ## 돌려주는 것: {"detected": {칸: true}, "watched": {칸: true} (감지 범위 + sneak_margin), "entrance": [칸], "exit": [칸],
 ##   "default_path": [칸], "default_length": 칸 수, "first_detect": 기본 길에서 처음 감지하는 칸까지 걸은 칸 수 (감지하지 않으면 -1),
 ##   "sneak_path": [칸] (없으면 빈 배열), "sneak_length": 칸 수 (없으면 -1)}

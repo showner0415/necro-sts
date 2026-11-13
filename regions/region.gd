@@ -8,6 +8,8 @@ extends Node2D
 ##   Tab·Esc를 누르거나 상자에서 멀어지면 둘 다 닫는다. 창고 화면(StorageScreen)이 없는 지역에서는 열 수 없다
 ## - 지역 상자(LootChest): F를 누르면 그 상자(오른쪽)와 인벤토리(왼쪽)를 나란히 연다 (상자 화면 ChestScreen).
 ##   열려 있는 동안만 상자의 내용물이 하나씩 드러난다. 상자에서 open_distance보다 멀어지거나 Tab·Esc로 둘 다 닫는다
+## - 수리 기계(RepairMachine, 거점에 둠): F를 누르면 수리 창(오른쪽)과 인벤토리(왼쪽)를 나란히 연다.
+##   Tab·Esc를 누르거나 기계에서 멀어지면 둘 다 닫는다. 수리 창(RepairScreen)이 없는 지역에서는 열 수 없다
 ## - 네크로맨서가 죽으면 인벤토리를 전부 잃고 death_destination(거점)으로 간다
 ## - 지역 데이터의 limit_vision이 켜져 있으면 플레이어 시야를 제한한다 (Vision, 거점은 끔)
 ## 다른 씬으로 갈 때 소환 중인 언데드는 일반 해제된다. 네크로맨서는 새 씬에서 새로 만들어지므로 체력·마나가 가득 찬다.
@@ -29,6 +31,8 @@ var _chests: Array[StorageChest] = []
 ## 지역 상자들과 지금 열려 있는 상자 (없으면 null)
 var _loot_chests: Array[LootChest] = []
 var _open_chest: LootChest
+## 지금 수리 창을 연 기계 (없으면 null)
+var _open_machine: RepairMachine
 
 @onready var _necromancer: Necromancer = $Actors/Necromancer
 @onready var _hud: Hud = $HUD
@@ -37,6 +41,8 @@ var _open_chest: LootChest
 @onready var _storage_screen: InventoryScreen = get_node_or_null("StorageScreen")
 ## 지역 상자가 있는 지역에만 있다. 없으면 null.
 @onready var _chest_screen: InventoryScreen = get_node_or_null("ChestScreen")
+## 수리 기계가 있는 곳(거점)에만 있다. 없으면 null.
+@onready var _repair_screen: RepairScreen = get_node_or_null("RepairScreen")
 
 
 func _ready() -> void:
@@ -64,6 +70,8 @@ func _ready() -> void:
 	if _storage_screen != null:
 		_storage_screen.bind(GameState.storage, roster, GameState.hotbar, _necromancer.drop_to_ground, transfer, _inventory)
 		_storage_screen.open_changed.connect(_on_storage_open_changed)
+	if _repair_screen != null:
+		_repair_screen.open_changed.connect(_on_repair_open_changed)
 	_inventory_screen.open_changed.connect(_on_inventory_open_changed)
 	_hud.hotbar_view.bind(GameState.hotbar, _necromancer.summoner.roster)
 	if data != null and data.limit_vision:
@@ -89,6 +97,9 @@ func _ready() -> void:
 		elif node is StorageChest and _storage_screen != null:
 			(node as StorageChest).interacted.connect(open_storage)
 			_chests.append(node as StorageChest)
+		elif node is RepairMachine and _repair_screen != null:
+			var machine: RepairMachine = node as RepairMachine
+			machine.interacted.connect(open_repair.bind(machine))
 	if _chest_screen != null and not _loot_chests.is_empty():
 		# 상자 화면은 열 때마다 그 상자로 바꾼다 (set_container). 처음에는 첫 상자로 묶어 둔다.
 		_chest_screen.bind(_loot_chests[0].contents.inventory, roster, GameState.hotbar, _necromancer.drop_to_ground, transfer, _inventory)
@@ -126,6 +137,17 @@ func open_chest(chest: LootChest) -> void:
 	_inventory_screen.set_open(true)
 
 
+## 수리 창(오른쪽)과 인벤토리(왼쪽)를 나란히 연다. 비용은 그 기계의 값을 따른다.
+func open_repair(machine: RepairMachine) -> void:
+	if _repair_screen == null:
+		return
+	_open_machine = machine
+	var roster: UndeadRoster = _necromancer.summoner.roster
+	_repair_screen.bind(machine.make_repair(_inventory, roster), _inventory, roster, machine.cost_item.display_name)
+	_repair_screen.set_open(true)
+	_inventory_screen.set_open(true)
+
+
 ## 테스트용: 지금 열려 있는 지역 상자 (없으면 null)
 func get_open_chest() -> LootChest:
 	return _open_chest
@@ -144,6 +166,17 @@ func _physics_process(delta: float) -> void:
 	# 상자에서 멀어지면 창고를 닫는다.
 	if _storage_screen != null and _storage_screen.is_open() and not _chests.any(func(chest: StorageChest) -> bool: return chest.is_necromancer_inside()):
 		_storage_screen.set_open(false)
+	# 수리 기계에서 멀어지면 수리 창을 닫는다.
+	if _open_machine != null and _repair_screen.is_open() and not _open_machine.is_necromancer_inside():
+		_repair_screen.set_open(false)
+
+
+## 수리 창이 닫히면(Esc, 멀어짐, Tab) 인벤토리도 같이 닫는다.
+func _on_repair_open_changed(is_open: bool) -> void:
+	if is_open:
+		return
+	_open_machine = null
+	_inventory_screen.set_open(false)
 
 
 ## 상자가 닫히면(Esc, 멀어짐, Tab) 인벤토리도 같이 닫는다.
@@ -179,6 +212,8 @@ func _on_inventory_open_changed(is_open: bool) -> void:
 		_storage_screen.set_open(false)
 	if not is_open and _chest_screen != null:
 		_chest_screen.set_open(false)
+	if not is_open and _repair_screen != null:
+		_repair_screen.set_open(false)
 
 
 func _on_necromancer_died() -> void:

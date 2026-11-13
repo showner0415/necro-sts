@@ -2,7 +2,7 @@ extends SceneTree
 ## 맵 배치 PNG(픽셀 하나 = 타일 한 칸)를 읽어 지역 씬(.tscn)을 만든다. 색 규칙은 docs/maps/map_png_rules.md.
 ## 만든 씬에는 벽(충돌 포함)·바닥 색 칸(PlaceholderWalls), 길찾기(NavigationGrid), 네크로맨서(도착 지점), 몬스터, 상자, 탈출 지점,
 ## HUD·인벤토리·상자 화면이 들어간다. PNG를 고친 뒤 다시 실행하면 씬을 통째로 새로 쓴다 (씬을 손으로 고치지 않는다).
-## 벽 가장자리는 MapSmoother로 동굴처럼 다듬는다 (좁은 길목·굴 중심·물건 둘레는 그대로, 바닥은 최소 2칸). 끄려면 --smooth=0, 다른 모양은 --seed=<수>.
+## 벽 모양은 칸 그대로 쓰지 않고 tools/map_png/make_cave_outline.gd가 만든 윤곽을 쓴다. 씬의 칸(layout)은 PNG 그대로다.
 ## 다 만든 뒤 굴 목록(입구 수, 이어진 굴, 안의 물건)과 문제(모르는 색 등)를 출력한다. 문제가 있으면 씬을 쓰지 않고 종료 코드 1.
 ##
 ## 실행 (기본값은 얕은 굴):
@@ -45,12 +45,16 @@ const FLOOR_COLORS: Dictionary = {
 }
 const WALL_COLORS: Dictionary = {"x": "68386c"}
 
+## 윤곽 벽 지역의 길찾기가 몸을 줄여 재는 여유 (픽셀, 사용자 확정 2026-11-11)
+const OUTLINE_CLEARANCE: float = 0.0
+
 var _ext: Array[String] = []
 var _ext_ids: Dictionary = {}
+var _out_path: String = ""
 
 
 func _initialize() -> void:
-	var args: Dictionary = {"in": DEFAULT_IN, "out": DEFAULT_OUT, "region": DEFAULT_REGION, "name": DEFAULT_NAME, "smooth": "1", "seed": str(MapSmoother.DEFAULT_SEED)}
+	var args: Dictionary = {"in": DEFAULT_IN, "out": DEFAULT_OUT, "region": DEFAULT_REGION, "name": DEFAULT_NAME}
 	for arg: String in OS.get_cmdline_user_args():
 		var parts: PackedStringArray = arg.trim_prefix("--").split("=", true, 1)
 		if parts.size() == 2:
@@ -64,18 +68,13 @@ func _initialize() -> void:
 		quit(1)
 		return
 	# 그릴 때 지킬 것: 1칸짜리 길은 그리지 않는다 (docs/maps/map_png_rules.md).
-	var narrow: Array[Vector2i] = MapSmoother.narrow_cells(layout.rows)
+	var narrow: Array[Vector2i] = MapLayout.narrow_cells(layout.rows)
 	if not narrow.is_empty():
 		printerr("문제: PNG에 2칸보다 좁은 바닥이 있음 (칸 좌표): ", narrow)
 		quit(1)
 		return
-	var rows: PackedStringArray = layout.rows
-	if args.smooth != "0":
-		rows = MapSmoother.smooth(layout, int(args.seed))
-		if not _check_smoothed(layout, rows):
-			quit(1)
-			return
-	var text: String = _build(layout, rows, args.region, args.name)
+	_out_path = args.out
+	var text: String = _build(layout, layout.rows, args.region, args.name)
 	var file: FileAccess = FileAccess.open(args.out, FileAccess.WRITE)
 	file.store_string(text)
 	file.close()
@@ -123,11 +122,20 @@ func _build(layout: MapLayout, rows: PackedStringArray, region_path: String, roo
 	var walls: PackedStringArray = []
 	for c: String in WALL_COLORS:
 		walls.append('"%s": %s' % [c, _color(WALL_COLORS[c])])
-	nodes.append('[node name="Walls" type="Node2D" parent="."]\nscript = %s\nlayout = PackedStringArray(%s)\nwall_chars = "%s"\nwall_colors = Dictionary[String, Color]({%s})\nfloor_colors = Dictionary[String, PackedColorArray]({%s})\n' % [
-		_id("res://regions/placeholder_walls.gd", "Script"), ", ".join(quoted), MapLayout.WALL_CHARS, ", ".join(walls), ", ".join(floors)])
+	# 윤곽 파일은 씬을 만든 뒤 tools/map_png/make_cave_outline.gd로 만든다. 있으면 충돌·길찾기·시야가 윤곽을 쓴다.
+	var outline_path: String = "%s_outline.res" % _out_path.get_basename()
+	var outline_line: String = ""
+	if ResourceLoader.exists(outline_path):
+		outline_line = "outline = %s\n" % _id(outline_path, "Resource")
+	else:
+		print("윤곽 파일 없음 (%s): 칸 충돌로 만든다. make_cave_outline.gd로 윤곽을 만든 뒤 다시 변환한다" % outline_path)
+	nodes.append('[node name="Walls" type="Node2D" parent="."]\nscript = %s\nlayout = PackedStringArray(%s)\nwall_chars = "%s"\n%swall_colors = Dictionary[String, Color]({%s})\nfloor_colors = Dictionary[String, PackedColorArray]({%s})\n' % [
+		_id("res://regions/placeholder_walls.gd", "Script"), ", ".join(quoted), MapLayout.WALL_CHARS, outline_line, ", ".join(walls), ", ".join(floors)])
 	# 벽이 모두 타일이라, 막힌 칸을 물리 질의 대신 벽 타일에서 바로 계산하게 한다.
-	nodes.append('[node name="NavigationGrid" type="Node" parent="."]\nscript = %s\nbounds = Rect2(0, 0, %d, %d)\ncell_size = %s\nwall_tiles = NodePath("../Walls")\n' % [
-		_id("res://regions/navigation_grid.gd", "Script"), layout.size.x * TILE_SIZE, layout.size.y * TILE_SIZE, NAV_CELL_SIZE])
+	# 윤곽 벽은 칸 벽과 달리 들쭉날쭉해서, 몸을 줄여 재면 길의 점이 몸이 닿지 못하는 자리에 놓여 걸린다.
+	var clearance_line: String = "clearance_margin = %s\n" % OUTLINE_CLEARANCE if not outline_line.is_empty() else ""
+	nodes.append('[node name="NavigationGrid" type="Node" parent="."]\nscript = %s\nbounds = Rect2(0, 0, %d, %d)\ncell_size = %s\n%swall_tiles = NodePath("../Walls")\n' % [
+		_id("res://regions/navigation_grid.gd", "Script"), layout.size.x * TILE_SIZE, layout.size.y * TILE_SIZE, NAV_CELL_SIZE, clearance_line])
 
 	var escapes: Array[Vector2i] = layout.cells_of("escape")
 	for i: int in escapes.size():
@@ -197,41 +205,3 @@ func _group_packs(cells: Array[Vector2i], names: Dictionary) -> Array[PackedStri
 		if group.size() > 1:
 			result.append(group)
 	return result
-
-
-## 다듬은 결과가 규칙을 지키는지 확인하고 요약을 출력한다: 바닥이 모두 2칸 너비, 도착 지점에서 모든 물건에 걸어서 닿음.
-func _check_smoothed(layout: MapLayout, rows: PackedStringArray) -> bool:
-	var carved: int = 0
-	var filled: int = 0
-	for y: int in rows.size():
-		for x: int in rows[y].length():
-			var before: bool = layout.is_wall(Vector2i(x, y))
-			var after: bool = MapLayout.WALL_CHARS.contains(rows[y][x])
-			if before and not after:
-				carved += 1
-			elif after and not before:
-				filled += 1
-	# 굴 가운데가 조금 옮겨질 수 있어 가운데 칸 대신 입구 수와 이어진 굴로 비교한다.
-	var after: MapLayout = MapLayout.from_rows(rows, layout.objects)
-	var same_connections: bool = after.rooms.size() == layout.rooms.size()
-	if same_connections:
-		for i: int in layout.rooms.size():
-			var a: Array = layout.rooms[i].neighbors.duplicate()
-			var b: Array = after.rooms[i].neighbors.duplicate()
-			a.sort()
-			b.sort()
-			same_connections = same_connections and a == b and layout.rooms[i].entrances == after.rooms[i].entrances
-	var narrow: Array[Vector2i] = MapSmoother.narrow_cells(rows)
-	var reach: Dictionary = MapSmoother.reachable(rows, layout.cells_of("spawn")[0])
-	var unreachable: Array[Vector2i] = []
-	for o: Dictionary in layout.objects:
-		if not reach.has(o.cell):
-			unreachable.append(o.cell)
-	print("다듬기: 벽 → 바닥 %d칸, 바닥 → 벽 %d칸, 2칸보다 좁은 바닥 %s, 도착 지점에서 닿지 않는 물건 %s, 굴 입구 수·연결 그대로 %s" % [carved, filled, narrow, unreachable, same_connections])
-	if not same_connections:
-		print("  전: ", layout.connection_summary())
-		print("  후: ", after.connection_summary())
-	if not narrow.is_empty() or not unreachable.is_empty() or not same_connections:
-		printerr("문제: 다듬은 맵이 규칙을 어김 (위 출력). PNG에 1칸 길이 있는지 확인한다")
-		return false
-	return true

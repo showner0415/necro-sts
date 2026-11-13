@@ -78,7 +78,7 @@ func get_depth_bias() -> float:
 
 
 func _is_body(node: Node2D) -> bool:
-	return node is Necromancer or node is Monster or node is Undead or node is Corpse or node is Pickup or node is LootChest or node is StorageChest or node is Bolt or node is Stone
+	return node is Necromancer or node is Monster or node is Undead or node is Corpse or node is Pickup or node is LootChest or node is StorageChest or node is RepairMachine or node is Bolt or node is Stone
 
 
 func _make_visual(node: Node2D) -> _Visual:
@@ -137,10 +137,10 @@ func _chest_brightness(visual: _Visual) -> Color:
 	return Color(level, level, level, 1.0)
 
 
-## 몸을 놓을 3D 위치. 탄·돌은 2D에서 높이만큼 위쪽 자리에 있으므로 되돌리고 그 높이에 놓는다.
+## 몸을 놓을 3D 위치. 탄·돌은 2D에서 몸 가운데만큼 위쪽 자리에 있으므로 되돌리고 그리는 높이에 놓는다.
 func _position_3d(node: Node2D) -> Vector3:
 	if node is Bolt:
-		return ViewSpace.aim_to_3d(node.global_position, _view.get_aim_height())
+		return ViewSpace.aim_to_3d(node.global_position, _view.get_aim_offset(), _view.get_aim_height())
 	if node is Stone:
 		var stone: Stone = node as Stone
 		return ViewSpace.to_3d(stone.global_position + Vector2(0, stone.ground_offset), stone.get_view_height())
@@ -169,6 +169,9 @@ func _read_art(node: Node2D, visual: _Visual) -> Color:
 	elif node is StorageChest:
 		var storage: StorageChest = node as StorageChest
 		art = PlaceholderArt.for_chest(storage.box_size, storage.lid_height, storage.box_color, storage.lid_color)
+	elif node is RepairMachine:
+		var machine: RepairMachine = node as RepairMachine
+		art = PlaceholderArt.for_chest(machine.box_size, machine.top_height, machine.box_color, machine.top_color)
 	elif node is Pickup:
 		var item: Resource = (node as Pickup).stack.item
 		art = PlaceholderArt.for_box(item.get(&"placeholder_size"))

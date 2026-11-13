@@ -29,7 +29,7 @@ check() {
 	fi
 }
 
-check "지형: 얕은 굴" check_terrain_3d.gd -- --scene=res://regions/shallow_cave.tscn
+check "지형: 얕은 굴" check_terrain_3d.gd -- --scene=res://regions/shallow_cave.tscn --cell_terrain
 check "지형: 거점" check_terrain_3d.gd -- --scene=res://regions/base.tscn
 check "지형: 시험 통로" check_terrain_3d.gd -- --scene=res://regions/test_corridor.tscn
 check "몸과 앞벽" check_bodies_3d.gd

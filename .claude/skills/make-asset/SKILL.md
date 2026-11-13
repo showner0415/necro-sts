@@ -12,7 +12,7 @@ description: 게임에 쓸 그래픽 에셋(캐릭터, 몬스터, 언데드, 아
 
 `docs/art-direction.md`를 읽는다.
 - 이번 에셋에 필요한 기본 방향(시점, 스타일, 기준 크기, 팔레트)이 **미정**이면, 에셋 사양보다 먼저 그것부터 묻는다. 한 번에 최대 4개 질문, 각 질문에 추천안을 첫 번째 선택지로 둔다.
-- 답을 받으면 `docs/art-direction.md`의 해당 항목을 확정으로 바꾼다.
+- 답을 받으면 `decide` 스킬로 `docs/art-direction.md`에 기록한다.
 
 ## 2. 사양 묻기
 
@@ -30,6 +30,7 @@ description: 게임에 쓸 그래픽 에셋(캐릭터, 몬스터, 언데드, 아
 `docs/art-direction.md`의 "제작 도구"를 따른다.
 - `tools/asset_gen/`에 생성 스크립트를 만든다. 조정할 만한 값(크기, 색, 비율, 눈 위치 등)은 스크립트 맨 위에 상수로 모아 둔다. 결과 PNG는 `assets/` 아래 해당 분류 폴더에 저장한다.
 - 만든 뒤 `bash tools/godot.sh --headless --path . --import`로 임포트한다.
+- 이미 있는 에셋을 다시 만들 때는 `assets/ASSETS.md`의 그 에셋 줄에 적힌 원본·생성 스크립트·명령·확인 스크린샷을 따른다 (예: 네크로맨서 애니메이션은 PixelLab ZIP에서 `tools/asset_gen/necromancer_anim.gd`로 꺼낸다).
 
 ## 4. 미리보기와 확인
 

@@ -90,7 +90,7 @@ func _skull_at(index: int) -> Skull:
 # --- 아이템별 항목 ---
 
 func test_skull_menu_items() -> void:
-	assert_eq(_ids(skull_data), [&"heal_skull", &"assign_hotbar", &"unassign_hotbar", &"drop"] as Array[StringName], "머리뼈: 회복하기, 핫바에 등록(또는 핫바에서 빼기), 버리기")
+	assert_eq(_ids(skull_data), [&"heal_skull", &"remove_bones", &"assign_hotbar", &"unassign_hotbar", &"drop"] as Array[StringName], "머리뼈: 회복하기, 뼈 제거, 핫바에 등록(또는 핫바에서 빼기), 버리기")
 
 
 func test_bone_menu_items() -> void:
@@ -99,6 +99,7 @@ func test_bone_menu_items() -> void:
 
 func test_labels() -> void:
 	assert_eq(_action(skull_data, &"heal_skull").label, "회복하기")
+	assert_eq(_action(skull_data, &"remove_bones").label, "뼈 제거")
 	assert_eq(_action(skull_data, &"assign_hotbar").label, "핫바에 등록")
 	assert_eq(_action(skull_data, &"unassign_hotbar").label, "핫바에서 빼기")
 	assert_eq(_action(bone, &"drop").label, "버리기")
@@ -139,9 +140,9 @@ func test_heal_gray_without_bones() -> void:
 
 func test_hotbar_item_switches_to_unassign_when_in_hotbar() -> void:
 	var index: int = _add_skull()
-	assert_eq(_visible_ids(index), [&"heal_skull", &"assign_hotbar", &"drop"] as Array[StringName], "핫바에 없으면 '핫바에 등록'")
+	assert_eq(_visible_ids(index), [&"heal_skull", &"remove_bones", &"assign_hotbar", &"drop"] as Array[StringName], "핫바에 없으면 '핫바에 등록'")
 	hotbar.assign(1, _skull_at(index))
-	assert_eq(_visible_ids(index), [&"heal_skull", &"unassign_hotbar", &"drop"] as Array[StringName], "핫바에 있으면 같은 자리에 '핫바에서 빼기'")
+	assert_eq(_visible_ids(index), [&"heal_skull", &"remove_bones", &"unassign_hotbar", &"drop"] as Array[StringName], "핫바에 있으면 같은 자리에 '핫바에서 빼기'")
 
 
 func test_unassign_removes_from_hotbar_only() -> void:
@@ -243,3 +244,106 @@ func test_unavailable_action_does_nothing() -> void:
 	assert_false(_action(skull_data, &"heal_skull").execute(_context(index)), "체력 가득이면 실행 안 됨")
 	hotbar.assign(0, _skull_at(index))
 	assert_false(_action(skull_data, &"assign_hotbar").execute(_context(index)))
+
+
+# --- 뼈 제거 ---
+
+## 소환했다가 damage만큼 다친 뒤 해제한 머리뼈의 칸 번호. 처음 소환 뼈는 테스트 안에서 주고, 남은 뼈는 extra_bones개.
+func _add_used_skull(damage: float, extra_bones: int) -> int:
+	var index: int = _add_skull()
+	inventory.try_add(ItemStack.of_item(bone, BONE_COST + extra_bones))
+	var skull: Skull = _skull_at(index)
+	hotbar.assign(0, skull)
+	roster.summon(skull)
+	if damage > 0.0:
+		roster.damage(skull, damage)
+	roster.unsummon(skull)
+	return index
+
+
+func test_remove_bones_returns_bones_for_current_health() -> void:
+	var index: int = _add_used_skull(0.0, 0)
+	var skull: Skull = _skull_at(index)
+	var durability: float = skull.durability
+	var action: ItemAction = _action(skull_data, &"remove_bones")
+	var state: ItemActionState = action.get_state(_context(index))
+	assert_true(state.enabled, "체력 가득인 해제된 머리뼈")
+	assert_eq(state.label, "뼈 제거 (4개)", "돌려받을 개수를 이름에 붙임")
+	assert_true(action.execute(_context(index)))
+	assert_eq(inventory.get_count(bone.id), BONE_COST, "처음 소환에 쓴 뼈가 그대로 돌아옴")
+	assert_false(skull.awakened, "처음 소환 전 상태")
+	assert_eq(skull.health, 0.0)
+	assert_eq(skull.durability, durability, "내구도는 그대로")
+	assert_true(inventory.get_skulls().has(skull), "머리뼈는 인벤토리에 남음")
+
+
+func test_remove_bones_rounds_down_damaged_health() -> void:
+	# 체력 4, 뼈 4개 → 뼈 하나당 체력 1. 1.5 다치면 2.5 → 2개.
+	var index: int = _add_used_skull(1.5, 0)
+	assert_eq(roster.get_stored_bones(_skull_at(index)), 2, "다친 만큼은 돌아오지 않고, 소수는 버림")
+	_action(skull_data, &"remove_bones").execute(_context(index))
+	assert_eq(inventory.get_count(bone.id), 2)
+
+
+func test_remove_bones_after_heal_does_not_create_bones() -> void:
+	var index: int = _add_used_skull(2.0, 2)
+	var skull: Skull = _skull_at(index)
+	_action(skull_data, &"heal_skull").execute(_context(index))
+	assert_eq(inventory.get_count(bone.id), 0, "회복에 2개 씀")
+	_action(skull_data, &"remove_bones").execute(_context(index))
+	assert_eq(inventory.get_count(bone.id), BONE_COST, "회복해도 최대 체력만큼(처음 소환 비용)만 돌아옴")
+	assert_false(skull.awakened)
+
+
+func test_remove_bones_merges_into_bone_slot() -> void:
+	var index: int = _add_used_skull(0.0, 3)
+	var before_slots: int = 0
+	for i: int in inventory.get_slot_count():
+		if inventory.get_slot(i) != null:
+			before_slots += 1
+	_action(skull_data, &"remove_bones").execute(_context(index))
+	var after_slots: int = 0
+	for i: int in inventory.get_slot_count():
+		if inventory.get_slot(i) != null:
+			after_slots += 1
+	assert_eq(inventory.get_count(bone.id), 3 + BONE_COST, "있던 뼈 칸에 합쳐짐")
+	assert_eq(after_slots, before_slots, "새 칸을 쓰지 않음")
+
+
+func test_remove_bones_gray_states() -> void:
+	var action: ItemAction = _action(skull_data, &"remove_bones")
+	var fresh: int = _add_skull()
+	var state: ItemActionState = action.get_state(_context(fresh))
+	assert_false(state.enabled, "처음 소환 전에는 뺄 뼈가 없음")
+	assert_eq(state.reason, "뼈 없음")
+	assert_false(action.execute(_context(fresh)))
+
+	var summoned: int = _add_used_skull(0.0, 0)
+	inventory.try_add(ItemStack.of_item(bone, 1))
+	roster.summon(_skull_at(summoned))
+	state = action.get_state(_context(summoned))
+	assert_false(state.enabled)
+	assert_eq(state.reason, "소환 중")
+	roster.unsummon(_skull_at(summoned))
+
+	# 죽은 판정으로 체력 0
+	hotbar.assign(0, _skull_at(summoned))
+	roster.summon(_skull_at(summoned))
+	roster.damage(_skull_at(summoned), MAX_HEALTH)
+	state = action.get_state(_context(summoned))
+	assert_false(state.enabled, "체력 0이면 뺄 뼈가 없음")
+	assert_eq(state.reason, "뼈 없음")
+
+
+func test_remove_bones_gray_when_inventory_full() -> void:
+	var index: int = _add_used_skull(0.0, 0)
+	# 처음 소환에 뼈를 다 써서 뼈 칸이 없다. 나머지 칸을 머리뼈로 채운다.
+	while inventory.can_add(ItemStack.of_skull(Skull.create(skull_data))):
+		inventory.try_add(ItemStack.of_skull(Skull.create(skull_data)))
+	var skull: Skull = _skull_at(index)
+	var state: ItemActionState = _action(skull_data, &"remove_bones").get_state(_context(index))
+	assert_false(state.enabled)
+	assert_eq(state.reason, "인벤토리 가득 참")
+	assert_false(_action(skull_data, &"remove_bones").execute(_context(index)))
+	assert_true(skull.awakened, "그대로")
+

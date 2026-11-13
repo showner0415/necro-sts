@@ -6,3 +6,15 @@
 .agents/
 .codex/
 AGENTS.md
+
+# 구운 동굴 지형 (지형이 확정될 때까지 저장소에 올리지 않음. tools/map_png/make_cave_outline.gd로 만든다)
+# worktree에는 .worktreeinclude대로 본 checkout에서 복사한다
+regions/*_terrain.res
+
+# 비교판 작업 폴더 (tools/compare_variants.sh). 비교마다 compare/<날짜>_<주제>/를 만들고 다 보면 지운다.
+# Godot가 이 폴더를 읽지 않게 하는 compare/.gdignore만 올린다
+/compare/*
+!/compare/.gdignore
+
+# Claude Code가 만드는 git worktree (claude --worktree, isolation: worktree 서브에이전트)
+.claude/worktrees/

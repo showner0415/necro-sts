@@ -19,6 +19,23 @@ func _image(lines: Array[String]) -> Image:
 	return image
 
 
+func test_narrow_cells_finds_one_wide_floor() -> void:
+	var rows: PackedStringArray = PackedStringArray(["#####", "#..##", "#..##", "##.##", "#####"])
+	assert_eq(MapLayout.narrow_cells(rows), [Vector2i(2, 3)] as Array[Vector2i], "2×2에 들지 못하는 칸만")
+
+
+func test_narrow_cells_accepts_two_wide_floor() -> void:
+	var rows: PackedStringArray = PackedStringArray(["####", "#..#", "#..#", "#..#", "####"])
+	assert_eq(MapLayout.narrow_cells(rows), [] as Array[Vector2i], "2칸 폭은 괜찮다")
+
+
+func test_reachable_stops_at_walls() -> void:
+	var rows: PackedStringArray = PackedStringArray(["#####", "#.#.#", "#####"])
+	var seen: Dictionary = MapLayout.reachable(rows, Vector2i(1, 1))
+	assert_true(seen.has(Vector2i(1, 1)), "출발 칸")
+	assert_false(seen.has(Vector2i(3, 1)), "벽 건너편은 못 닿음")
+
+
 ## 굴 넷이 통로로 네모(고리)를 이루고, 막다른 굴 하나가 오른쪽 아래 굴의 통로로만 이어진 맵
 func _ring_map() -> MapLayout:
 	return MapLayout.from_image(_image([

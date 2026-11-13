@@ -1,0 +1,5 @@
+# git worktree를 만들 때 본 checkout에서 복사할 파일 (.gitignore 문법). .gitignore에도 있는 파일만 복사한다.
+# Claude Code가 만드는 worktree(claude --worktree, isolation: worktree 서브에이전트)와 tools/compare_variants.sh worktree가 쓴다.
+
+# 구운 동굴 지형. 없으면 3D 화면이 칸 지형으로 그려진다 (map-edit 스킬)
+regions/*_terrain.res

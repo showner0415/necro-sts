@@ -12,6 +12,8 @@
 [ext_resource type="PackedScene" path="res://ui/storage_screen.tscn" id="10_storage"]
 [ext_resource type="Resource" path="res://data/regions/test_corridor.tres" id="11_test_corridor"]
 [ext_resource type="Resource" path="res://data/regions/shallow_cave.tres" id="12_shallow_cave"]
+[ext_resource type="PackedScene" path="res://regions/repair_machine.tscn" id="13_repair_machine"]
+[ext_resource type="PackedScene" path="res://ui/repair_screen.tscn" id="14_repair_screen"]
 
 [node name="Base" type="Node2D"]
 script = ExtResource("1_region")
@@ -41,6 +43,9 @@ debug_only = true
 [node name="StorageChest" parent="." instance=ExtResource("9_chest")]
 position = Vector2(-120, -40)
 
+[node name="RepairMachine" parent="." instance=ExtResource("13_repair_machine")]
+position = Vector2(120, -40)
+
 [node name="Actors" type="Node2D" parent="."]
 y_sort_enabled = true
 
@@ -52,3 +57,5 @@ position = Vector2(0, 40)
 [node name="InventoryScreen" parent="." instance=ExtResource("8_inventory")]
 
 [node name="StorageScreen" parent="." instance=ExtResource("10_storage")]
+
+[node name="RepairScreen" parent="." instance=ExtResource("14_repair_screen")]

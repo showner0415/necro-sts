@@ -27,12 +27,18 @@ const STAMINA_RING_PATH: String = "StaminaRing"
 @export var camera_far: float = 200.0
 ## 카메라 깊이를 맞출 격자 (단위, 0이면 맞추지 않음). 몸 위치의 아주 작은 흔들림이 벽 경계 픽셀을 뒤집지 않게 한다
 @export var depth_step: float = 1.0 / 256.0
+## 조준·탄이 화면에 그려지는 평면의 높이 (픽셀). 24면 화면에서 발 위 약 12픽셀로 네크로맨서 그림의 가운데다 (사용자 요청, 2026-11-12. 전에는 몸 반지름 6이라 발밑에서 나가 보였다). 규칙(2D)에는 영향이 없다
+@export var aim_height_px: float = 24.0
 ## 벽 높이 (픽셀)
 @export var wall_height_px: float = 128.0
 ## 앞벽을 잘라낸 자리에 보이는 낮은 윗면 높이 (픽셀). 지형 셰이더의 cut_keep_height(0.2칸 = 6.4픽셀)보다 조금 낮다
 @export var cut_cap_height_px: float = 6.08
 ## 지형 구역 한 변의 칸 수
 @export var chunk_cells: int = 16
+## 윤곽이 없는 씬에도 새 동굴 지형(CaveTerrainMesher)을 쓸지. 벽에 윤곽이 있는 지역은 이 값과 상관없이 새 지형을 쓴다
+static var use_cave_terrain: bool = OS.get_cmdline_user_args().has("--cave_terrain")
+## 윤곽이 있는 지역도 칸 지형으로 그릴지 (비교·칸 색 검사용, 실행 인자 --cell_terrain)
+static var use_cell_terrain: bool = OS.get_cmdline_user_args().has("--cell_terrain")
 
 ## 카메라 앞서 가기 값 (나중에 설정에서 strength를 0까지 줄인다)
 var aim_lead: AimLead = AimLead.new()
@@ -132,12 +138,12 @@ func get_aim_position() -> Vector2:
 
 ## 화면(내부 해상도)의 점을 누르면 조준되는 월드(2D) 좌표
 func aim_from_screen(screen: Vector2) -> Vector2:
-	return ViewSpace.aim_from_ray(_camera.project_ray_origin(screen), _camera.project_ray_normal(screen), get_aim_height(), _necromancer.get_body_center())
+	return ViewSpace.aim_from_ray(_camera.project_ray_origin(screen), _camera.project_ray_normal(screen), get_aim_offset(), get_aim_height(), _necromancer.get_body_center())
 
 
 ## 이 월드(2D) 좌표를 조준하려면 마우스를 둘 화면(내부 해상도) 위치. aim_from_screen의 반대다
 func screen_from_aim(aim: Vector2) -> Vector2:
-	return _camera.unproject_position(ViewSpace.aim_to_3d(aim, get_aim_height()))
+	return _camera.unproject_position(ViewSpace.aim_to_3d(aim, get_aim_offset(), get_aim_height()))
 
 
 ## 월드(2D) 좌표에서 높이 height_px의 점이 화면(내부 해상도)의 어디에 보이는지
@@ -145,8 +151,13 @@ func world_to_screen(world: Vector2, height_px: float) -> Vector2:
 	return _camera.unproject_position(ViewSpace.to_3d(world, height_px))
 
 
-## 조준·탄이 있는 평면의 높이 (픽셀): 2D의 몸 가운데와 같다
+## 조준·탄이 3D에서 그려지는 평면의 높이 (픽셀)
 func get_aim_height() -> float:
+	return aim_height_px
+
+
+## 2D에서 조준 위치·탄이 발밑 평면보다 y로 위쪽에 있는 거리 (픽셀): 몸 가운데까지 (규칙의 몸 반지름)
+func get_aim_offset() -> float:
 	return _necromancer.global_position.y - _necromancer.get_body_center().y
 
 
@@ -238,7 +249,12 @@ func _build_terrain() -> ShaderMaterial:
 			cells = TerrainCells.from_walls(child as PlaceholderWalls)
 		if cells == null:
 			continue
-		var meshes: Array[ArrayMesh] = mesher.build(cells, chunk_cells, wall_height_px, cut_cap_height_px)
+		# 새 동굴 지형은 도구에서 미리 구운 파일을 불러오기만 한다.
+		var walls: PlaceholderWalls = child as PlaceholderWalls
+		var wants_cave: bool = walls != null and not use_cell_terrain and (use_cave_terrain or walls.outline != null)
+		var bake: CaveTerrainBake = CaveTerrainBake.load_for(get_parent().scene_file_path, walls, wall_height_px, cut_cap_height_px) if wants_cave else null
+		var meshes: Array[ArrayMesh] = bake.meshes if bake != null else mesher.build(cells, chunk_cells, wall_height_px, cut_cap_height_px)
+		var shadow_meshes: Array[ArrayMesh] = bake.active_shadow_meshes() if bake != null else meshes
 		_terrain_mesh_usec += Time.get_ticks_usec() - started
 		for mesh: ArrayMesh in meshes:
 			var chunk: MeshInstance3D = MeshInstance3D.new()
@@ -247,6 +263,7 @@ func _build_terrain() -> ShaderMaterial:
 			chunk.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			add_child(chunk)
 			_terrain_chunks.append(chunk)
+		for mesh: ArrayMesh in shadow_meshes:
 			var shadow: MeshInstance3D = MeshInstance3D.new()
 			shadow.mesh = mesh
 			shadow.material_override = shadow_material
