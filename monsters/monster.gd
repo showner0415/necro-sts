@@ -3,7 +3,7 @@ extends CharacterBody2D
 ## MonsterData 하나로 움직이는 몬스터.
 ## 배회하다가 네크로맨서나 언데드가 감지 범위에 들어오면 그중 가장 가까운 대상을 노린다.
 ## 감지 범위에 아무도 없을 때 맞으면 공격한 대상을 쫓고, 종별 추격 포기 조건을 넘으면 포기한다 (Aggro). 포기해도 돌아가지 않고 그 자리에서 배회한다.
-## 무리(MonsterPack)에 속해 있으면 무리가 정한 대상(set_pack_target)을 자기 판단보다 먼저 노린다.
+## 무리(MonsterPack)에 속해 있으면 무리가 정한 대상(set_pack_target)을 자기 판단보다 먼저 노린다. 무리에 알리는 신호 중(set_alarm_signal)에는 멈춰 깜빡인다.
 ## 대상과 어떻게 싸울지는 데이터의 행동 조각(data.behavior)이 정하고, 수치는 적일 때의 값(data.get_enemy_stats())을 쓴다.
 ## 죽으면 드랍 목록(data.drops)의 확률을 굴려 나온 것을 담은 시체(Corpse)를 남긴다. 네크로맨서가 시체에서 채집한다.
 
@@ -21,6 +21,9 @@ extends CharacterBody2D
 @export var necromancer_mark_duration: float = 5.0
 ## 몸끼리 비켜 서는 세기가 이보다 약하면 밀지 않는다 (거의 떨어졌을 때 떨리지 않게)
 @export var spacing_deadband: float = 0.05
+## 무리에 알리는 신호 중에 깜빡일 때의 밝기 배율과 깜빡이는 간격 (초). 밝기는 modulate의 색에 곱하므로 그림과 임시 도형 모두 밝아진다
+@export var alarm_blink_brightness: float = 2.0
+@export var alarm_blink_interval: float = 0.1
 
 ## 맞았을 때 (source는 때린 쪽). 무리가 이것으로 무리 대상을 정한다.
 signal hit_by(source: Node2D)
@@ -53,6 +56,10 @@ var _ai: MonsterAiState = MonsterAiState.new()
 var _sprite: FacingSprite
 ## 이보다 느리게 움직이면(벽에 미끄러질 때의 아주 작은 속도 등) 그림 방향을 바꾸지 않는다 (픽셀/초)
 const SPRITE_TURN_SPEED: float = 1.0
+## 무리에 알리는 신호를 내는 중인지 (MonsterPack이 정한다), 신호를 시작하고 흐른 시간, 깜빡임이 밝기를 바꿔 놓았는지 (신호가 끝나면 되돌린다)
+var _alarm_signalling: bool = false
+var _signal_elapsed: float = 0.0
+var _blink_on: bool = false
 
 @onready var _collision: CollisionShape2D = $CollisionShape2D
 
@@ -94,11 +101,15 @@ func _physics_process(delta: float) -> void:
 	var target_visible: bool = _target != null and _path_follower.can_see(self, _target.global_position)
 	_ai.update(_target != null, _behavior.is_busy(), target_visible)
 	# 하던 동작(돌진 예고 등)은 대상이 사라져도 이어 간다. 찾기(대상이 벽 뒤)는 지금은 길을 따라 쫓는 것을 그대로 쓴다.
-	if _ai.is_fighting():
+	# 무리에 알리는 신호 중에는 멈춰 깜빡인다 (밀려나는 것은 그대로).
+	if _alarm_signalling:
+		velocity = Vector2.ZERO
+	elif _ai.is_fighting():
 		_behavior.act(self, data.get_enemy_stats(), _target, delta)
 		_apply_spacing()
 	else:
 		_wander(delta)
+	_update_signal_blink(delta)
 	if _knockback.is_active():
 		velocity = _knockback.get_velocity()
 	move_and_slide()
@@ -206,6 +217,37 @@ func set_pack_target(target: Node2D) -> void:
 func clear_pack_target() -> void:
 	_pack_target = null
 	_aggro.give_up()
+
+
+## 무리(MonsterPack)가 정해 준다: 지금 무리에 알리는 신호를 내는 중인지. 신호 중에는 멈춰 깜빡인다.
+func set_alarm_signal(signalling: bool) -> void:
+	if signalling and not _alarm_signalling:
+		_signal_elapsed = 0.0
+	_alarm_signalling = signalling
+
+
+## 테스트·디버그용: 무리에 알리는 신호를 내는 중인지
+func is_alarm_signalling() -> bool:
+	return _alarm_signalling
+
+
+## 신호 중에는 alarm_blink_interval마다 밝아졌다 돌아온다. 투명도(modulate.a, 시야)는 건드리지 않는다.
+## 신호 중에는 프레임마다 밝기를 쓴다: 맞았을 때의 번쩍임(색을 1로 되돌리는 트윈, hit_flash_duration)이 끝난 뒤에도 깜빡임이 보이게 한다.
+## 트윈은 물리 프레임 뒤에 돌므로, 맞아서 신호가 나면 처음 hit_flash_duration(0.1초) 동안은 번쩍임이 보이고 그 뒤 깜빡인다.
+func _update_signal_blink(delta: float) -> void:
+	if not _alarm_signalling:
+		if _blink_on:
+			_blink_on = false
+			_set_brightness(1.0)
+		return
+	_signal_elapsed += delta
+	_blink_on = true
+	var on: bool = alarm_blink_interval <= 0.0 or fmod(_signal_elapsed, alarm_blink_interval * 2.0) < alarm_blink_interval
+	_set_brightness(alarm_blink_brightness if on else 1.0)
+
+
+func _set_brightness(value: float) -> void:
+	modulate = Color(value, value, value, modulate.a)
 
 
 ## point(발밑 좌표)가 보이는지: 몸 가운데에서 point까지 벽이 가리지 않는지 (거리는 보지 않는다). 무리가 시야를 합칠 때 쓴다.

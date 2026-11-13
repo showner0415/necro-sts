@@ -51,6 +51,13 @@ enum PlaceholderShape { CIRCLE, ELLIPSE, DIAMOND }
 ## 감지 범위 밖의(또는 안 보이는) 대상을 이 시간(초) 넘게 쫓으면 포기한다. 감지 범위 안에서 보이거나 맞으면 처음부터 잰다 (임시값)
 @export var chase_time_limit: float = 0.0
 
+@export_group("무리")
+## 무리(MonsterPack)에서 대상 하나를 함께 노린다 (박쥐). 한 마리라도 어그로가 끌리면 무리 전체가 그 대상을 노리고(PackAggro), 경보 신호를 쓰지 않는다.
+## 무리의 첫 멤버 값으로 정한다. false면 무리 경보(PackAlarm)를 쓴다: 신호 뒤 경보, 무리원마다 가장 가까운 적을 고른다
+@export var pack_one_target: bool = false
+## 무리원이 맞거나 적을 감지했을 때, 멈춰 깜빡이며 무리에 알리는 시간 (초, 임시값). 끝나면 무리 전체가 경보 상태가 된다
+@export var alarm_signal_time: float = 0.3
+
 @export_group("배회")
 @export var wander_speed: float = 15.0
 ## 배회 방향을 다시 고르는 간격 (초)
