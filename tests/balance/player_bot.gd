@@ -146,7 +146,7 @@ func _init(test: ScenarioTest, necromancer: Necromancer, skill_id: StringName) -
 	for arg: String in OS.get_cmdline_user_args():
 		if arg.begins_with("--sight="):
 			sight = StringName(arg.trim_prefix("--sight="))
-	aim_resample_interval = necromancer.attack.windup + necromancer.attack.cooldown
+	aim_resample_interval = necromancer.attack.cooldown
 	_necromancer.get_parent().child_entered_tree.connect(_on_actor_added)
 	_necromancer.summoner.roster.unsummoned.connect(func(_skull: Skull, died: bool) -> void:
 		if died:

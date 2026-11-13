@@ -7,9 +7,7 @@ extends Resource
 @export var damage: float = 1.0
 ## 한 번 쏠 때 쓰는 마나. 0이면 마나를 쓰지 않는다.
 @export var mana_cost: float = 0.0
-## 공격 버튼을 누른 뒤 탄이 나가기까지 기다리는 시간 (선딜레이, 초). 쏘는 방향은 기다림이 끝난 순간의 조준 위치다
-@export var windup: float = 0.3
-## 탄이 나간 뒤 다음 공격을 시작할 수 있을 때까지의 시간 (후딜레이, 초). 0이면 바로 다음 공격을 시작한다
+## 탄이 나간 뒤 다음 탄을 쏠 수 있을 때까지의 시간 (후딜레이, 초). 공격 버튼을 누르면 선딜레이 없이 바로 쏜다
 @export var cooldown: float = 0.4
 @export var projectile_speed: float = 200.0
 ## 탄이 사라지기 전까지 날아가는 거리
