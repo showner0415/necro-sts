@@ -36,5 +36,30 @@
       "Edit(./.godot/**)"
     ]
   },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|fork",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"${CLAUDE_PROJECT_DIR:-.}\" && bash tools/hooks/session_start.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"${CLAUDE_PROJECT_DIR:-.}\" && bash tools/hooks/stop_check.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  },
   "enabledMcpjsonServers": ["godot"]
 }

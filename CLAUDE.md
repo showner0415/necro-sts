@@ -23,8 +23,9 @@
 - 사용자는 코드를 이해하면서 진행하고 싶어 한다. 새 시스템을 만들면 동작 방식을 짧게 설명한다.
 - 메모리는 컴퓨터마다 따로 저장된다. 두 컴퓨터 모두에서 지켜야 하는 규칙은 메모리가 아니라 이 파일(CLAUDE.md)에 적는다.
 - CLAUDE.md에는 언제나 지켜야 하는 규칙과 매번 쓰는 명령만 적는다. 새 도구의 자세한 사용법은 그 도구의 머리 주석이나 맞는 스킬(`.claude/skills/<이름>/SKILL.md`, 저장소에 있어 두 컴퓨터에서 같다)에 적는다.
-- 두 기기에서 작업하므로, 작업을 시작하기 전에 `git pull`로 원격의 변경을 받는다.
+- 두 기기에서 작업한다. 세션을 시작하면 hook(`tools/hooks/session_start.sh`)이 원격을 받아 와서(fetch) git 상태와 GODOT_PATH를 알려 준다. 원격이 앞서 있으면 작업을 시작하기 전에 pull할지 사용자에게 묻는다. 직접 pull하지 않는다. 이 점검 결과가 대화에 없으면(hook이 돌지 않았으면) 작업 전에 `git fetch`와 `git status`로 직접 본다.
 - 작업이 끝나면(기능 하나가 끝나고 테스트가 통과하면) 커밋하고 push할지 사용자에게 묻는다. 커밋과 push는 사용자가 하라고 한 것만 한다.
+- push하지 않은 커밋이 생기면 응답이 끝날 때 hook(`tools/hooks/stop_check.sh`)이 사용자에게 한 번 알린다.
 
 ## 기술 환경
 
@@ -94,7 +95,7 @@ res://
 
 - 사용자는 두 대의 컴퓨터에서 GitHub로 작업한다. Godot 경로는 컴퓨터마다 다르므로 **저장소 안에 절대 경로를 쓰지 않는다.** 경로는 각 컴퓨터의 `GODOT_PATH` 환경 변수에 있다.
 - Godot는 항상 `bash tools/godot.sh <인자>`로 실행한다. `godot`이나 실행 파일 경로를 직접 쓰지 않는다.
-- `tools/godot.sh`가 GODOT_PATH 관련 오류를 내면, 사용자에게 그 컴퓨터에서 환경 변수를 설정하고 Claude Code를 다시 시작해 달라고 안내한다.
+- 세션 시작 점검이 GODOT_PATH 문제(없음, 파일 없음, 버전 다름)를 알리거나 `tools/godot.sh`가 GODOT_PATH 관련 오류를 내면, 사용자에게 그 컴퓨터에서 환경 변수를 고치고 Claude Code를 다시 시작해 달라고 안내한다.
 - 임포트와 스크립트 오류 확인: `bash tools/godot.sh --headless --path . --import`
 - 메인 씬을 짧게 실행해서 런타임 오류 확인: `bash tools/godot.sh --headless --path . --quit-after 300`
 - **스크린샷 검증**: `bash tools/godot.sh --path . -s tools/screenshot.gd -- --seconds=2 --out=<scratchpad 경로>/shot.png` (창이 잠깐 뜬다. `--headless`를 붙이지 않는다)
