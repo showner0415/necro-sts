@@ -1,5 +1,5 @@
 extends ShallowCaveScenario
-## 시나리오: 얕은 굴 그레이박스의 구조. 배치 PNG(art_src/maps/shallow_cave.png)와 만든 씬(regions/shallow_cave.tscn)을 같이 본다. 걷기는 scenario_shallow_cave_walk.gd, 언데드는 scenario_shallow_cave_undead.gd.
+## 시나리오: 얕은 굴 그레이박스(앞·뒤 절반 모두)의 구조. 배치 PNG(art_src/maps/shallow_cave.png)와 만든 씬(regions/shallow_cave.tscn)을 같이 본다. 걷기는 scenario_shallow_cave_walk.gd, 언데드는 scenario_shallow_cave_undead.gd.
 ## 1. 씬이 PNG와 같다 (PNG를 고치고 tools/map_from_png.gd를 다시 돌리지 않았으면 실패). 바닥은 최소 2칸, 모든 물건에 걸어서 닿음. 몬스터·상자·탈출 지점 수
 ## 1-1. 길찾기 격자: 벽 타일에서 바로 계산한 막힌 칸이 물리 질의로 잰 것과 같다 (두 방법의 시간 출력)
 ## 2. 굴 역할을 찾고, 굴마다 입구 수와 이어진 굴이 설계 문서(docs/maps/shallow_cave_design.md 배치도)와 같다. 2칸 길목은 "좁은 길목 8곳" 표의 통로에만 있다

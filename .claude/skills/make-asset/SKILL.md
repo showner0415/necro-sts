@@ -30,6 +30,7 @@ description: 게임에 쓸 그래픽 에셋(캐릭터, 몬스터, 언데드, 아
 `docs/art-direction.md`의 "제작 도구"를 따른다.
 - `tools/asset_gen/`에 생성 스크립트를 만든다. 조정할 만한 값(크기, 색, 비율, 눈 위치 등)은 스크립트 맨 위에 상수로 모아 둔다. 결과 PNG는 `assets/` 아래 해당 분류 폴더에 저장한다.
 - 만든 뒤 `bash tools/godot.sh --headless --path . --import`로 임포트한다.
+- 이미 있는 에셋을 다시 만들 때는 `assets/ASSETS.md`의 그 에셋 줄에 적힌 원본·생성 스크립트·명령·확인 스크린샷을 따른다 (예: 네크로맨서 애니메이션은 PixelLab ZIP에서 `tools/asset_gen/necromancer_anim.gd`로 꺼낸다).
 
 ## 4. 미리보기와 확인
 
