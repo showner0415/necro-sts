@@ -12,6 +12,7 @@ extends Node2D
 ##   Tab·Esc를 누르거나 기계에서 멀어지면 둘 다 닫는다. 수리 창(RepairScreen)이 없는 지역에서는 열 수 없다
 ## - 네크로맨서가 죽으면 인벤토리를 전부 잃고 death_destination(거점)으로 간다
 ## - 지역 데이터의 limit_vision이 켜져 있으면 플레이어 시야를 제한한다 (Vision, 거점은 끔)
+## - 몬스터의 공격권(AttackTokenBoard)을 하나 넣는다 (대상마다 동시에 공격하는 수, 모든 몬스터가 함께 센다)
 ## 다른 씬으로 갈 때 소환 중인 언데드는 일반 해제된다. 네크로맨서는 새 씬에서 새로 만들어지므로 체력·마나가 가득 찬다.
 
 ## 3D 층을 켜지 않고 평면으로 그리는 실행 인자 (디버그 보기)
@@ -76,6 +77,10 @@ func _ready() -> void:
 	_hud.hotbar_view.bind(GameState.hotbar, _necromancer.summoner.roster)
 	if data != null and data.limit_vision:
 		_add_vision()
+	# 몬스터의 공격권(대상마다 동시에 공격하는 수). 몬스터들이 물은 뒤에 돌도록 Actors보다 뒤에 넣는다.
+	var board: AttackTokenBoard = AttackTokenBoard.new()
+	board.name = "AttackTokens"
+	add_child(board)
 	if wants_view_3d():
 		add_view_3d()
 

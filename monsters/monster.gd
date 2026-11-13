@@ -24,6 +24,8 @@ extends CharacterBody2D
 ## 무리에 알리는 신호 중에 깜빡일 때의 밝기 배율과 깜빡이는 간격 (초). 밝기는 modulate의 색에 곱하므로 그림과 임시 도형 모두 밝아진다
 @export var alarm_blink_brightness: float = 2.0
 @export var alarm_blink_interval: float = 0.1
+## 디버그 표시(F3)에서 공격권을 든 몬스터의 발밑 점 반지름 (픽셀)
+@export var debug_token_radius: float = 5.0
 
 ## 맞았을 때 (source는 때린 쪽). 무리가 이것으로 무리 대상을 정한다.
 signal hit_by(source: Node2D)
@@ -60,6 +62,9 @@ const SPRITE_TURN_SPEED: float = 1.0
 const DEBUG_RING_MARGIN: float = 3.0
 const DEBUG_ALERT_WIDTH: float = 2.0
 const DEBUG_ARC_POINTS: int = 24
+## 공격권 표시: 보통 공격권(흰색)과 추가 공격권(노랑)의 색
+const DEBUG_TOKEN_COLOR: Color = Color("ffffff")
+const DEBUG_EXTRA_TOKEN_COLOR: Color = Color("feae34")
 ## 무리에 알리는 신호를 내는 중인지 (MonsterPack이 정한다), 신호를 시작하고 흐른 시간, 깜빡임이 밝기를 바꿔 놓았는지 (신호가 끝나면 되돌린다)
 var _alarm_signalling: bool = false
 var _signal_elapsed: float = 0.0
@@ -71,6 +76,11 @@ var _debug_color: Color = Color(0, 0, 0, 0)
 var _debug_state: int = 0
 var _debug_anchor: Vector2 = Vector2.ZERO
 var _debug_radius: float = 0.0
+## 지난 프레임에 노리던 대상 (바뀌면 공격권을 반납한다)
+var _last_target: Node2D
+## 지역의 공격권 (AttackTokenBoard, 그룹 attack_tokens). 처음 공격하려 할 때 찾는다. 없으면 제한 없이 공격한다
+var _token_board: AttackTokenBoard
+var _token_board_searched: bool = false
 
 @onready var _collision: CollisionShape2D = $CollisionShape2D
 
@@ -109,6 +119,11 @@ func _physics_process(delta: float) -> void:
 	_own_target = _aggro.attacker as Node2D if _aggro.state == Aggro.State.CHASING else nearest
 	# 무리에 대상이 있으면 자기 판단과 상관없이 그 대상을 노린다.
 	_target = _pack_target if _is_alive_node(_pack_target) else _own_target
+	# 대상이 바뀌거나 놓치면 공격권을 반납한다.
+	var last: Node2D = _last_target if is_instance_valid(_last_target) else null
+	if _target != last:
+		_release_token()
+		_last_target = _target
 	var target_visible: bool = _target != null and _path_follower.can_see(self, _target.global_position)
 	_ai.update(_target != null, _behavior.is_busy(), target_visible)
 	# 하던 동작(돌진 예고 등)은 대상이 사라져도 이어 간다. 찾기(대상이 벽 뒤)는 지금은 길을 따라 쫓는 것을 그대로 쓴다.
@@ -206,6 +221,10 @@ func get_hostiles() -> Array[Node2D]:
 ## offset만큼 duration초 동안 밀려난다 (언데드 멧돼지의 돌진 등).
 func knock_back(offset: Vector2, duration: float) -> void:
 	_knockback.start(offset, duration)
+	# 멀리 밀려나면 공격권을 반납한다.
+	var board: AttackTokenBoard = _find_token_board()
+	if board != null and offset.length() >= board.knockback_release_distance:
+		_release_token()
 
 
 func _wander(delta: float) -> void:
@@ -301,6 +320,7 @@ func take_damage(amount: float, source: Node2D = null) -> void:
 
 
 func _die() -> void:
+	_release_token()
 	# 머리뼈가 나올지는 죽는 이 순간에 정해진다. 시체는 정해진 것만 담는다.
 	var corpse: Corpse = corpse_scene.instantiate()
 	corpse.setup(data, CorpseLoot.from_drops(DropRoller.roll(data.drops), data.harvest_base_time))
@@ -323,8 +343,13 @@ func get_warning_segment() -> PackedVector2Array:
 ## 바닥의 예고 표시를 canvas에 그린다. 2D에서는 자기 자신에, 3D 화면 층에서는 바닥 캔버스에 그린다.
 func draw_ground_marks(canvas: CanvasItem) -> void:
 	_behavior.draw_overlay(canvas, indicator_color)
-	if MonsterPack.is_debug_visible() and _debug_color.a > 0.0:
+	if not MonsterPack.is_debug_visible():
+		return
+	if _debug_color.a > 0.0:
 		_draw_pack_debug(canvas)
+	# 공격권을 든 몬스터는 발밑에 점 (보통 공격권 흰색, 추가 공격권 노랑). 무리가 없는 몬스터도 그린다.
+	if is_holding_token():
+		canvas.draw_circle(Vector2.ZERO, debug_token_radius, DEBUG_EXTRA_TOKEN_COLOR if is_holding_extra_token() else DEBUG_TOKEN_COLOR)
 
 
 ## 무리 디버그 표시 (F3, MonsterPack): 발밑에 무리 색 고리. 평소에는 배회 기준점까지 선과 기준점 둘레,
@@ -346,6 +371,45 @@ func _draw_pack_debug(canvas: CanvasItem) -> void:
 				var anchor: Vector2 = _debug_anchor - global_position
 				canvas.draw_line(Vector2.ZERO, anchor, _debug_color, 1.0)
 				canvas.draw_arc(anchor, _debug_radius, 0.0, TAU, DEBUG_ARC_POINTS * 2, _debug_color, 1.0)
+
+
+## 행동 조각이 부른다: target을 공격해도 되는지 (공격권, AttackTokens). 이 종의 공격권 수가 0이거나 지역에 공격권이 없으면 언제나 true.
+## 공격하려는 동안 프레임마다 부른다 (자리가 없으면 기다리는 몸으로 적힌다).
+func request_attack(target: Node2D) -> bool:
+	var board: AttackTokenBoard = _find_token_board()
+	if board == null or data.attack_tokens_per_target <= 0 or target == null:
+		return true
+	return board.tokens.request(self, target, data.id, data.attack_tokens_per_target)
+
+
+## 행동 조각이 부른다: 공격 한 번이 끝났다. 공격권을 반납한다.
+func finish_attack() -> void:
+	_release_token()
+
+
+## 테스트·디버그용: 공격권을 들고 있는지, 추가 공격권인지
+func is_holding_token() -> bool:
+	var board: AttackTokenBoard = _find_token_board()
+	return board != null and board.tokens.is_holding(self)
+
+
+func is_holding_extra_token() -> bool:
+	var board: AttackTokenBoard = _find_token_board()
+	return board != null and board.tokens.holds_extra(self)
+
+
+func _release_token() -> void:
+	var board: AttackTokenBoard = _find_token_board()
+	if board != null:
+		board.tokens.release(self)
+
+
+## 지역의 공격권을 찾는다. 몸은 지역 씬과 함께 만들어지고 사라지므로, 한 번 찾은 결과(없음 포함)를 계속 쓴다.
+func _find_token_board() -> AttackTokenBoard:
+	if not _token_board_searched and is_inside_tree():
+		_token_board_searched = true
+		_token_board = get_tree().get_first_node_in_group(&"attack_tokens") as AttackTokenBoard
+	return _token_board if is_instance_valid(_token_board) else null
 
 
 ## 무리(MonsterPack)가 넣어 준다: 함께 배회하는 규칙 (null이면 혼자 배회한다).

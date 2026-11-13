@@ -57,6 +57,10 @@ enum PlaceholderShape { CIRCLE, ELLIPSE, DIAMOND }
 @export var pack_one_target: bool = false
 ## 무리원이 맞거나 적을 감지했을 때, 멈춰 깜빡이며 무리에 알리는 시간 (초, 임시값). 끝나면 무리 전체가 경보 상태가 된다
 @export var alarm_signal_time: float = 0.3
+## 대상 하나를 동시에 공격할 수 있는 이 종의 수 (공격권, AttackTokens. 대상마다 모든 몬스터가 함께 센다). 0이면 공격권 없이 공격한다 (박쥐)
+@export var attack_tokens_per_target: int = 0
+## 공격권이 없을 때 대상 둘레를 맴돌며 기다리는 거리 (픽셀, 임시값)
+@export var token_wait_distance: float = 64.0
 
 @export_group("배회")
 @export var wander_speed: float = 15.0
@@ -159,7 +163,9 @@ func make_undead_behavior() -> MonsterBehavior:
 
 
 func get_enemy_stats() -> CombatStats:
-	return _with_throw_stats(CombatStats.create(move_speed, attack_range, contact_damage, attack_cooldown))
+	var stats: CombatStats = _with_throw_stats(CombatStats.create(move_speed, attack_range, contact_damage, attack_cooldown))
+	stats.wait_distance = token_wait_distance
+	return stats
 
 
 func _with_throw_stats(stats: CombatStats) -> CombatStats:

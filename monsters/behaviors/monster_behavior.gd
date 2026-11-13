@@ -129,6 +129,20 @@ func free_direction(body: CharacterBody2D, direction: Vector2, probe: float, sid
 	return Vector2.ZERO
 
 
+## body가 target을 공격해도 되는지 (공격권). 공격을 시작하려는 동안 프레임마다 부른다.
+## 쓰는 쪽에 공격권이 없으면(언데드, 단위 테스트의 몸) 언제나 true.
+func may_attack(body: CharacterBody2D, target: Node2D) -> bool:
+	if body.has_method(&"request_attack"):
+		return body.call(&"request_attack", target)
+	return true
+
+
+## 공격 한 번이 끝났다고 쓰는 쪽에 알린다 (공격권 반납).
+func attack_done(body: CharacterBody2D) -> void:
+	if body.has_method(&"finish_attack"):
+		body.call(&"finish_attack")
+
+
 ## body에서 target까지 벽이 가로막지 않는지. 돌진·던지기를 시작하기 전에 본다 (벽 너머로 돌진하거나 던지지 않고 돌아서 다가가게).
 ## 쓰는 쪽에 길찾기가 없으면 항상 true.
 func has_clear_line(body: CharacterBody2D, target: Node2D) -> bool:

@@ -17,6 +17,8 @@ var burst_interval: float = 0.0
 ## 돌마다의 예측 비율(0이면 지금 자리를 노림, 1이면 도착할 곳을 정확히)과 조준 오차(±도). 돌 수보다 짧으면 마지막 값을 쓴다
 var lead_ratios: Array[float] = []
 var aim_errors: Array[float] = []
+## 공격권이 없을 때 대상 둘레를 맴돌며 기다리는 거리 (픽셀. 적일 때만, 언데드는 공격권을 쓰지 않는다)
+var wait_distance: float = 0.0
 
 
 func get_lead_ratio(index: int) -> float:
