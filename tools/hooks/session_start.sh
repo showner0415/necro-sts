@@ -23,7 +23,8 @@
 # fetch 오류와 Godot 버전 출력은 <git 폴더>/claude-hooks/에 파일로 받는다 (.git 안이라 저장소에 올라가지 않는다).
 # 직접 실행해서 출력을 볼 수 있다: bash tools/hooks/session_start.sh (저장소 폴더에서)
 
-# 이 프로젝트의 Godot 버전. CLAUDE.md "기술 환경"의 "4.7.2 stable"과 같아야 한다. Godot를 올리면 둘을 같이 고친다.
+# 이 프로젝트의 Godot 버전. CLAUDE.md "기술 환경"의 "4.7.2 stable", project.godot config/features의 "4.7"과 같아야 한다.
+# Godot를 올리면 셋을 같이 고친다 (tests/check_rules.sh의 "Godot 버전 일치" 검사가 본다).
 # "$GODOT_PATH" --version 출력(예: 4.7.2.stable.official.abc123)이 이 값이거나 "이 값."으로 시작하면 맞는 버전이다.
 GODOT_VERSION_REQUIRED="4.7.2.stable"
 # 받아 올 원격 이름

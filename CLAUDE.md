@@ -110,7 +110,7 @@ res://
   - 규칙 검사(`tests/check_rules.sh`) → 임포트 → 단위 테스트 전부(코드·씬·데이터의 색이 팔레트 안인지 보는 `test_palette_colors.gd` 포함) → 에셋 팔레트 검사(`tools/check_palette.gd`) → 시나리오 테스트 하나씩 순서로 돌린다. 종료 코드가 0이 아니거나 출력에 `SCRIPT ERROR`·`ERROR:` 줄(종료 시 누수 경고 포함)이 있으면 실패로 센다. 하나라도 실패하면 종료 코드 1, 마지막 줄은 `전체 결과: 통과` 또는 `전체 결과: 실패 (<실패한 것>)`.
   - 게임 코드(`necromancer/`, `monsters/`, `items/`, `ui/`, `regions/`, `data/` 등)를 바꾼 뒤에는 항상 실행한다.
   - 테스트 도구는 직접 만든 가벼운 스크립트다(GUT·gdUnit4 대신). 작성 방식은 GUT와 맞춰 두어서, 나중에 옮길 때 `extends TestCase`를 `extends GutTest`로 바꾸면 되게 한다.
-- **규칙 검사** (저장소 규칙, Godot 없이 몇 초): `bash tests/check_rules.sh`. CLAUDE.md 크기, 스킬 머리말, CLAUDE.md·스킬에 적은 경로가 있는지, 시나리오 설명 주석을 본다. CLAUDE.md·스킬·시나리오 주석을 고친 뒤에 돌린다.
+- **규칙 검사** (저장소 규칙, Godot 없이 몇 초): `bash tests/check_rules.sh`. CLAUDE.md 크기, 스킬 머리말, CLAUDE.md·스킬에 적은 경로가 있는지, 시나리오 설명 주석과, 이 파일의 "X하면 Y도" 규칙(그룹·오토로드 목록, 몬스터의 `TARGETS`, 새 UI의 시나리오, Godot 3 문법, 절대 경로, 규칙 클래스의 단위 테스트, 세 곳의 Godot 버전)을 본다. 실패하면 줄마다 고치는 법이 나온다. 그 파일 맨 위의 예외 목록에 넣어 통과시키려면 먼저 사용자에게 묻는다. CLAUDE.md·스킬·시나리오 주석만 고쳤으면 이것만 돌린다.
 - **규칙 단위 테스트** (`tests/unit/`): 노드에 의존하지 않는 규칙 클래스(예: `ManaPool`)를 확인한다.
   - 파일 이름은 `test_<대상>.gd`이고 `extends TestCase`(`tests/test_case.gd`)로 시작한다.
   - 테스트 함수 이름은 `test_<확인할 내용>()`. 함수마다 새 인스턴스에서 `before_each()` → 테스트 → `after_each()` 순서로 돈다.
