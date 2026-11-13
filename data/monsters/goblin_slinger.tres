@@ -5,6 +5,7 @@
 [ext_resource type="Script" uid="uid://bcih3jlpk6ss2" path="res://items/drop_entry.gd" id="3_drop"]
 [ext_resource type="Resource" path="res://data/skulls/goblin_slinger_skull.tres" id="4_skull"]
 [ext_resource type="Resource" path="res://data/behaviors/throw.tres" id="5_throw"]
+[ext_resource type="Resource" path="res://data/behaviors/throw_undead.tres" id="6_throw_undead"]
 
 [sub_resource type="Resource" id="Resource_drop_bone"]
 script = ExtResource("3_drop")
@@ -21,6 +22,7 @@ script = ExtResource("1_monster")
 id = &"goblin_slinger"
 display_name = "고블린 투석병"
 behavior = ExtResource("5_throw")
+undead_behavior = ExtResource("6_throw_undead")
 max_health = 6.0
 move_speed = 45.0
 combat_spacing = 32.0

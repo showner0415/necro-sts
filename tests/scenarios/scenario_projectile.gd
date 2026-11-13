@@ -172,8 +172,9 @@ func _walker_report() -> void:
 ## 고블린 1마리 vs 고블린 언데드 count마리: 네크로맨서는 구경만 한다.
 func _duel(count: int) -> bool:
 	_clear_monsters()
-	for node: Node in get_nodes_in_group(&"undead"):
-		node.free()
+	# 언데드 노드를 직접 지우면 소환 기록(UndeadRoster)에 남아서, 나중에 해제할 때 지워진 노드를 찾는다.
+	_necromancer.summoner.roster.unsummon_all()
+	await wait_frames(1)
 	_necromancer.global_position = STAGE
 	_necromancer.remove_from_group(&"necromancer")
 	_necromancer.mana.maximum = 100000.0
@@ -199,7 +200,6 @@ func _duel(count: int) -> bool:
 			break
 	var goblin_alive: bool = is_instance_valid(goblin) and not goblin.is_queued_for_deletion()
 	var undead_left: int = get_nodes_in_group(&"undead").size()
-	for node: Node in get_nodes_in_group(&"undead"):
-		node.free()
+	_necromancer.summoner.roster.unsummon_all()
 	_necromancer.add_to_group(&"necromancer")
 	return _check("고블린 vs 언데드 %d마리가 30초 안에 끝남" % count, frames < DUEL_FRAMES, "%.1f초, 고블린 살아 있음 %s, 남은 언데드 %d" % [frames / 60.0, goblin_alive, undead_left])
