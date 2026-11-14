@@ -42,6 +42,11 @@ description: 밸런스·몬스터 AI·언데드 능력치를 숫자로 잴 때 �
 
 - `bash tools/godot.sh --path . -s tools/play_case.gd -- --target=bat_pack` (고블린+쥐 언데드 2는 `--target=goblin_pair --undead=2`, 소환은 1 → G, 2 → G). 측정과 같은 싸움터이고 몬스터는 동쪽에 있다
 
+## 5-1. 맵 전체 뼈 기대값 (bone_expectation)
+
+- `bash tools/godot.sh --headless --path . -s tools/bone_expectation.gd` (기본 얕은 굴, 다른 씬은 `-- --scene=res://<씬>.tscn`). 판정 없이 출력만 하고 몇 초 걸린다
+- 종마다 마릿수 × 마리당 뼈 기대값과 합계를 낸다. 무리 자리는 무리원 수의 가운데((최소 + 최대) / 2)로 세고, 상자 뼈는 세지 않는다. 기준은 얕은 굴 120 (`docs/game-design.md` "몬스터 무리"의 드랍 줄)
+
 ## 6. 결과 저장과 전후 비교
 
 - 측정 결과를 사용자에게 보고할 때 저장하는 곳과 이름: `tests/balance/results/<날짜>_<내용>.md` (CLAUDE.md 규칙). 지난 결과도 이 폴더에 있다.
