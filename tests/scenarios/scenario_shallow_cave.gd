@@ -9,7 +9,7 @@ extends ShallowCaveScenario
 ## 5-1. 박쥐 길 (tests/bat_nest_paths.gd, 박쥐의 처음 자리 기준): 갈림 굴 쪽 입구에서 합류 굴 쪽 출구까지 가장 짧은 길(기본 길)은
 ##    박쥐에게 감지되고, 감지되는 곳은 입구에서 BAT_DETECT_DEPTH칸 이상 들어선 뒤다. 감지 범위보다 BAT_SNEAK_MARGIN 더 떨어져 지나는 길(몰래 가는 길)이 있다. 두 길의 길이·걷는 시간을 출력한다
 ## 5-2. 빛 드는 굴의 합류 굴 쪽 입구에 서면 가장 가까운 멧돼지(처음 자리, 무리면 무리 자리)가 화면 안에 보이고, 입구 칸은 모두 멧돼지 감지 거리 밖이다
-##    (무리 자리면 흩어 놓기 범위 PACK_SPREAD만큼 더 떨어져야 한다)
+##    (무리 자리면 그 무리 자리(PackSpawn)의 흩어 놓기 범위 spread_radius만큼 더 떨어져야 한다)
 ## 6. 박쥐 둥지에 박쥐가 돌 공간(도는 반경 + 몸의 원이 벽에 닿지 않는 자리)이 있다. 2배 맵은 다른 큰 굴도 넓어서 "유일"은 보지 않는다 (사용자 결정, 2026-11-10)
 ## 7. 멧돼지가 사는 굴마다 돌진(돌진 최대 거리 + 지나치는 거리)보다 긴 곧고 트인 길(3칸 폭)이 있고. 가장 긴 것이 BOAR_LANE_MAX칸을 넘는지는 출력만 한다 (바위가 긴 직선을 끊어 돌진을 피할 곳이 있게).
 ##    굴 안만, 가로·세로만 잰다 (통로까지 이어 재지 않음, 대각선과 문을 지나는 줄은 기준에서 뺌)
@@ -35,8 +35,6 @@ const OUTLINE_ROWS = preload("res://tests/outline_rows.gd")
 const NAV_GRID_CHECK = preload("res://tests/nav_grid_check.gd")
 ## 5-2. 멧돼지가 화면 가장자리에서 이만큼(픽셀) 안쪽에 있어야 보인다고 본다
 const BOAR_VIEW_MARGIN: float = 16.0
-## 무리 자리에서 무리원을 흩어 놓는 범위 (PackSpawn.spread_radius 기본값, 사용자 결정 2026-11-14 임시값)
-const PACK_SPREAD: float = 48.0
 const BOAR_PATH: String = "res://data/monsters/boar.tres"
 ## 7. 멧돼지 굴의 가장 긴 3칸 폭 곧은 길의 기준 (칸). 윤곽으로 바꾼 뒤 넘는 굴이 있어 멧돼지 밸런스 조정 때까지 출력만 한다 (사용자 결정, 2026-11-11)
 const BOAR_LANE_MAX: float = 13.0
@@ -299,8 +297,8 @@ func _boar_seen_first() -> bool:
 	for cell: Vector2i in entrance:
 		nearest = minf(nearest, _cell_center(cell).distance_to(boar))
 	# 무리 자리면 무리원이 자리에서 흩어 놓기 범위(PackSpawn.spread_radius)만큼 입구 쪽으로 나와 있을 수 있다
-	var spread: float = 0.0 if _layout.cells_of("boar").has(boars[0]) else PACK_SPREAD
-	var ok: bool = visible and nearest - spread > detect_range
+	var spread: float = 0.0 if _layout.cells_of("boar").has(boars[0]) else _pack_spread_at(boars[0])
+	var ok: bool = visible and spread >= 0.0 and nearest - spread > detect_range
 	return _check("빛 드는 굴 멧돼지를 입구에서 먼저 봄", ok, "멧돼지 처음 자리 칸 %s, 입구 칸 %s 가운데에서 떨어진 정도 %s px (화면 반 %s - 여유 %.0f 안이어야 보임: %s), 입구 칸에서 가장 가까운 거리 %.0f - 흩어 놓기 %.0f (감지 %.0f보다 멀어야 함, %.1f칸 더 들어가야 걸림)" % [
 		boars[0], entrance, offset.round(), half + Vector2(BOAR_VIEW_MARGIN, BOAR_VIEW_MARGIN), BOAR_VIEW_MARGIN, visible, nearest, spread, detect_range, (nearest - spread - detect_range) / TILE])
 
@@ -401,3 +399,12 @@ func _open_3x3(layout: MapLayout, cell: Vector2i) -> bool:
 			if layout.is_wall(cell + Vector2i(ox, oy)):
 				return false
 	return true
+
+
+## cell에 놓인 무리 자리(PackSpawn)의 흩어 놓기 범위 (픽셀). 무리원은 자리에서 이만큼 안에 놓인다. 못 찾으면 -1 (검사를 실패로 낸다)
+func _pack_spread_at(cell: Vector2i) -> float:
+	for node: Node in current_scene.find_children("*", "Node2D", true, false):
+		var spawn: PackSpawn = node as PackSpawn
+		if spawn != null and Vector2i((spawn.global_position / TILE).floor()) == cell:
+			return spawn.spread_radius
+	return -1.0
