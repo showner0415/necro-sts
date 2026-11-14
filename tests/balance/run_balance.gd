@@ -11,6 +11,7 @@ extends ScenarioTest
 ## 일부만: -- --targets=boar,bat_pack --skills=normal --undead=0 --runs=5
 ## 쥐 패거리 (기본 대상에 없음, 계획 8b-2): -- --targets=rat_gang3,rat_gang3_leader,rat_gang4,rat_gang4_leader (결과 tests/balance/results/2026-11-15_rat_pack_fight.md)
 ## 봇이 몬스터와 유지하는 거리 바꾸기: -- --keep=0 (0이면 거리를 두지 않고 제자리에서 쏘며 예고만 피한다)
+## 봇이 쏘기를 멈추고 뛰는 거리 바꾸기: -- --run_distance=20 (기본 55. keep이 이보다 작으면 다가오는 몬스터마다 뛰어서 싸움이 끝나지 않을 수 있다)
 ## 무리 동시 공격(박쥐 동시 돌진)을 처음 N번 일부러 못 피하게: -- --miss_pack=1
 ##   놓친 동시 공격에서 받은 피해, 그 직후 마나, 언데드가 죽거나 해제된 수, 죽은 비율로 "실수 한 번의 값"을 본다
 ## 봇이 싸우는 모습을 창으로 보기 (실제 속도, 한 판):
@@ -59,6 +60,8 @@ var _runs: int = DEFAULT_RUNS
 var _timeout: float = DEFAULT_TIMEOUT
 ## 봇이 근접 몬스터와 유지하는 거리. 음수면 봇의 기본값.
 var _keep: float = -1.0
+## 봇이 쏘기를 멈추고 뛰는 거리. 음수면 봇의 기본값.
+var _run_distance: float = -1.0
 ## 처음 이 횟수만큼의 무리 동시 공격은 봇이 일부러 피하지 않는다
 var _miss_pack: int = 0
 
@@ -94,6 +97,8 @@ func _parse_args() -> void:
 				_miss_pack = int(parts[1])
 			"keep":
 				_keep = float(parts[1])
+			"run_distance":
+				_run_distance = float(parts[1])
 
 
 func _run_all() -> void:
@@ -192,6 +197,8 @@ func _fight(target_id: StringName, undead_count: int, skill_id: StringName, run:
 	bot.miss_group_attacks = _miss_pack
 	if _keep >= 0.0:
 		bot.keep_distance = _keep
+	if _run_distance >= 0.0:
+		bot.run_distance = _run_distance
 	if target.has("room"):
 		bot.arena_radius = ROOM_ARENA_RADIUS
 	var skulls: Array[Skull] = []

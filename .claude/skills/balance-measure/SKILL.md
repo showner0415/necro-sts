@@ -15,7 +15,7 @@ description: 밸런스·몬스터 AI·언데드 능력치를 숫자로 잴 때 �
 - 플레이어 봇(`tests/balance/player_bot.gd`)이 실제 입력만 흉내 내서 싸우고, `run_balance.gd`가 대상 × 조건(혼자 / 쥐 언데드 2마리) × 실력(숙련·보통·초보)마다 여러 번 싸워 잡는 시간·받은 피해·죽은 비율·명중률을 표로 낸다. 실력 이름은 `skilled`·`normal`·`novice`다.
 - 봇의 시야는 `--sight=full`(기본, 시야와 상관없이 모든 몬스터·돌의 위치를 안다)과 `--sight=cone`(플레이어나 언데드 시야에 보이는 몬스터·돌만 앎)이 있다. cone이면 겨눌 몬스터가 없으면 걷는 방향을 보며 실력마다 정한 간격으로 좌우를 둘러본다 (`player_bot.gd`의 `look_around`).
 - 전부: `bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_balance.gd` (약 1분)
-- 일부: `-- --targets=boar,bat_pack --skills=normal --undead=0 --runs=5`, 거리 두기를 끄려면 `--keep=0`, 무리 동시 공격(박쥐 동시 돌진)을 처음 N번 일부러 못 피하게 하려면 `--miss_pack=N` (놓친 동시 공격 피해·직후 마나·최저 마나·언데드 죽음/해제 열로 "실수 한 번의 값"을 본다)
+- 일부: `-- --targets=boar,bat_pack --skills=normal --undead=0 --runs=5`, 거리 두기를 끄려면 `--keep=0`, 쏘기를 멈추고 뛰는 거리는 `--run_distance=<px>` (기본 55. 거리 두기 값이 이보다 작으면 다가가고 뛰기를 되풀이해 시간 초과가 된다, tests/balance/results/2026-11-15_keep_sweep.md), 무리 동시 공격(박쥐 동시 돌진)을 처음 N번 일부러 못 피하게 하려면 `--miss_pack=N` (놓친 동시 공격 피해·직후 마나·최저 마나·언데드 죽음/해제 열로 "실수 한 번의 값"을 본다)
 - 창으로 보기: `bash tools/godot.sh --path . -s tests/balance/run_balance.gd -- --targets=boar --skills=normal --undead=0 --runs=1`
 - 표 아래에 잡은 시간·받은 피해·죽음의 95% 오차 범위 표가 함께 나온다. 전후를 비교할 때는 이 범위를 같이 본다.
 - 판마다 시작할 때 씬과 몬스터 수를 검사한다 (`check_fight_start`). 틀리면 `[실패] 판 시작 검사`를 남기고 그 판을 빼며, 측정은 계속하되 종료 코드 1로 끝난다.
