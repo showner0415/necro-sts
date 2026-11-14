@@ -37,6 +37,7 @@ description: 밸런스·몬스터 AI·언데드 능력치를 숫자로 잴 때 �
 - `bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_diagnose.gd -- --mode=charge_sight --runs=10` (돌진 시작 때 봇이 멧돼지를 봤는지, 그 돌진에 맞았는지. `--skills=skilled --runs=1 --trace=1`이면 0.2초마다 상태 출력)
 - `--mode=goblin_time --runs=50` (고블린이 살아 있는 동안 봇이 무엇을 했는지, 누가 때렸는지. `--no_retreat=1`은 테스트 안에서만 물러나기를 끈다)
 - `--mode=aim_sight --runs=50` (박쥐 혼자·고블린+쥐 언데드 2에서 겨눈 몬스터와 화면 방향의 차이, 시야가 튄 횟수, 공격이 시작될 때 봤는지와 맞았는지. `--no_vision=1`은 시야를 끄고 잰다)
+- `--mode=pack_undead --runs=20` (쥐 패거리(3)·(4)·(4) 대장 + 쥐 언데드 2에서 쥐가 누구를 노리는지, 살아 있는 언데드 하나에 공격권을 든 쥐 수, 첫 언데드가 죽기까지. `--keep=0`이면 봇이 거리를 두지 않는다)
 
 ## 5. 사람이 같은 상황을 직접 해 보기 (play_case)
 
