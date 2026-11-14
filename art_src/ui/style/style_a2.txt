@@ -1,0 +1,8 @@
+Game UI mockup for a low-poly stylized top-down game set in dark caves. One inventory window shown at the center of a 16:9 image, over a dim low-poly cave floor with only rocks and stalagmites (no bones, skulls or ribcages anywhere in the background).
+Mood and colors: dark, gloomy cave. The stone frame is warm cave brown close to #733e39, shading down to dark brown #3e2731. Brown only, never purple, slate or blue. Text plates and slot insets near-black #181425.
+Style: faceted carved stone frame, flat-shaded low-poly facets with crisp angular bevels, a thin dim teal glow line (close to #0099db) along the window edge. Plain stone only: no skulls, bones or other ornaments on the frame. Light from the upper left. Matte, no gloss, no noise.
+Frame for 9-slice stretching: shapes may differ only in the four corners; the edges between the corners are an even, repeating stone pattern with no unique features.
+Layout: a title bar at the top with an EMPTY flat dark plate where the title text will go, a square close button at the top right with a simple cross icon, a grid of 5 columns by 3 rows of square item slots with flat dark insets, and an EMPTY flat dark info strip at the bottom. A few slots hold low-poly item icons: a bone, a skull, a red potion bottle, an iron key. Other slots are empty.
+Readability: all text areas are flat, dark, evenly colored and free of decoration, ready for bright text to be added later.
+Reference image: follow its stone frame, colors and layout, but do NOT copy its skull and bone corner ornaments or the ribcage in its background.
+No letters, no numbers, no runes, no writing, no logos, no color swatches anywhere.

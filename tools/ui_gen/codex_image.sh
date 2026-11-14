@@ -95,7 +95,8 @@ for ((n = 1; n <= COUNT; n++)); do
 	touch "$MARK"
 	sleep 1  # 표시 파일과 새 그림의 시각이 같은 초로 겹치지 않게
 	log="$LOG_DIR/${NAME}_try$n.log"
-	"${TIMEOUT_CMD[@]}" codex exec "${FLAGS[@]}" ${REF_ARGS[@]+"${REF_ARGS[@]}"} "$PROMPT" > "$log" 2>&1 < /dev/null
+	# -i는 값을 여러 개 받으므로(-i <FILE>...) 요청문 앞에 --를 둔다. 없으면 요청문까지 그림 경로로 먹혀 "No prompt provided"로 끝난다
+	"${TIMEOUT_CMD[@]}" codex exec "${FLAGS[@]}" ${REF_ARGS[@]+"${REF_ARGS[@]}"} -- "$PROMPT" > "$log" 2>&1 < /dev/null
 	status=$?
 	found=0
 	if [ -d "$GEN_DIR" ]; then

@@ -15,7 +15,7 @@ Codex 스크립트: `tools/ui_gen/codex_image.sh`
 ## 0. 시작하기 전에
 
 1. **고해상도 UI 층.** `docs/plans/2026-11-14_hd_ui_layer_plan.md`의 1~4단계를 Claude Code로 먼저 끝낸다. 이게 없으면 GPT 그림이 640×360으로 줄어 뭉개진다. 그 전에는 에이전트가 "스타일" 할 일만 한다.
-2. **두 PC 모두 Codex CLI 준비.** Git Bash에서 `codex --version`이 나오고 `codex login`으로 ChatGPT 계정에 로그인되어 있어야 한다. Codex는 만든 그림을 홈 폴더의 .codex/generated_images/에 두고, 스크립트가 거기서 새 그림만 가져온다.
+2. **두 PC 모두 Codex CLI 준비.** Git Bash에서 `codex --version`이 나오고 `codex login`으로 ChatGPT 계정에 로그인되어 있어야 한다. 없으면 `npm install -g @openai/codex`로 설치하고 `codex login`을 한다 (로그인 확인: `codex login status`). Codex는 만든 그림을 홈 폴더의 .codex/generated_images/에 두고, 스크립트가 거기서 새 그림만 가져온다.
    - 처음 한 번 시험: `echo 'A small bone icon on a transparent background' > /tmp/p.txt && bash tools/ui_gen/codex_image.sh --prompt-file=/tmp/p.txt --out-dir=art_src/ui/inbox/test --name=test --count=1` → `결과: 1/1장`이 나오고 그 폴더에 test_1.png가 생기면 된다. 시험 폴더는 지운다.
    - 옵션 오류가 나면(버전마다 다르다) `CODEX_IMAGE_FLAGS` 환경 변수로 바꾼다 (스크립트 맨 위 주석).
    - Codex가 없는 컴퓨터에서는 에이전트가 요청문만 주고 멈춘다. 그때는 아래 "직접 받기"대로 한다.
@@ -33,7 +33,7 @@ Claude Code에 말한다:
 
 고르면 에이전트가 기준 세트 요청문과 규격(크기, 외곽선, 빛 방향, 게임에 보이는 크기)을 준다. 기준 세트는 이후 모든 그림의 잣대다.
 
-1. 에이전트가 Codex로 아이콘 4~6개, 버튼 한 벌, 칸 하나의 후보를 뽑아 검사하고, 실제 게임 크기로 줄인 비교판을 준다. 작게 봐도 읽히고 서로 어울리면 확정한다.
+1. 에이전트가 Codex로 기준 세트 후보를 뽑아 (아이콘 4~6개와, 그림으로 하기로 한 틀·버튼·칸. 지금은 창 틀만 그림이고 칸·버튼은 테마다) 검사하고, 실제 게임 크기로 줄인 비교판을 준다. 작게 봐도 읽히고 서로 어울리면 확정한다.
 4. 확정하면 `docs/ui-style.md`의 상태가 `정함`이 된다. 여기서부터 화면 작업이 된다.
 
 ## 3. 화면 하나 만들기 (화면마다)
