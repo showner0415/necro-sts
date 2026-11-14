@@ -78,6 +78,10 @@ var _debug_anchor: Vector2 = Vector2.ZERO
 var _debug_radius: float = 0.0
 ## 지난 프레임에 노리던 대상 (바뀌면 공격권을 반납한다)
 var _last_target: Node2D
+## 간격 밀기의 이웃 칸 묶음 (_spacing_grid). 물리 프레임과 트리마다 한 번 만들어 모든 몬스터가 같이 쓴다
+static var _shared_spacing: SpacingGrid
+static var _shared_spacing_frame: int = -1
+static var _shared_spacing_tree: SceneTree
 ## 지역의 공격권 (AttackTokenBoard, 그룹 attack_tokens). 처음 공격하려 할 때 찾는다. 없으면 제한 없이 공격한다
 var _token_board: AttackTokenBoard
 var _token_board_searched: bool = false
@@ -151,8 +155,10 @@ func _apply_spacing() -> void:
 		return
 	var others: Array[Vector2] = []
 	var ids: Array[int] = []
-	for node: Node in get_tree().get_nodes_in_group(&"monsters"):
-		var other: Monster = node as Monster
+	for item: Variant in _spacing_grid(get_tree()).nearby(global_position):
+		if not is_instance_valid(item):
+			continue
+		var other: Monster = item as Monster
 		if other == null or other == self or other.is_queued_for_deletion() or other.data.flying:
 			continue
 		others.append(other.global_position)
@@ -160,6 +166,30 @@ func _apply_spacing() -> void:
 	var push: Vector2 = BodySpacing.push(global_position, get_instance_id(), others, ids, data.combat_spacing)
 	if push.length() >= spacing_deadband:
 		velocity = (velocity + push * data.move_speed).limit_length(maxf(velocity.length(), data.move_speed))
+
+
+## 간격 밀기에 쓸 이웃 칸 묶음. 물리 프레임마다 처음 부른 몬스터가 한 번 만들고 그 프레임의 다른 몬스터가 같이 쓴다
+## (몬스터마다 모든 몬스터를 돌지 않게).
+## 칸 크기는 가장 큰 combat_spacing의 2배다: 묶은 뒤 같은 프레임에 먼저 움직인 몸이 있어도 둘레 칸 안에 남아 간격 거리 안의 이웃이 빠지지 않는다.
+static func _spacing_grid(tree: SceneTree) -> SpacingGrid:
+	var frame: int = Engine.get_physics_frames()
+	if _shared_spacing != null and _shared_spacing_frame == frame and _shared_spacing_tree == tree:
+		return _shared_spacing
+	var bodies: Array[Monster] = []
+	var widest: float = 0.0
+	for node: Node in tree.get_nodes_in_group(&"monsters"):
+		var monster: Monster = node as Monster
+		if monster == null or monster.data == null or monster.data.flying:
+			continue
+		bodies.append(monster)
+		widest = maxf(widest, monster.data.combat_spacing)
+	var grid: SpacingGrid = SpacingGrid.new(maxf(widest * 2.0, 1.0))
+	for monster: Monster in bodies:
+		grid.insert(monster, monster.global_position)
+	_shared_spacing = grid
+	_shared_spacing_frame = frame
+	_shared_spacing_tree = tree
+	return grid
 
 
 ## 테스트·디버그용: 지금 노리는 대상 (없으면 null)

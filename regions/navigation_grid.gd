@@ -44,6 +44,10 @@ var _tile_sums_walls: PlaceholderWalls
 ## 윤곽 칸 상태의 누적 합 (make_grid_from_outline)
 var _outline_rock_sums: PackedInt32Array = PackedInt32Array()
 var _outline_mixed_sums: PackedInt32Array = PackedInt32Array()
+## 지금까지 찾은 길 수 (find_path를 부른 수. 측정·테스트용)
+var path_searches: int = 0
+## 길 찾기에 쓴 시간 (마이크로초. 측정용)
+var path_search_usec: int = 0
 
 
 func _ready() -> void:
@@ -89,7 +93,11 @@ func can_see(from: Vector2, to: Vector2) -> bool:
 func find_path(from: Vector2, to: Vector2, half_size: Vector2) -> PackedVector2Array:
 	if not has_walls():
 		return PackedVector2Array([from, to])
-	return _grid_for(half_size).find_path(from, to)
+	path_searches += 1
+	var started: int = Time.get_ticks_usec()
+	var path: PackedVector2Array = _grid_for(half_size).find_path(from, to)
+	path_search_usec += Time.get_ticks_usec() - started
+	return path
 
 
 ## 길을 다시 찾는 간격 (물리 프레임 수)

@@ -8,7 +8,7 @@ description: 밸런스·몬스터 AI·언데드 능력치를 숫자로 잴 때 �
 `tests/balance/`의 스크립트가 실제 게임 규칙 그대로 싸움을 여러 번 돌려 숫자로 낸다. 판정이 없어서 `tests/run_all.sh`에는 넣지 않는다.
 몬스터를 추가하면 `TARGETS`에 넣는 규칙과, 측정 결과를 보고할 때 `tests/balance/results/`에 저장하는 규칙은 CLAUDE.md에 있다.
 고블린 투석병 데이터는 `run_balance.gd`·`run_undead_duel.gd`에서 인자로 측정 안에서만 바꿀 수 있다 (메모리의 데이터만 바꾸고 실제 .tres는 그대로, `tests/scenario_test.gd`의 `apply_goblin_args`): `--burst`(`throw_burst_count`), `--burst_interval`(`throw_burst_interval`), `--stone_damage`(`contact_damage`), `--stone_cooldown`(`attack_cooldown`), `--goblin_undead_health_ratio`·`--goblin_undead_damage_ratio`(`undead_health_ratio_override`·`undead_damage_ratio_override`). 예: `bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_undead_duel.gd -- --monsters=goblin_slinger --goblin_undead_damage_ratio=0.5`
-스크립트마다 옵션 전체는 그 파일 맨 위 주석에 있다. 길목·벽 모서리 걷기(`run_choke_walk.gd`, `run_stuck_walk.gd`)는 맵 검사라 `map-edit` 스킬에 있다.
+스크립트마다 옵션 전체는 그 파일 맨 위 주석에 있다. 길목·벽 모서리 걷기(`run_choke_walk.gd`, `run_stuck_walk.gd`)는 맵 검사라 `map-edit` 스킬에 있다. 몬스터 처리 부하(프레임 시간·길찾기 횟수, 쥐 32 + 멧돼지 8이 측정 굴에서 쫓음)는 `bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_path_load.gd`로 잰다 (결과 예: `tests/balance/results/2026-11-14_path_load.md`).
 
 ## 1. 봇과 싸움 측정 (run_balance)
 
