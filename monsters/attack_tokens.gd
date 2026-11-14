@@ -6,11 +6,13 @@ extends RefCounted
 ## - 대상의 공격권이 쓰이는 동안 extra_interval초마다, 그때 공격권이 다 차서 기다리는 몸이 있으면 그중 하나를 무작위로 골라 추가 공격권을 준다.
 ##   추가 공격권은 한 대상에 동시에 하나뿐이고, 공격 한 번에 쓰고 반납한다
 ## - 반납: 공격이 끝남(finish_attack), 그 밖의 반납(release: 죽음, 대상이 바뀌거나 놓침, 멀리 밀려남), 시간 제한(hold_time_limit초)
+## - 시간 제한으로 반납한 몸은 그 대상의 공격권을 retry_block_time초 받지 못한다 (기다리는 몸으로도 적지 않는다. 묶인 권한이 다른 몸에게 가게)
 ## - 기다리는 몸 목록은 update()마다 비운다 (그 프레임에 다시 묻지 않은 몸은 기다리지 않는 것이다)
 ## 무작위는 넣어 준 난수(RandomNumberGenerator)를 쓴다 (시드로 재현할 수 있게).
 
 var extra_interval: float
 var hold_time_limit: float
+var retry_block_time: float
 var _rng: RandomNumberGenerator
 ## 몸 → {"target": 대상, "kind": 종, "extra": 추가 공격권인지, "held": 들고 있은 시간}
 var _holders: Dictionary = {}
@@ -18,13 +20,16 @@ var _holders: Dictionary = {}
 var _waiting: Dictionary = {}
 ## 대상 → 추가 공격권 시간 (기다리는 몸이 있는 동안 흐른다)
 var _extra_timers: Dictionary = {}
+## 시간 제한으로 반납한 몸 → {"target": 대상, "left": 남은 시간}. 그동안 그 대상의 공격권을 받지 못한다
+var _blocked: Dictionary = {}
 ## 지금까지 준 추가 공격권 수 (테스트·디버그용)
 var extra_granted: int = 0
 
 
-func _init(extra_seconds: float, hold_limit: float, rng: RandomNumberGenerator) -> void:
+func _init(extra_seconds: float, hold_limit: float, rng: RandomNumberGenerator, retry_block: float = 0.0) -> void:
 	extra_interval = extra_seconds
 	hold_time_limit = hold_limit
+	retry_block_time = retry_block
 	_rng = rng
 
 
@@ -35,6 +40,9 @@ func request(member: Object, target: Object, kind: StringName, limit: int) -> bo
 		if _holders[member]["target"] == target:
 			return true
 		release(member)
+	# 시간 제한으로 반납한 지 얼마 안 됐으면 그 대상의 공격권을 받지 못한다.
+	if _blocked.has(member) and _blocked[member]["target"] == target:
+		return false
 	if count_normal(target, kind) < limit:
 		_holders[member] = {"target": target, "kind": kind, "extra": false, "held": 0.0}
 		return true
@@ -58,12 +66,19 @@ func release(member: Object) -> void:
 ## 물리 프레임마다 한 번, 몸들이 request()를 다 부른 뒤에 부른다.
 ## 시간 제한을 넘은 공격권을 반납하고, 기다리는 몸이 있는 대상마다 추가 공격권 시간을 재서 줄 때가 되면 준다.
 func update(delta: float) -> void:
+	# 막는 시간은 이번 프레임에 새로 막기 전에 줄인다 (새로 막은 몸이 이번 delta만큼 덜 막히지 않게).
+	for member: Variant in _blocked.keys():
+		_blocked[member]["left"] -= delta
+		if not is_instance_valid(member) or _blocked[member]["left"] <= 0.0:
+			_blocked.erase(member)
 	for member: Variant in _holders.keys():
 		if not is_instance_valid(member) or not is_instance_valid(_holders[member]["target"]):
 			_holders.erase(member)
 			continue
 		_holders[member]["held"] += delta
 		if hold_time_limit > 0.0 and _holders[member]["held"] > hold_time_limit:
+			if retry_block_time > 0.0:
+				_blocked[member] = {"target": _holders[member]["target"], "left": retry_block_time}
 			_holders.erase(member)
 	# 추가 공격권 시간은 대상의 공격권이 쓰이는 동안(누가 들고 있거나 기다리는 동안) 흐르고, extra_interval마다 한 번 그때 기다리는 몸 중 하나에게 준다.
 	var busy: Dictionary = {}

@@ -6,8 +6,10 @@ extends Node
 
 ## 공격권이 다 찼을 때 기다리는 몬스터 중 하나에게 추가 공격권을 주는 간격 (초, 사용자 결정 2026-11-13)
 @export var extra_interval: float = 1.0
-## 공격권을 이 시간(초)보다 오래 들고 있으면 반납한다 (공격권이 묶이는 버그 방지, 임시값)
-@export var hold_time_limit: float = 4.0
+## 공격권을 이 시간(초)보다 오래 들고 있으면 반납한다 (공격권이 묶이는 버그 방지, 사용자 결정 2026-11-14)
+@export var hold_time_limit: float = 6.0
+## 시간 제한으로 반납한 몬스터가 그 대상의 공격권을 다시 받지 못하는 시간 (초, 사용자 결정 2026-11-14)
+@export var retry_block_time: float = 1.0
 ## 이 거리(픽셀) 이상 밀려나면 공격권을 반납한다 (밀친 거리로 잰다, 임시값)
 @export var knockback_release_distance: float = 48.0
 
@@ -21,7 +23,7 @@ func _init() -> void:
 func _ready() -> void:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = randi()
-	tokens = AttackTokens.new(extra_interval, hold_time_limit, rng)
+	tokens = AttackTokens.new(extra_interval, hold_time_limit, rng, retry_block_time)
 
 
 func _physics_process(delta: float) -> void:

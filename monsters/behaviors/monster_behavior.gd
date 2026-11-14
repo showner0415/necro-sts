@@ -9,6 +9,18 @@ extends Resource
 ## 벽의 충돌층 (돌진이 부딪히는 벽, 물러날 때 살피는 벽)
 @export_flags_2d_physics var world_collision_mask: int = 1
 
+@export_group("공격권 기다리기")
+## 공격권이 없어 맴돌 때, 맴도는 거리(stats.wait_distance)에서 이만큼 벗어나도 그대로 돈다 (픽셀, 임시값)
+@export var wait_band: float = 8.0
+## 맴돌 때 옆으로 도는 속도와, 너무 가까워 물러나는 속도 (픽셀/초, 임시값. 쥐가 쓰던 값)
+@export var wait_circle_speed: float = 30.0
+@export var wait_back_off_speed: float = 40.0
+## 맴돌거나 물러나는 쪽이 이 거리 안에서 벽에 막히면 방향을 튼다 (픽셀)
+@export var wait_wall_probe: float = 12.0
+
+## 맴도는 쪽: 1 또는 -1. 도는 쪽이 벽에 막히면 바꾼다
+var _wait_side: float = 1.0
+
 
 ## 한 마리가 쓸 복사본
 func make_instance() -> MonsterBehavior:
@@ -141,6 +153,40 @@ func may_attack(body: CharacterBody2D, target: Node2D) -> bool:
 func attack_done(body: CharacterBody2D) -> void:
 	if body.has_method(&"finish_attack"):
 		body.call(&"finish_attack")
+
+
+## 공격권을 묻는 거리: 맴도는 거리 + wait_band × 2와 이 조각의 공격 반경 중 큰 쪽.
+## 그보다 멀면 묻지 않고 다가온다 (공격권 시간 제한에 다가오는 시간이 들지 않게).
+## 맴도는 띠(± wait_band)보다 한 띠 더 밖에서부터 묻는다 (맴돌다 띠 밖으로 조금 밀려나도 계속 기다리게).
+## 공격 반경이 더 크면(멧돼지의 돌진 거리) 공격을 시작하기 전에 꼭 묻게 그 거리까지 넓힌다.
+func get_token_ask_distance(stats: CombatStats) -> float:
+	return maxf(stats.wait_distance + wait_band * 2.0, get_engage_range(stats))
+
+
+## 공격권을 물을 거리 안이고 공격권이 없으면 true (공격을 시작하지 말고 wait_around()로 기다린다).
+## 공격권을 쓰지 않는 쓰는 쪽(언데드, 단위 테스트의 몸)은 언제나 false.
+func must_wait_for_token(body: CharacterBody2D, stats: CombatStats, target: Node2D) -> bool:
+	if body.global_position.distance_to(target.global_position) > get_token_ask_distance(stats):
+		return false
+	return not may_attack(body, target)
+
+
+## 공격권이 없을 때: 대상에게서 stats.wait_distance(± wait_band)를 두고 옆으로 돌며 기다린다.
+## 멀면 다가가고(stats.move_speed), 가까우면 물러나고(wait_back_off_speed), 그 사이면 wait_circle_speed로 돈다. 도는 쪽이 벽에 막히면 반대로 돈다.
+func wait_around(body: CharacterBody2D, stats: CombatStats, target: Node2D) -> void:
+	var to_target: Vector2 = target.global_position - body.global_position
+	var distance: float = to_target.length()
+	if distance > stats.wait_distance + wait_band:
+		body.velocity = move_direction(body, target.global_position) * stats.move_speed
+	elif distance <= 0.0:
+		body.velocity = Vector2.ZERO
+	elif distance < stats.wait_distance - wait_band:
+		body.velocity = free_direction(body, -to_target / distance, wait_wall_probe, _wait_side) * wait_back_off_speed
+	else:
+		var around: Vector2 = free_direction(body, (to_target / distance).orthogonal() * _wait_side, wait_wall_probe, _wait_side)
+		if around == Vector2.ZERO:
+			_wait_side = -_wait_side
+		body.velocity = around * wait_circle_speed
 
 
 ## body에서 target까지 벽이 가로막지 않는지. 돌진·던지기를 시작하기 전에 본다 (벽 너머로 돌진하거나 던지지 않고 돌아서 다가가게).

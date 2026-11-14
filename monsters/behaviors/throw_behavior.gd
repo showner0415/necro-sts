@@ -8,6 +8,7 @@ extends MonsterBehavior
 ## - 한 번에 stats.burst_count개를 stats.burst_interval초 간격으로 던지고, 던지는 동안 멈춰 있다. 다 던지면 throw_pause_time초 더 멈춘다
 ## - 돌마다 던지는 순간의 대상 위치와 속도로 도착할 곳을 다시 예측한다 (stats의 돌별 예측 비율과 오차). 돌은 예측 지점에 떨어지고 그림자 원이 돌마다 그려진다
 ## - 물러나거나 옆으로 걷는 쪽이 벽에 막히면 벽을 따라 미끄러지지 않고 방향을 틀거나 멈춘다
+## 공격권(Monster.request_attack)이 없으면 던지러 들어오지 않고 대상에게서 맴도는 거리(stats.wait_distance)를 두고 돌며 기다린다. 다 던지면 공격 한 번이 끝난다(공격권 반납).
 ## 돌은 쓰는 쪽의 적(get_hostile_groups())에게 피해를 주고, 지나가는 그룹(get_stone_pass_groups())은 지나가며, 다른 몸과 벽에는 막힌다 (Stone).
 
 enum Step { MOVE, WINDUP, BURST }
@@ -88,6 +89,10 @@ func act(body: CharacterBody2D, stats: CombatStats, target: Node2D, _delta: floa
 	if _pause_left > 0.0:
 		body.velocity = Vector2.ZERO
 		return
+	# 공격권을 묻는 거리 안에서 공격권이 없으면 던지러 들어오지 않고 맴도는 거리에서 기다린다.
+	if must_wait_for_token(body, stats, target):
+		wait_around(body, stats, target)
+		return
 	var to_target: Vector2 = target.global_position - body.global_position
 	var distance: float = to_target.length()
 	# 던지는 거리 안이어도 벽이 가로막으면 던지지 않고 돌아서 다가간다.
@@ -146,6 +151,8 @@ func _release_first(body: CharacterBody2D, stats: CombatStats, target: Node2D) -
 
 func _finish_attack(body: CharacterBody2D) -> void:
 	_step = Step.MOVE
+	# 연달아 던지는 돌을 다 던지면 공격 한 번이 끝난다 (공격권 반납, 제안).
+	attack_done(body)
 	_side = 1.0 if randf() < 0.5 else -1.0
 	if throw_pause_time > 0.0:
 		_pause_left = throw_pause_time

@@ -20,6 +20,16 @@ class FakeBody:
 	func get_hostiles() -> Array[Node2D]:
 		return hostiles
 
+	## 공격권 (Monster.request_attack 흉내). 기본은 언제나 준다
+	var allowed: bool = true
+	var finished: int = 0
+
+	func request_attack(_target: Node2D) -> bool:
+		return allowed
+
+	func finish_attack() -> void:
+		finished += 1
+
 
 ## 피해와 밀쳐내기를 기록하는 가짜 상대
 class FakeHostile:
@@ -247,3 +257,25 @@ func test_charge_length_is_capped() -> void:
 	target.position = Vector2(charge.charge_range - 10.0, 0)
 	_step()
 	assert_eq(charge.get_charge_length(Vector2(-1000, 0)), charge.charge_distance, "멀면 최대 거리까지만")
+
+
+# --- 공격권 ---
+
+func test_waits_around_without_token_instead_of_winding_up() -> void:
+	body.allowed = false
+	stats.wait_distance = 96.0
+	target.position = Vector2(charge.charge_range - 10.0, 0)
+	_step()
+	assert_eq(charge.get_state(), ChargeBehavior.State.APPROACH, "공격권이 없으면 예고를 시작하지 않는다")
+	assert_ne(body.velocity, Vector2.ZERO, "맴도는 거리로 움직인다")
+	body.allowed = true
+	_step()
+	assert_eq(charge.get_state(), ChargeBehavior.State.WINDUP, "공격권을 받으면 예고를 시작한다")
+
+
+func test_token_returned_when_recover_ends() -> void:
+	_run_windup()
+	while charge.get_state() != ChargeBehavior.State.APPROACH:
+		assert_eq(body.finished, 0, "돌진·멈칫 중에는 공격권을 들고 있다")
+		_step(false)
+	assert_eq(body.finished, 1, "멈칫이 끝나면 공격 한 번이 끝난다 (공격권 반납)")

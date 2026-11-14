@@ -4,7 +4,8 @@ extends TestCase
 const RAT: StringName = &"rat"
 const BOAR: StringName = &"boar"
 const EXTRA_INTERVAL: float = 1.0
-const HOLD_LIMIT: float = 4.0
+const HOLD_LIMIT: float = 6.0
+const RETRY_BLOCK: float = 1.0
 
 var tokens: AttackTokens
 var target: RefCounted
@@ -15,7 +16,7 @@ var rats: Array[RefCounted] = []
 func before_each() -> void:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = 3
-	tokens = AttackTokens.new(EXTRA_INTERVAL, HOLD_LIMIT, rng)
+	tokens = AttackTokens.new(EXTRA_INTERVAL, HOLD_LIMIT, rng, RETRY_BLOCK)
 	target = RefCounted.new()
 	other_target = RefCounted.new()
 	rats.clear()
@@ -65,6 +66,27 @@ func test_hold_time_limit() -> void:
 	assert_true(tokens.is_holding(rats[0]), "시간 제한 전에는 들고 있다")
 	tokens.update(0.2)
 	assert_false(tokens.is_holding(rats[0]), "시간 제한이 지나면 반납 (묶이는 버그 방지)")
+
+
+func test_retry_block_after_hold_time_limit() -> void:
+	tokens.request(rats[0], target, RAT, 1)
+	tokens.update(HOLD_LIMIT + 0.1)
+	assert_false(tokens.request(rats[0], target, RAT, 1), "시간 제한으로 반납한 몸은 곧바로 다시 받지 못한다")
+	assert_true(tokens.request(rats[1], target, RAT, 1), "그 자리는 다른 몸이 받는다")
+	tokens.release(rats[1])
+	assert_true(tokens.request(rats[0], other_target, RAT, 1), "다른 대상의 공격권은 받는다")
+	tokens.release(rats[0])
+	tokens.update(RETRY_BLOCK - 0.2)
+	assert_false(tokens.request(rats[0], target, RAT, 1), "막는 시간이 안 지났으면 계속 못 받는다")
+	tokens.update(0.3)
+	assert_true(tokens.request(rats[0], target, RAT, 1), "막는 시간이 지나면 다시 받는다")
+
+
+func test_no_retry_block_after_normal_release() -> void:
+	tokens.request(rats[0], target, RAT, 1)
+	tokens.finish_attack(rats[0])
+	tokens.update(0.1)
+	assert_true(tokens.request(rats[0], target, RAT, 1), "공격을 끝내 반납했으면 막지 않는다")
 
 
 func test_extra_token_every_interval_to_a_waiting_member() -> void:
