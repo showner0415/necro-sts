@@ -146,7 +146,7 @@ res://
 - 새 에셋이 필요하면 `make-asset` 스킬의 절차를 따른다. 만들기 전에 사양을 묻고, 만든 뒤 미리보기를 보여주고, 피드백에 따라 조정한다.
 - 에셋은 생성 스크립트나 원본 파일에서 다시 만들 수 있어야 한다. 조정은 손으로 픽셀이나 정점을 고치지 말고 생성 파라미터를 바꿔서 재생성한다.
 - 모든 에셋은 `assets/ASSETS.md`에 기록한다.
-- UI 그림은 GPT로 그린다. UI 화면을 그림으로 만들거나 바꾸면 `ui-designer` 에이전트에 "UI 요청" 블록(`.claude/agents/ui-designer.md`의 1)을 채워 맡긴다. 고해상도 UI 층(`docs/plans/2026-11-14_hd_ui_layer_plan.md`)과 스타일(`docs/ui-style.md`)이 준비되기 전에는 에이전트가 "스타일" 할 일만 한다.
+- UI 그림은 GPT로 그린다 (Codex CLI로 ChatGPT 구독 한도 안에서 받는다). UI 화면을 그림으로 만들거나 바꾸면 `ui-designer` 에이전트에 "UI 요청" 블록(`.claude/agents/ui-designer.md`의 1)을 채워 맡긴다. 고해상도 UI 층(`docs/plans/2026-11-14_hd_ui_layer_plan.md`)과 스타일(`docs/ui-style.md`)이 준비되기 전에는 에이전트가 "스타일" 할 일만 한다.
 - 상태가 **확정**인 에셋은 사용자에게 묻지 않고 덮어쓰지 않는다.
 - 쥐 그림(`assets/monsters/rat/`)은 확정이다. 사용자가 바꾼다고 말하기 전까지 수정·재생성·보정하지 않는다. 확인 스크린샷: `--scene=res://regions/test_region.tscn --setup=res://tools/screenshot_setups/rat_sprite.gd`
 - 네크로맨서 애니메이션(`tools/asset_gen/necromancer_anim.gd`가 만드는 프레임 PNG와 `.tres`)은 손으로 고치지 않는다. PixelLab ZIP에서 꺼내는 방법과 확인 스크린샷은 `assets/ASSETS.md`의 걷기 애니메이션 줄에 있다.
