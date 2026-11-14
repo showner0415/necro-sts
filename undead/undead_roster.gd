@@ -118,7 +118,7 @@ func summon(skull: Skull) -> Result:
 	if not skull.awakened:
 		_inventory.remove_count(_bone_id, monster.summon_bone_cost)
 		skull.awakened = true
-		skull.health = monster.undead_max_health
+		skull.health = monster.get_undead_max_health(skull.is_named())
 	# 목록에 먼저 넣는다: 비용을 내고 마나가 0이 되면 이 언데드도 같이 해제되어야 한다.
 	_summoned.append(skull)
 	summoned.emit(skull)
@@ -176,7 +176,7 @@ func get_heal_bone_cost(skull: Skull) -> int:
 		return 0
 	if not skull.awakened:
 		return monster.summon_bone_cost
-	return UndeadRules.heal_bone_cost(skull.health, monster.undead_max_health, monster.summon_bone_cost)
+	return UndeadRules.heal_bone_cost(skull.health, monster.get_undead_max_health(skull.is_named()), monster.summon_bone_cost)
 
 
 ## 지금 회복할 수 있는지만 확인한다 (아무것도 바꾸지 않는다). 할 수 있으면 OK.
@@ -191,7 +191,7 @@ func check_heal(skull: Skull) -> Result:
 		return Result.UNKNOWN_MONSTER
 	if not skull.awakened:
 		return Result.NOT_AWAKENED
-	if UndeadRules.heal_bone_cost(skull.health, monster.undead_max_health, monster.summon_bone_cost) == 0:
+	if UndeadRules.heal_bone_cost(skull.health, monster.get_undead_max_health(skull.is_named()), monster.summon_bone_cost) == 0:
 		return Result.FULL_HEALTH
 	if _inventory.get_count(_bone_id) == 0:
 		return Result.NO_BONES
@@ -204,9 +204,9 @@ func heal(skull: Skull) -> Result:
 	if check != Result.OK:
 		return check
 	var monster: MonsterData = get_monster(skull)
-	var needed: int = UndeadRules.heal_bone_cost(skull.health, monster.undead_max_health, monster.summon_bone_cost)
+	var needed: int = UndeadRules.heal_bone_cost(skull.health, monster.get_undead_max_health(skull.is_named()), monster.summon_bone_cost)
 	var used: int = mini(needed, _inventory.get_count(_bone_id))
-	skull.health = UndeadRules.health_after_heal(skull.health, monster.undead_max_health, monster.summon_bone_cost, used)
+	skull.health = UndeadRules.health_after_heal(skull.health, monster.get_undead_max_health(skull.is_named()), monster.summon_bone_cost, used)
 	_inventory.remove_count(_bone_id, used)
 	changed.emit()
 	return Result.OK
@@ -217,7 +217,7 @@ func get_stored_bones(skull: Skull) -> int:
 	var monster: MonsterData = get_monster(skull)
 	if skull == null or monster == null or not skull.awakened:
 		return 0
-	return UndeadRules.stored_bones(skull.health, monster.undead_max_health, monster.summon_bone_cost)
+	return UndeadRules.stored_bones(skull.health, monster.get_undead_max_health(skull.is_named()), monster.summon_bone_cost)
 
 
 ## 지금 뼈를 제거할 수 있는지만 확인한다 (아무것도 바꾸지 않는다). bone_item은 돌려받을 뼈 아이템.

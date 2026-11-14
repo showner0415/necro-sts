@@ -6,7 +6,7 @@ extends CharacterBody2D
 ## - 이유 없이 먼저 공격하지 않는다. 싸울 몬스터는 UndeadTargeting 규칙으로 정한다: 네크로맨서를 노리는 몬스터가 네크로맨서의 공격 반경
 ##   (master_attack_radius) 안에 들어오거나, 네크로맨서가 몬스터를 맞히거나, 이 언데드를 노리는 몬스터가 언데드의 공격 반경 안에 들어오면
 ##   그 몬스터를 노린다. 언데드의 공격 반경(행동 조각의 get_engage_range)에 들어오면 대상을 고정한다.
-##   싸우는 방식은 원본 몬스터의 언데드용 행동 조각(data.make_undead_behavior())이고, 수치는 언데드 값이다 (MonsterData.get_undead_stats)
+##   싸우는 방식은 원본 몬스터의 언데드용 행동 조각(data.make_undead_behavior())이고, 수치는 언데드 값이다 (MonsterData.get_undead_stats. 네임드 머리뼈면 네임드 배율)
 ## - 대상이 네크로맨서에게서 leash_distance보다 멀어지면 그만두고 돌아온다
 ## 체력·내구도는 이 노드가 아니라 머리뼈(Skull)에 있다. 피해를 받으면 damage_received로 알리기만 하고,
 ## 실제 계산과 사라지는 판단은 UndeadRoster가 한다 (Summoner가 연결한다).
@@ -65,6 +65,11 @@ func setup(summoned_skull: Skull, monster_data: MonsterData, master: Node2D) -> 
 	_master = master
 
 
+## 싸울 때 능력치: 원본 몬스터의 언데드 값 (네임드 머리뼈면 네임드 배율, 계획 6b)
+func _stats() -> CombatStats:
+	return data.get_undead_stats(skull != null and skull.is_named())
+
+
 func _ready() -> void:
 	_behavior = data.make_undead_behavior()
 	_sight = data.get_undead_sight()
@@ -83,7 +88,7 @@ func _physics_process(delta: float) -> void:
 	var target: Monster = _find_target()
 	# 하던 동작(돌진 예고 등)은 대상이 사라져도 이어 간다.
 	if target != null or _behavior.is_busy():
-		_behavior.act(self, data.get_undead_stats(), target, delta)
+		_behavior.act(self, _stats(), target, delta)
 	else:
 		_follow()
 	if _knockback.is_active():
@@ -185,7 +190,7 @@ func _spacing_push() -> Vector2:
 
 ## 살아 있는 몬스터마다 이번 프레임 정보를 모아 UndeadTargeting에 넣고, 정해진 대상을 돌려준다.
 func _find_target() -> Monster:
-	var engage_range: float = _behavior.get_engage_range(data.get_undead_stats())
+	var engage_range: float = _behavior.get_engage_range(_stats())
 	var candidates: Array[UndeadTargeting.Candidate] = []
 	var hits: Dictionary = {}
 	for node: Node in get_tree().get_nodes_in_group(&"monsters"):

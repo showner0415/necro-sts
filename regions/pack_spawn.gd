@@ -83,6 +83,8 @@ func _build(actors: Node, entries: Array) -> void:
 		if entry["health"] > 0.0:
 			monster.health = entry["health"]
 		monster.is_leader = entry.get("leader", false)
+		if monster.is_leader:
+			monster.leader_settings = _leader_settings()
 		_members[entry["index"]] = monster
 		monsters.append(monster)
 	if monsters.is_empty():

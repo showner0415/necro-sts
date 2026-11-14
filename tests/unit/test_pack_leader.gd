@@ -1,5 +1,5 @@
 extends TestCase
-## PackLeader(무리 대장 고르기)와 DungeonRun의 대장 확정 목록 단위 테스트.
+## PackLeader(무리 대장 고르기, 네임드 머리뼈 확률)와 DungeonRun의 대장 확정 목록 단위 테스트.
 
 
 func _rng(seed_value: int) -> RandomNumberGenerator:
@@ -45,3 +45,9 @@ func test_dungeon_run_forced_list() -> void:
 	run.forced_leader_packs.append(&"rat_gang")
 	assert_true(run.forces_leader(&"rat_gang"), "목록에 있으면 확정")
 	assert_false(run.forces_leader(&"boar_pack"))
+
+
+func test_named_skull_chance_zero_never_and_one_always() -> void:
+	for seed_value: int in 20:
+		assert_false(PackLeader.rolls_named_skull(0.0, _rng(seed_value)), "확률 0이면 네임드 머리뼈가 나오지 않는다")
+		assert_true(PackLeader.rolls_named_skull(1.0, _rng(seed_value)), "확률 1이면 반드시 나온다")

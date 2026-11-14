@@ -7,3 +7,5 @@ script = ExtResource("1_settings")
 chance = 0.15
 member_damage_ratio = 1.2
 leader_health_ratio = 1.5
+named_skull_chance = 0.7
+named_skull_name = "그레카"

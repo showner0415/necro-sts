@@ -6,6 +6,7 @@ extends CharacterBody2D
 ## 무리(MonsterPack)에 속해 있으면 무리가 정한 대상(set_pack_target)을 자기 판단보다 먼저 노린다. 무리에 알리는 신호 중(set_alarm_signal)에는 멈춰 깜빡인다.
 ## 대상과 어떻게 싸울지는 데이터의 행동 조각(data.behavior)이 정하고, 수치는 적일 때의 값에 무리 대장 강화를 곱한 값(_combat_stats())을 쓴다.
 ## 죽으면 드랍 목록(data.drops)의 확률을 굴려 나온 것을 담은 시체(Corpse)를 남긴다. 네크로맨서가 시체에서 채집한다.
+## 무리 대장이면 확률로 일반 머리뼈 대신 네임드 머리뼈를 남긴다 (계획 6b).
 
 @export var data: MonsterData
 ## 죽을 때 남길 시체 씬
@@ -55,6 +56,8 @@ static var _next_think_slot: int = 0
 static var think_count: int = 0
 ## 무리 대장인지 (머리 위 왕관을 그린다, 계획 6a). 무리 자리(PackSpawn)가 정한다
 var is_leader: bool = false
+## 대장 값. 대장이면 무리 자리가 넣어 준다. 죽을 때 네임드 머리뼈 확률과 이름을 읽는다 (계획 6b)
+var leader_settings: PackLeaderSettings
 ## 공격력 배율: 무리 대장이 살아 있는 동안 같은 무리원은 대장 값만큼 세다 (MonsterPack이 정하고 대장이 죽으면 1로 되돌린다)
 var damage_ratio: float = 1.0
 ## 네크로맨서에게 맞은 횟수. 언데드가 "방금 맞았다"(계기)를 알아보는 데 쓴다.
@@ -410,11 +413,27 @@ func _die() -> void:
 	_release_token()
 	# 머리뼈가 나올지는 죽는 이 순간에 정해진다. 시체는 정해진 것만 담는다.
 	var corpse: Corpse = corpse_scene.instantiate()
-	corpse.setup(data, CorpseLoot.from_drops(DropRoller.roll(data.drops), data.harvest_base_time))
+	corpse.setup(data, CorpseLoot.from_drops(DropRoller.roll(data.drops), data.harvest_base_time, _roll_named_skull()))
 	corpse.position = position
 	# 물리 처리 중(탄에 맞은 순간)에는 Area2D를 바로 추가할 수 없어서 미룬다.
 	get_parent().add_child.call_deferred(corpse)
 	queue_free()
+
+
+## 대장이면 확률로 네임드 머리뼈 하나 (계획 6b). 나오면 시체의 일반 머리뼈 대신이다. 아니면 null.
+## 난수는 던전 시드 난수(GameState.dungeon.rng)를 쓴다. 테스트 스크립트보다 먼저 컴파일되지 않게 노드 경로로 찾는다.
+func _roll_named_skull() -> Skull:
+	if not is_leader or leader_settings == null:
+		return null
+	var skull_data: SkullData = data.get_drop_skull()
+	if skull_data == null:
+		return null
+	var game_state: Node = get_node_or_null(^"/root/GameState")
+	var run: DungeonRun = game_state.get(&"dungeon") if game_state != null else null
+	var rng: RandomNumberGenerator = run.rng if run != null else RandomNumberGenerator.new()
+	if not PackLeader.rolls_named_skull(leader_settings.named_skull_chance, rng):
+		return null
+	return Skull.create_named(skull_data, data.display_name, leader_settings.named_skull_name)
 
 
 ## 임시 도형의 지금 색 (예고 깜빡임 포함). 3D 화면 층이 읽는다.

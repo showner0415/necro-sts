@@ -177,8 +177,10 @@ func _with_throw_stats(stats: CombatStats) -> CombatStats:
 
 
 ## 언데드일 때의 능력치: 이동 속도·공격 간격은 몬스터와 같고, 공격력만 배율을 곱한다. 공격 거리는 따로 둔 값이 없으면 몬스터와 같다.
-func get_undead_stats() -> CombatStats:
-	return _with_throw_stats(CombatStats.create(move_speed, get_undead_attack_range(), undead_contact_damage, attack_cooldown))
+## 네임드 머리뼈(named)면 공격력은 원래 몬스터 공격력에 네임드 배율을 곱한다 (계획 6b).
+func get_undead_stats(named: bool = false) -> CombatStats:
+	var damage: float = contact_damage * get_undead_rules().named_damage_ratio if named else undead_contact_damage
+	return _with_throw_stats(CombatStats.create(move_speed, get_undead_attack_range(), damage, attack_cooldown))
 
 
 ## 언데드 공격 거리 (이 몬스터에 따로 둔 값이 있으면 그것, 없으면 몬스터의 attack_range)
@@ -194,6 +196,19 @@ func get_undead_health_ratio() -> float:
 ## 언데드 공격력 배율 (이 몬스터에 따로 둔 값이 있으면 그것, 없으면 기본 배율)
 func get_undead_damage_ratio() -> float:
 	return undead_damage_ratio_override if undead_damage_ratio_override >= 0.0 else get_undead_rules().damage_ratio
+
+
+## 언데드 최대 체력. 네임드 머리뼈(named)면 원래 몬스터 체력에 네임드 배율을 곱한다 (몬스터별 배율은 쓰지 않는다, 계획 6b)
+func get_undead_max_health(named: bool = false) -> float:
+	return max_health * get_undead_rules().named_health_ratio if named else undead_max_health
+
+
+## 드랍 목록의 첫 머리뼈 (없으면 null). 대장의 네임드 머리뼈가 이 종류로 나온다 (계획 6b)
+func get_drop_skull() -> SkullData:
+	for entry: DropEntry in drops:
+		if entry != null and entry.item is SkullData:
+			return entry.item as SkullData
+	return null
 
 
 ## 언데드 능력치 기본 배율 (data/undead_stat_rules.tres, 처음 쓸 때 한 번 불러 둔다)

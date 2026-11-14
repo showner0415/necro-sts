@@ -2,7 +2,7 @@ class_name InventorySlot
 extends Panel
 ## 인벤토리 칸 하나. 비어 있거나, ItemStack 하나(뼈 N개 또는 머리뼈 하나)를 보여준다.
 ## - 뼈 같은 아이템: 임시 도형과 개수
-## - 머리뼈: 임시 도형과 아래쪽 내구도 바 (항상 보임)
+## - 머리뼈: 임시 도형과 아래쪽 내구도 바 (항상 보임). 네임드 머리뼈면 오른쪽 위에 작은 노란 사각형 (임시, 계획 6b)
 ## - 아직 무엇인지 드러나지 않은 칸(상자, Inventory.is_locked): 어두운 칸에 "?". 드러나는 중이면 아래쪽에 진행 바.
 ##   이 칸은 끌거나 이 칸에 놓을 수 없다
 ## 마우스 입력은 시그널로 알리기만 하고, 실제로 옮기거나 버리는 일은 바깥(InventoryScreen)이 한다.
@@ -24,6 +24,12 @@ const DRAG_KEY: String = "inventory_slot"
 const DRAG_CONTAINER_KEY: String = "container"
 ## 끌어서 놓기 데이터의 키: 그 칸의 머리뼈 (머리뼈가 아니면 null)
 const DRAG_SKULL_KEY: String = "skull"
+
+@export_group("네임드 표시")
+## 네임드 머리뼈 칸의 오른쪽 위 작은 사각형 (임시 표시, 계획 6b. 모양은 나중에 비교판으로 고른다)
+@export var named_mark_color: Color = Color(0.99607843, 0.68235296, 0.20392157, 1)
+@export var named_mark_size: float = 4.0
+@export var named_mark_inset: float = 3.0
 
 ## 이 칸이 들어 있는 곳 (인벤토리 또는 창고). 화면이 넣어 준다.
 var container: Inventory
@@ -55,6 +61,7 @@ func show_stack(stack: ItemStack) -> void:
 	_icon.visible = stack != null
 	_count_label.text = ""
 	_durability_bar.show_skull(stack.skull if stack != null else null)
+	queue_redraw()
 	if stack == null:
 		return
 	_icon.color = stack.item.placeholder_color
@@ -71,6 +78,7 @@ func show_hidden(revealing: bool, progress: float) -> void:
 	_count_label.text = ""
 	_durability_bar.show_skull(null)
 	_set_hidden(true)
+	queue_redraw()
 	_reveal_bar.visible = revealing
 	_reveal_fill.anchor_right = clampf(progress, 0.0, 1.0)
 
@@ -94,6 +102,21 @@ func _set_hidden(hidden: bool) -> void:
 
 func get_stack() -> ItemStack:
 	return _stack
+
+
+## 테스트용: 네임드 표시를 그리는지
+func is_showing_named_mark() -> bool:
+	return _stack != null and _stack.is_skull() and _stack.skull.is_named()
+
+
+func _draw() -> void:
+	if is_showing_named_mark():
+		draw_named_mark(self, size, named_mark_color, named_mark_size, named_mark_inset)
+
+
+## 칸(slot_size) 오른쪽 위에 네임드 표시를 그린다. 핫바 칸도 같이 쓴다.
+static func draw_named_mark(canvas: CanvasItem, slot_size: Vector2, color: Color, mark_size: float, inset: float) -> void:
+	canvas.draw_rect(Rect2(Vector2(slot_size.x - inset - mark_size, inset), Vector2(mark_size, mark_size)), color)
 
 
 func _gui_input(event: InputEvent) -> void:
