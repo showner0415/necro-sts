@@ -193,7 +193,7 @@ func get_see_weight(node: Node2D) -> float:
 
 ## 몸마다 세기를 옮기고, 세기가 있는 몸을 플레이어에게 가까운 순서로 돌려준다.
 func _update_see_weights(step: float, feet: Vector2) -> Array[Node2D]:
-	var bodies: Array[Node2D] = _bodies.get_bodies()
+	var bodies: Array[Node2D] = _bodies.get_onscreen_bodies()
 	for node: Variant in _see_weights.keys():
 		if not is_instance_valid(node) or not bodies.has(node):
 			_see_weights.erase(node)

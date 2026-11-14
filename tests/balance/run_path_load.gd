@@ -4,6 +4,8 @@ extends ScenarioTest
 ## 몬스터는 데이터 복사로 배회 0·체력 크게·추격 포기 없음으로 하고, 처음에 한 대씩 맞혀 모두 쫓게 한다. 네크로맨서는 체력을 크게 하고 정해진 고리를 걷게 옮긴다.
 ## 판정(통과/실패)을 내지 않으므로 run_all.sh에는 넣지 않는다. 결과는 tests/balance/results/에 적는다.
 ##   bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_path_load.gd
+## 먼 몬스터 판단 줄이기(Monster.far_think_interval)를 끄고 견주려면: -- --far_interval=1 (모든 몬스터가 매 프레임 판단한다)
+## 먼 몬스터도 두려면: -- --far=24 (쥐 24마리를 굴 동쪽 벽 밖, 네크로맨서가 걷는 고리에서 FAR_MIN_DISTANCE보다 먼 트인 곳에 놓고 맞히지 않는다. 데이터 그대로 배회한다)
 
 const STRESS_SCENE: String = "res://tests/balance/stress_cave.tscn"
 const MONSTER_SCENE: String = "res://monsters/monster.tscn"
@@ -22,10 +24,15 @@ const WALK_SPEED: float = 50.0
 ## 재기 전에 기다리는 시간과 재는 시간 (초)
 const WARMUP_SECONDS: float = 3.0
 const MEASURE_SECONDS: float = 30.0
+## --far 몬스터를 놓는 곳: 이 x(픽셀)부터 FAR_STEP 간격의 격자 (굴 벽 밖 트인 곳. 고리의 가장 동쪽 x 1264 + 640보다 멀다)
+const FAR_ORIGIN: Vector2 = Vector2(2240, 128)
+const FAR_STEP: float = 96.0
+const FAR_COLUMNS: int = 6
 
 var _necromancer: Necromancer
 var _grid: NavigationGrid
 var _monsters: Array[Monster] = []
+var _far: Array[Monster] = []
 
 
 func get_start_scene() -> String:
@@ -50,6 +57,19 @@ func _on_scene_ready() -> void:
 		monster.position = spots[i * spots.size() / count]
 		_necromancer.get_parent().add_child(monster)
 		_monsters.append(monster)
+	var far_count: int = _far_count()
+	var far_rat: MonsterData = (load(RAT_PATH) as MonsterData).duplicate()
+	far_rat.max_health = TOUGH_HEALTH
+	for i: int in far_count:
+		var far: Monster = (load(MONSTER_SCENE) as PackedScene).instantiate()
+		far.data = far_rat
+		far.position = FAR_ORIGIN + Vector2(i % FAR_COLUMNS, i / FAR_COLUMNS) * FAR_STEP
+		_necromancer.get_parent().add_child(far)
+		_far.append(far)
+	var interval: int = _far_interval()
+	if interval > 0:
+		for monster: Monster in _monsters + _far:
+			monster.far_think_interval = interval
 	await wait_frames(3)
 	for monster: Monster in _monsters:
 		monster.take_damage(0.01, _necromancer)
@@ -65,6 +85,7 @@ func _on_scene_ready() -> void:
 	var chasing_sum: int = 0
 	var searches_before: int = 0
 	var usec_before: int = 0
+	var thinks_before: int = 0
 	var leg: int = 0
 	for frame: int in total:
 		_walk(loop, leg)
@@ -76,6 +97,7 @@ func _on_scene_ready() -> void:
 		if frame == warmup:
 			searches_before = _grid.path_searches
 			usec_before = _grid.path_search_usec
+			thinks_before = Monster.think_count
 		if frame > warmup:
 			times.append(spent)
 			for monster: Monster in _monsters:
@@ -87,7 +109,12 @@ func _on_scene_ready() -> void:
 		mean += value
 	mean /= maxi(times.size(), 1)
 	var frames: int = times.size()
-	print("[측정] 몬스터 %d마리 (쥐 %d, 멧돼지 %d), %.0f초" % [_monsters.size(), _count(&"rat"), _count(&"boar"), MEASURE_SECONDS])
+	var thinks: int = Monster.think_count - thinks_before
+	var far_chasing: int = 0
+	for far: Monster in _far:
+		if far.get_target() != null:
+			far_chasing += 1
+	print("[측정] 몬스터 %d마리 (쥐 %d, 멧돼지 %d), 먼 쥐 %d마리 (끝날 때 쫓는 것 %d), 먼 몬스터 판단 간격 %d프레임, 프레임당 판단 %.1f번, %.0f초" % [_monsters.size(), _count(&"rat"), _count(&"boar"), _far.size(), far_chasing, _monsters[0].far_think_interval, float(thinks) / maxi(frames, 1), MEASURE_SECONDS])
 	print("[측정] 프레임 시간(ms, 물리 프레임 사이의 실제 시간): 평균 %.2f, 중앙 %.2f, 95%% %.2f, 최대 %.2f" % [mean, times[frames / 2], times[mini(frames - 1, roundi(frames * 0.95))], times[frames - 1]])
 	var searches: int = _grid.path_searches - searches_before
 	var search_ms: float = (_grid.path_search_usec - usec_before) / 1000.0
@@ -134,3 +161,19 @@ func _spawn_spots(walls: PlaceholderWalls) -> Array[Vector2]:
 			if center.distance_to(start) > SPAWN_MIN_DISTANCE:
 				spots.append(center)
 	return spots
+
+
+## --far=N (없으면 0)
+func _far_count() -> int:
+	for arg: String in OS.get_cmdline_user_args():
+		if arg.begins_with("--far="):
+			return arg.trim_prefix("--far=").to_int()
+	return 0
+
+
+## --far_interval=N (없으면 -1: 몬스터의 기본값을 그대로 쓴다)
+func _far_interval() -> int:
+	for arg: String in OS.get_cmdline_user_args():
+		if arg.begins_with("--far_interval="):
+			return arg.trim_prefix("--far_interval=").to_int()
+	return -1

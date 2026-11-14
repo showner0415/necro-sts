@@ -6,6 +6,7 @@ extends Node3D
 ## - 그림이 없으면 임시 도형과 같은 모양의 흰 형판(PlaceholderArt)에 2D와 같은 색을 곱한다
 ## - 위치·보임·투명도(시야 Vision이 정한 값)·맞았을 때 번쩍임은 프레임마다 2D 노드에서 옮긴다
 ## - 몸은 화면 픽셀에 맞춰 놓는다 (꿈틀거리지 않게)
+## - 발밑이 화면 밖(offscreen_margin 여유)에 있는 몸은 숨기고 갱신하지 않는다. 앞벽 처리에는 화면 안의 몸(get_onscreen_bodies)만 넘긴다
 
 const BODY_SHADER: String = "res://view_3d/body.gdshader"
 ## 몸 사각형이 카메라 밖으로 잘못 잘리지 않게 두는 여유 (단위)
@@ -13,6 +14,9 @@ const CULL_MARGIN: float = 4.0
 
 ## 몸 그림의 깊이만 카메라 쪽으로 당기는 양 (단위). 발밑보다 아래로 그려지는 부분이 바닥에 가리지 않게 한다
 @export var depth_bias: float = 0.3
+## 발밑이 화면(내부 해상도) 사각형을 이만큼(픽셀) 넘어 밖에 있는 몸은 숨기고 갱신하지 않는다 (계획 3b, 사용자 결정 2026-11-14.
+## 비교판 docs/plans/2.5d_shots/2026-11-14_offscreen-margin.png에서 0·32·64 중 고름. 지금 몸은 발밑 위로 약 20px라 32와 같아 보이지만, 더 큰 그림이 와도 가장자리에서 잘리지 않게 넉넉히 둔다)
+@export var offscreen_margin: float = 64.0
 
 var _view: RegionView3D
 var _shader: Shader
@@ -31,20 +35,26 @@ func setup(view: RegionView3D) -> void:
 ## nodes 중 몸마다 사각형을 하나 두고 프레임마다 옮긴다. 사라진 것은 지운다.
 func sync_bodies(nodes: Array[Node2D], delta: float) -> void:
 	var alive: Dictionary = {}
+	var screen: Rect2 = get_viewport().get_visible_rect().grow(offscreen_margin)
 	for node: Node2D in nodes:
 		if node.is_queued_for_deletion() or not _is_body(node):
 			continue
 		alive[node] = true
 		if not _visuals.has(node):
 			_visuals[node] = _make_visual(node)
-		_update_visual(node, _visuals[node], delta)
+		var visual: _Visual = _visuals[node]
+		visual.on_screen = screen.has_point(_view.world_to_screen(node.global_position, 0.0))
+		if visual.on_screen:
+			_update_visual(node, visual, delta)
+		else:
+			visual.quad.visible = false
 	for node: Variant in _visuals.keys():
 		if not alive.has(node):
 			(_visuals[node] as _Visual).quad.queue_free()
 			_visuals.erase(node)
 
 
-## 지금 그리는 몸들 (2D 노드)
+## 3D 사각형을 가진 몸들 (2D 노드). 화면 밖이라 숨긴 몸도 든다.
 func get_bodies() -> Array[Node2D]:
 	var bodies: Array[Node2D] = []
 	for node: Variant in _visuals.keys():
@@ -52,9 +62,21 @@ func get_bodies() -> Array[Node2D]:
 	return bodies
 
 
+## 이번 프레임에 화면 안(여유 포함)이라 그리는 몸들 (앞벽 처리가 쓴다)
+func get_onscreen_bodies() -> Array[Node2D]:
+	var bodies: Array[Node2D] = []
+	for node: Variant in _visuals.keys():
+		if (_visuals[node] as _Visual).on_screen:
+			bodies.append(node as Node2D)
+	return bodies
+
+
 ## 몸 그림이 화면에서 차지하는 사각형 (불투명한 부분만)
 func get_see_rect(node: Node2D) -> Rect2:
 	var visual: _Visual = _visuals[node]
+	# 화면 밖에서 생겨 아직 한 번도 갱신하지 않은 몸은 그림이 없다.
+	if visual.texture == null:
+		return Rect2()
 	var feet: Vector2 = _view.world_to_screen(node.global_position, 0.0).round()
 	if not _used_rects.has(visual.texture):
 		var image: Image = visual.texture.get_image()
@@ -199,3 +221,5 @@ class _Visual:
 	var offset: Vector2 = Vector2.ZERO
 	## 상자가 시야 안에 있는 정도 (처음에는 -1)
 	var sight: float = -1.0
+	## 이번 프레임에 화면 안(여유 포함)이라 그리는지
+	var on_screen: bool = false

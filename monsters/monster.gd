@@ -26,6 +26,9 @@ extends CharacterBody2D
 @export var alarm_blink_interval: float = 0.1
 ## 디버그 표시(F3)에서 공격권을 든 몬스터의 발밑 점 반지름 (픽셀)
 @export var debug_token_radius: float = 5.0
+## 네크로맨서에게서 이 거리(픽셀)보다 먼 몸은 판단(대상 찾기·시야·행동)을 far_think_interval 프레임에 한 번만 한다 (ThinkThrottle, 임시값. 계획 3b)
+@export var far_think_distance: float = 640.0
+@export var far_think_interval: int = 4
 
 ## 맞았을 때 (source는 때린 쪽). 무리가 이것으로 무리 대상을 정한다.
 signal hit_by(source: Node2D)
@@ -39,6 +42,15 @@ var _own_target: Node2D
 var _pack_target: Node2D
 ## 네크로맨서에게 맞은 표시가 남은 시간 (0이면 없음)
 var _necromancer_mark_left: float = 0.0
+## 판단 줄이기 (ThinkThrottle): 판단하는 프레임을 엇갈리는 번호, 지난 판단 뒤로 흐른 시간, 지난 판단의 속도, 거리를 재는 네크로맨서
+var _think_slot: int = 0
+var _think_delta: float = 0.0
+var _think_velocity: Vector2 = Vector2.ZERO
+var _necromancer_node: Node2D
+## 몸마다 판단하는 프레임을 엇갈리도록 만들 때마다 다음 번호를 준다
+static var _next_think_slot: int = 0
+## 지금까지 판단(_think)한 횟수 (모든 몬스터 합, 측정용)
+static var think_count: int = 0
 ## 네크로맨서에게 맞은 횟수. 언데드가 "방금 맞았다"(계기)를 알아보는 데 쓴다.
 var _necromancer_hits: int = 0
 var _wander_direction: Vector2 = Vector2.ZERO
@@ -88,6 +100,8 @@ var _token_board_searched: bool = false
 
 
 func _ready() -> void:
+	_think_slot = _next_think_slot
+	_next_think_slot += 1
 	health = data.max_health
 	_behavior = data.make_enemy_behavior()
 	_aggro = Aggro.new(data.chase_attacker_limit, data.chase_lost_time, data.chase_time_limit)
@@ -110,6 +124,30 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	_behavior.update(delta)
 	_necromancer_mark_left = maxf(_necromancer_mark_left - delta, 0.0)
+	# 네크로맨서에게서 먼 몸은 판단(대상 찾기·시야·행동)을 몇 프레임에 한 번만 하고, 그 사이에는 지난 판단의 속도로 움직인다.
+	# 판단하는 프레임에는 건너뛴 시간까지 더해 넘겨서 시간(추격 포기, 배회 간격 등)은 그대로 흐른다.
+	_think_delta += delta
+	if ThinkThrottle.should_think(Engine.get_physics_frames(), _think_slot, far_think_interval, _distance_to_necromancer(), far_think_distance, _behavior.is_busy()):
+		_think(_think_delta)
+		_think_velocity = velocity
+		_think_delta = 0.0
+	else:
+		velocity = _think_velocity
+	if not _alarm_signalling and _ai.is_fighting():
+		_apply_spacing()
+	_update_signal_blink(delta)
+	if _knockback.is_active():
+		velocity = _knockback.get_velocity()
+	move_and_slide()
+	_knockback.update(delta)
+	_update_sprite()
+	# 예고 표시(깜빡임, 방향 선)가 프레임마다 바뀐다.
+	queue_redraw()
+
+
+## 판단: 대상을 고르고(감지·어그로·무리 대상), 볼 수 있는지 보고, 행동 조각이나 배회로 속도를 정한다. delta는 지난 판단 뒤로 흐른 시간이다.
+func _think(delta: float) -> void:
+	think_count += 1
 	var nearest: Node2D = _find_nearest_target()
 	_remember_seen_target(nearest)
 	# 쫓던 공격자가 사라졌을 수 있다 (해제된 언데드 등). 사라진 객체는 형변환하면 오류이므로 먼저 확인한다.
@@ -133,17 +171,17 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector2.ZERO
 	elif _ai.is_fighting():
 		_behavior.act(self, data.get_enemy_stats(), _target, delta)
-		_apply_spacing()
 	else:
 		_wander(delta)
-	_update_signal_blink(delta)
-	if _knockback.is_active():
-		velocity = _knockback.get_velocity()
-	move_and_slide()
-	_knockback.update(delta)
-	_update_sprite()
-	# 예고 표시(깜빡임, 방향 선)가 프레임마다 바뀐다.
-	queue_redraw()
+
+
+## 판단 줄이기에 쓰는 네크로맨서까지 거리. 네크로맨서가 없으면 0 (매 프레임 판단한다).
+func _distance_to_necromancer() -> float:
+	if not is_instance_valid(_necromancer_node):
+		_necromancer_node = get_tree().get_first_node_in_group(&"necromancer") as Node2D
+		if _necromancer_node == null:
+			return 0.0
+	return global_position.distance_to(_necromancer_node.global_position)
 
 
 ## 싸우는 동안 다른 몬스터와 한 점에 겹치지 않게 속도를 민다 (data.combat_spacing이 0이면 하지 않는다). 날아다니는 몸은 겹쳐 지나간다.
