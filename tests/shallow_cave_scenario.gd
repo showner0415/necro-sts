@@ -39,6 +39,14 @@ const ARRIVE_DISTANCE: float = 16.0
 const WALK_TIMEOUT_FRAMES: int = 60 * 300
 const SETTLE_FRAMES: int = 6
 const TILE: float = 32.0
+## 무리 자리 물건(MapLayout.LEGEND) → 그 무리에 드는 종 (data/packs/*.tres). 굴 역할은 무리 자리도 그 종이 사는 곳으로 본다 (계획 8a)
+const PACK_SPECIES: Dictionary = {
+	"pack_rat_big": ["rat"],
+	"pack_rat_gang": ["rat"],
+	"pack_boar": ["boar"],
+	"pack_goblin": ["goblin_slinger"],
+	"pack_mixed": ["boar", "rat"],
+}
 
 var _layout: MapLayout
 ## 굴 역할 → 굴 번호 (_find_roles)
@@ -74,7 +82,7 @@ func _check(step_name: String, ok: bool, evidence: String) -> bool:
 
 func _rooms_with(object: String) -> Array[int]:
 	var result: Array[int] = []
-	for cell: Vector2i in _layout.cells_of(object):
+	for cell: Vector2i in _cells_with(object):
 		var room: int = _layout.room_at(cell)
 		if room >= 0 and not result.has(room):
 			result.append(room)
@@ -88,11 +96,30 @@ func _room_center(room: int) -> Vector2:
 func _cell_center(cell: Vector2i) -> Vector2:
 	return (Vector2(cell) + Vector2(0.5, 0.5)) * TILE
 
+## PNG의 한 마리 몬스터 칸 수 (무리 자리는 세지 않는다)
 func _monster_cells() -> int:
 	var count: int = 0
 	for object: String in ["rat", "boar", "bat", "goblin_slinger", "spider"]:
 		count += _layout.cells_of(object).size()
 	return count
+
+
+## 지금 씬에 있어야 할 몬스터 수: PNG의 한 마리 칸 + 무리 자리(PackSpawn)마다 만든 무리원 (무리원 수는 던전 시드로 정해진다, 계획 8a)
+func _expected_monsters() -> int:
+	var count: int = _monster_cells()
+	for node: Node in current_scene.find_children("*", "Node2D", true, false):
+		if node is PackSpawn:
+			count += (node as PackSpawn).get_members().size()
+	return count
+
+
+## object가 있는 칸: 그 물건의 칸, 몬스터 종이면 그 종이 드는 무리 자리 칸도 (PACK_SPECIES)
+func _cells_with(object: String) -> Array[Vector2i]:
+	var cells: Array[Vector2i] = _layout.cells_of(object)
+	for pack: String in PACK_SPECIES:
+		if (PACK_SPECIES[pack] as Array).has(object):
+			cells.append_array(_layout.cells_of(pack))
+	return cells
 
 
 ## 굴마다 역할을 내용물과 연결로 찾는다. 못 찾은 역할이 있으면 실패

@@ -9,7 +9,10 @@ extends ScenarioTest
 ## 전부 측정 (헤드리스, 빠르게):
 ##   bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_balance.gd
 ## 일부만: -- --targets=boar,bat_pack --skills=normal --undead=0 --runs=5
+## 쥐 패거리 (기본 대상에 없음, 계획 8b-2): -- --targets=rat_gang3,rat_gang3_leader,rat_gang4,rat_gang4_leader (결과 tests/balance/results/2026-11-15_rat_pack_fight.md)
+## 벽 방의 쥐 (계획 8b-5): -- --targets=rat_room_s,rat_gang4_room_s,rat_gang4_leader_room_s,rat_room_l,rat_gang4_room_l,rat_gang4_leader_room_l (_s 작은 방 12×9칸, _l 입구 굴만 한 방 36×31칸)
 ## 봇이 몬스터와 유지하는 거리 바꾸기: -- --keep=0 (0이면 거리를 두지 않고 제자리에서 쏘며 예고만 피한다)
+## 봇이 쏘기를 멈추고 뛰는 거리 바꾸기: -- --run_distance=20 (기본 55. keep이 이보다 작으면 다가오는 몬스터마다 뛰어서 싸움이 끝나지 않을 수 있다)
 ## 무리 동시 공격(박쥐 동시 돌진)을 처음 N번 일부러 못 피하게: -- --miss_pack=1
 ##   놓친 동시 공격에서 받은 피해, 그 직후 마나, 언데드가 죽거나 해제된 수, 죽은 비율로 "실수 한 번의 값"을 본다
 ## 봇이 싸우는 모습을 창으로 보기 (실제 속도, 한 판):
@@ -31,7 +34,30 @@ const TARGETS: Dictionary = {
 	## 벽으로 둘러싸인 방 (12×9칸, 얕은 굴의 작은 굴 64~115칸과 비슷하다). 기본 대상에는 넣지 않는다: --targets=goblin_room
 	&"goblin_room": {"name": "고블린 투석병(2), 벽 방", "data": "res://data/monsters/goblin_slinger.tres", "offsets": [Vector2(0, -25), Vector2(10, 25)],
 		"room": Vector2(384, 288), "start": Vector2(-120, 0), "spawn": Vector2(110, 0)},
+	## 쥐 패거리 (계획 8b-2): 무리 자리처럼 MonsterPack으로 묶어 경보·함께 배회·공격권이 붙는다. 무리원 사이는 무리 자리의 min_spacing(16)과 같게.
+	## "leader"면 첫 무리원이 대장이다 (PackSpawn과 같게 체력 × leader_health_ratio, 무리원 공격력 × member_damage_ratio). 기본 대상에는 넣지 않는다
+	&"rat_gang3": {"name": "쥐 패거리(3)", "data": "res://data/monsters/rat.tres", "offsets": [Vector2(0, -16), Vector2(16, 0), Vector2(0, 16)], "pack": true},
+	&"rat_gang3_leader": {"name": "쥐 패거리(3), 대장", "data": "res://data/monsters/rat.tres", "offsets": [Vector2(0, -16), Vector2(16, 0), Vector2(0, 16)], "pack": true, "leader": true},
+	&"rat_gang4": {"name": "쥐 패거리(4)", "data": "res://data/monsters/rat.tres", "offsets": [Vector2(0, -16), Vector2(16, 0), Vector2(0, 16), Vector2(-16, 0)], "pack": true},
+	&"rat_gang4_leader": {"name": "쥐 패거리(4), 대장", "data": "res://data/monsters/rat.tres", "offsets": [Vector2(0, -16), Vector2(16, 0), Vector2(0, 16), Vector2(-16, 0)], "pack": true, "leader": true},
+	## 벽 방의 쥐 (계획 8b-5, 사용자 결정 2026-11-15: 두 크기를 재서 비교). 시작·몬스터 자리는 두 방 모두 goblin_room과 같다 (방 크기만 다르게).
+	## "arena"는 봇이 방 가운데로 돌아오기 시작하는 거리 = 방 짧은 변의 절반 - 24 (goblin_room의 120과 같은 규칙). 기본 대상에는 넣지 않는다
+	## _s: 작은 방 12×9칸 (goblin_room 크기). _l: 입구 굴만 한 방 36×31칸 (입구 굴 바닥 1129칸과 넓이가 비슷하고 테두리 42×36칸과 비율이 비슷, 바위 없음)
+	&"rat_room_s": {"name": "쥐 1마리, 작은 방", "data": "res://data/monsters/rat.tres", "offsets": [Vector2.ZERO],
+		"room": Vector2(384, 288), "start": Vector2(-120, 0), "spawn": Vector2(110, 0), "arena": 120.0},
+	&"rat_gang4_room_s": {"name": "쥐 패거리(4), 작은 방", "data": "res://data/monsters/rat.tres", "offsets": [Vector2(0, -16), Vector2(16, 0), Vector2(0, 16), Vector2(-16, 0)], "pack": true,
+		"room": Vector2(384, 288), "start": Vector2(-120, 0), "spawn": Vector2(110, 0), "arena": 120.0},
+	&"rat_gang4_leader_room_s": {"name": "쥐 패거리(4), 대장, 작은 방", "data": "res://data/monsters/rat.tres", "offsets": [Vector2(0, -16), Vector2(16, 0), Vector2(0, 16), Vector2(-16, 0)], "pack": true, "leader": true,
+		"room": Vector2(384, 288), "start": Vector2(-120, 0), "spawn": Vector2(110, 0), "arena": 120.0},
+	&"rat_room_l": {"name": "쥐 1마리, 큰 방", "data": "res://data/monsters/rat.tres", "offsets": [Vector2.ZERO],
+		"room": Vector2(1152, 992), "start": Vector2(-120, 0), "spawn": Vector2(110, 0), "arena": 472.0},
+	&"rat_gang4_room_l": {"name": "쥐 패거리(4), 큰 방", "data": "res://data/monsters/rat.tres", "offsets": [Vector2(0, -16), Vector2(16, 0), Vector2(0, 16), Vector2(-16, 0)], "pack": true,
+		"room": Vector2(1152, 992), "start": Vector2(-120, 0), "spawn": Vector2(110, 0), "arena": 472.0},
+	&"rat_gang4_leader_room_l": {"name": "쥐 패거리(4), 대장, 큰 방", "data": "res://data/monsters/rat.tres", "offsets": [Vector2(0, -16), Vector2(16, 0), Vector2(0, 16), Vector2(-16, 0)], "pack": true, "leader": true,
+		"room": Vector2(1152, 992), "start": Vector2(-120, 0), "spawn": Vector2(110, 0), "arena": 472.0},
 }
+## 대장 값 (PackSpawn과 같은 파일)
+const LEADER_SETTINGS: String = "res://data/packs/leader_settings.tres"
 ## 벽 방의 벽 두께 (픽셀), 벽의 충돌층 (지역의 벽과 같다), 봇이 방 가운데로 돌아오기 시작하는 거리 (픽셀)
 const ROOM_WALL_THICKNESS: float = 32.0
 const ROOM_WALL_LAYER: int = 1
@@ -50,6 +76,8 @@ var _runs: int = DEFAULT_RUNS
 var _timeout: float = DEFAULT_TIMEOUT
 ## 봇이 근접 몬스터와 유지하는 거리. 음수면 봇의 기본값.
 var _keep: float = -1.0
+## 봇이 쏘기를 멈추고 뛰는 거리. 음수면 봇의 기본값.
+var _run_distance: float = -1.0
 ## 처음 이 횟수만큼의 무리 동시 공격은 봇이 일부러 피하지 않는다
 var _miss_pack: int = 0
 
@@ -85,6 +113,8 @@ func _parse_args() -> void:
 				_miss_pack = int(parts[1])
 			"keep":
 				_keep = float(parts[1])
+			"run_distance":
+				_run_distance = float(parts[1])
 
 
 func _run_all() -> void:
@@ -159,15 +189,34 @@ func _fight(target_id: StringName, undead_count: int, skill_id: StringName, run:
 		var pack: MonsterPack = MonsterPack.new()
 		pack.set_members(spawned)
 		region.add_child(pack)
+		if target.get("leader", false):
+			var settings: PackLeaderSettings = load(LEADER_SETTINGS)
+			var leader: Monster = spawned[0]
+			leader.is_leader = true
+			leader.leader_settings = settings
+			leader.health = data.max_health * settings.leader_health_ratio
+			pack.set_leader(leader, settings.member_damage_ratio)
 	if not check_fight_start(TEST_REGION_SCENE, spawned.size()):
 		return {"invalid": true}
+	# 대장 대상이면 대장이 하나이고 무리원 모두 강화되어 있어야 한다
+	var leaders: int = spawned.filter(func(m: Monster) -> bool: return m.is_leader).size()
+	var boosted: bool = spawned.all(func(m: Monster) -> bool: return m.damage_ratio > 1.0)
+	if target.get("leader", false) and (leaders != 1 or not boosted):
+		start_failures += 1
+		print("[실패] 판 시작 검사: 대장 %d마리 (기대 1), 무리원 강화 %s. 이 판은 뺀다" % [leaders, boosted])
+		return {"invalid": true}
+	if target.get("leader", false):
+		print("[대장] %s: 대장 %d마리 (체력 %.1f), 무리원 강화 %d/%d" % [target["name"], leaders, spawned[0].health,
+				spawned.filter(func(m: Monster) -> bool: return m.damage_ratio > 1.0).size(), spawned.size()])
 
 	var bot: PlayerBot = PlayerBot.new(self, necromancer, skill_id)
 	bot.miss_group_attacks = _miss_pack
 	if _keep >= 0.0:
 		bot.keep_distance = _keep
+	if _run_distance >= 0.0:
+		bot.run_distance = _run_distance
 	if target.has("room"):
-		bot.arena_radius = ROOM_ARENA_RADIUS
+		bot.arena_radius = target.get("arena", ROOM_ARENA_RADIUS)
 	var skulls: Array[Skull] = []
 	if undead_count > 0:
 		skulls = _give_undead(necromancer, undead_count)

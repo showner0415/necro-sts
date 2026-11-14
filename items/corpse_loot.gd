@@ -16,9 +16,14 @@ func _init(stacks: Array[ItemStack], base_harvest_time: float) -> void:
 
 
 ## 드랍 목록의 줄을 시체에 담을 묶음으로 바꾼다. 머리뼈는 하나하나 따로라 개수만큼 따로 담는다.
-static func from_drops(entries: Array[DropEntry], base_harvest_time: float) -> CorpseLoot:
+## named(네임드 머리뼈)를 주면 일반 머리뼈 줄은 빼고 그것 하나를 담는다. 뼈 같은 아이템은 그대로다 (계획 6b, 사용자 결정 2026-11-14).
+static func from_drops(entries: Array[DropEntry], base_harvest_time: float, named: Skull = null) -> CorpseLoot:
 	var stacks: Array[ItemStack] = []
+	if named != null:
+		stacks.append(ItemStack.of_skull(named))
 	for entry: DropEntry in entries:
+		if entry.item is SkullData and named != null:
+			continue
 		if entry.item is SkullData:
 			for i: int in entry.count:
 				stacks.append(ItemStack.of_skull(Skull.create(entry.item)))

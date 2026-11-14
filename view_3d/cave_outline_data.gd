@@ -23,6 +23,8 @@ const CELL_ROCK: int = 2
 @export var sight_cells: PackedByteArray
 ## 이 윤곽을 만든 맵 PNG의 md5 (PNG 없이 씬의 벽 배치로 만들었으면 빈 값)
 @export var source_png_md5: String = ""
+## 좁은 길목들 (ChokeFinder가 구울 때 만든다. 계획 4단계: 길목 안에는 공격권 가진 몬스터만, 나머지는 돌아가거나 입구 밖에서 기다린다)
+@export var chokes: Array[ChokeData] = []
 
 
 ## 한 칸을 나누는 수

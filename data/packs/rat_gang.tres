@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="PackData" format=3]
+
+[ext_resource type="Script" path="res://monsters/pack_data.gd" id="1_pack"]
+[ext_resource type="Script" path="res://monsters/pack_member.gd" id="2_member"]
+[ext_resource type="Resource" path="res://data/monsters/rat.tres" id="3_rat"]
+
+[sub_resource type="Resource" id="Member_1"]
+script = ExtResource("2_member")
+monster = ExtResource("3_rat")
+min_count = 3
+max_count = 4
+
+[resource]
+script = ExtResource("1_pack")
+id = &"rat_gang"
+display_name = "쥐 패거리"
+members = Array[ExtResource("2_member")]([SubResource("Member_1")])

@@ -1,6 +1,6 @@
 class_name HotbarSlot
 extends Panel
-## 핫바 칸 하나. 가리키는 머리뼈의 임시 도형과 내구도 바를 보여준다 (비어 있으면 빈 칸).
+## 핫바 칸 하나. 가리키는 머리뼈의 임시 도형과 내구도 바를 보여준다 (비어 있으면 빈 칸). 네임드 머리뼈면 오른쪽 위에 작은 노란 사각형(임시).
 ## 마우스 입력은 시그널로 알리기만 하고, 실제로 바꾸는 일은 바깥(HotbarView)이 한다.
 ## - 인벤토리 칸의 머리뼈를 끌어 놓음: assign_requested
 ## - 다른 핫바 칸을 끌어 놓음: swap_requested
@@ -20,6 +20,11 @@ const DRAG_KEY: String = "hotbar_slot"
 ## 소환 중인 머리뼈가 든 칸: 칸 안쪽 가장자리를 덮는 테두리
 @export var summoned_border_color: Color = Color(0.99607843, 0.68235296, 0.20392157, 1)
 @export var summoned_border_width: float = 2.0
+@export_group("네임드 표시")
+## 네임드 머리뼈 칸의 오른쪽 위 작은 사각형 (인벤토리 칸과 같은 임시 표시, 계획 6b)
+@export var named_mark_color: Color = Color(0.99607843, 0.68235296, 0.20392157, 1)
+@export var named_mark_size: float = 4.0
+@export var named_mark_inset: float = 3.0
 
 ## 핫바에서 몇 번째 칸인지
 var index: int = -1
@@ -37,6 +42,7 @@ func show_skull(skull: Skull) -> void:
 	_skull = skull
 	_icon.visible = skull != null
 	_durability_bar.show_skull(skull)
+	queue_redraw()
 	if skull == null:
 		return
 	_icon.color = skull.data.placeholder_color
@@ -65,6 +71,8 @@ func is_summoned() -> bool:
 
 
 func _draw() -> void:
+	if _skull != null and _skull.is_named():
+		InventorySlot.draw_named_mark(self, size, named_mark_color, named_mark_size, named_mark_inset)
 	# 테두리 선은 사각형 둘레를 가운데로 해서 그려지므로, 선 두께의 절반만큼 키우거나 줄여서 안팎을 정한다.
 	if _summoned:
 		var inset: float = summoned_border_width / 2.0

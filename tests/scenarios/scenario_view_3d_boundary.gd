@@ -1,13 +1,15 @@
 extends ScenarioTest
 ## 시나리오: 2D 규칙 세계와 3D 화면 층의 경계.
 ## 1. 헤드리스에서는 지역 데이터의 view_3d를 켜도 3D 층이 붙지 않고, 조준은 2D 마우스 위치다
-## 2. 3D 층을 붙이면 조준과 이동 입력이 층을 거치고, 임시 바닥이 지형 메시가 되며 2D 바닥은 숨고, 몸마다 3D 사각형이 생기고 사라지면 지운다
+## 2. 3D 층을 붙이면 조준과 이동 입력이 층을 거치고, 임시 바닥이 지형 메시가 되며 2D 바닥은 숨고, 몸마다 3D 사각형이 생기고 사라지면 지운다. 화면 밖(여유 밖)으로 옮긴 몸은 숨기고 앞벽 처리에서 빼며, 돌아오면 다시 그린다
 ## 3. 카메라가 네크로맨서를 화면 가운데에 둔다
 ## 4. 16자리(8방향 × 거리 2개)의 월드 좌표를 흉내 낸 마우스로 조준하면 같은 자리를 조준한다
 ## 5. W는 화면 위로 걷는다
 ## 6. 앞서 가기를 켜면 마우스 쪽으로 카메라가 움직인다
 ## 창에서 실제로 그린 화면은 이 시나리오가 보증하지 않는다.
 
+## 2. 화면 밖으로 옮길 거리 (네크로맨서에게서, 화면 크기와 여유보다 멀리)
+const OFFSCREEN_OFFSET: Vector2 = Vector2(4000, 0)
 const AIM_DISTANCES: Array[float] = [48.0, 120.0]
 const AIM_DIRECTIONS: int = 8
 const AIM_TOLERANCE: float = 1.0
@@ -63,6 +65,28 @@ func _run() -> void:
 		fail_step("몸", "몬스터가 사라졌는데 그리는 몸 %d (기대 %d)" % [view.get_bodies().get_bodies().size(), monsters + chests])
 		return
 	pass_step("몸", "몬스터 %d + 상자 %d + 네크로맨서를 그림, 사라진 몬스터는 지움" % [monsters, chests])
+	# 화면 밖(여유 밖)으로 옮긴 몸은 숨기고 앞벽 처리에 넘기지 않으며, 돌아오면 다시 그린다.
+	var away: Node2D = null
+	for body: Node2D in view.get_bodies().get_onscreen_bodies():
+		if body is Monster:
+			away = body
+			break
+	if away == null:
+		fail_step("화면 밖 몸", "화면 안에 몬스터가 없음")
+		return
+	var home: Vector2 = away.global_position
+	away.global_position = necromancer.global_position + OFFSCREEN_OFFSET
+	await wait_frames(2)
+	var quad: MeshInstance3D = view.get_bodies().get_quad(away)
+	var hidden: bool = quad != null and not quad.visible and not view.get_bodies().get_onscreen_bodies().has(away)
+	away.global_position = home
+	await wait_frames(2)
+	# 돌아오면 다시 갱신한다: 사각형의 보임이 2D 노드를 따른다 (시야 밖이었으면 시야가 2D 노드를 숨겨 둘 수 있다).
+	var shown: bool = quad != null and quad.visible == away.visible and view.get_bodies().get_onscreen_bodies().has(away)
+	if not hidden or not shown:
+		fail_step("화면 밖 몸", "%s 떨어뜨렸을 때 숨김 %s, 돌아왔을 때 다시 갱신 %s (사각형 보임 %s, 2D 노드 보임 %s)" % [OFFSCREEN_OFFSET, hidden, shown, quad != null and quad.visible, away.visible])
+		return
+	pass_step("화면 밖 몸", "네크로맨서에게서 %s 옮긴 몬스터는 숨기고 앞벽 처리에서 뺌, 돌아오면 다시 갱신 (사각형 보임이 2D 노드를 따름)" % OFFSCREEN_OFFSET)
 	var center: Vector2 = root.get_visible_rect().size * 0.5
 	var feet_screen: Vector2 = view.world_to_screen(necromancer.global_position, 0.0)
 	if feet_screen.distance_to(center) > CENTER_TOLERANCE:

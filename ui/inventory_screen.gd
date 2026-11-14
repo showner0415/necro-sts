@@ -297,8 +297,8 @@ func _skull_info(skull: Skull) -> String:
 	var monster: MonsterData = _roster.get_monster(skull) if _roster != null else null
 	if monster == null:
 		return "%s\n%s" % [name_line, durability_text]
-	var health: float = skull.health if skull.awakened else monster.undead_max_health
+	var health: float = skull.health if skull.awakened else monster.get_undead_max_health(skull.is_named())
 	# 체력은 0.5가 남아도 0으로 보이지 않게 올림한다.
-	var health_text: String = "체력 %d / %d" % [ceili(snappedf(health, UndeadRules.TOLERANCE)), ceili(monster.undead_max_health)]
+	var health_text: String = "체력 %d / %d" % [ceili(snappedf(health, UndeadRules.TOLERANCE)), ceili(monster.get_undead_max_health(skull.is_named()))]
 	var bone_line: String = ("회복 뼈 %d개" if skull.awakened else "처음 소환 뼈 %d개") % _roster.get_heal_bone_cost(skull)
 	return "%s\n%s · %s\n%s" % [name_line, durability_text, health_text, bone_line]

@@ -14,7 +14,13 @@ const RAT_SPOT: Vector2 = Vector2(8, 5) * ViewSpace.TILE
 const BOAR_SPOT: Vector2 = Vector2(5, 9) * ViewSpace.TILE
 const CORPSE_SPOT: Vector2 = Vector2(8, 9) * ViewSpace.TILE
 const PICKUP_SPOT: Vector2 = Vector2(4, 11) * ViewSpace.TILE
-const AIM_CENTER: Vector2 = Vector2(14.5, 5.0) * ViewSpace.TILE
+## 조준 검사에서 쥐를 두는 곳. 여기서 SHOT_DISTANCE 떨어진 8방향 자리가 모두 트인 바닥이어야 한다 (가장 가까운 벽까지 30px 넘게).
+## 2026-11-14 옮김: 예전 자리 (14.5, 5)에서는 270도·135도 자리가 벽 안이라 네크로맨서가 밀려나고 탄이 곧바로 벽에 맞았다.
+const AIM_CENTER: Vector2 = Vector2(16.5, 10.5) * ViewSpace.TILE
+## 조준 검사 자리 확인: 네크로맨서가 놓은 자리에서 이만큼(픽셀) 넘게 밀려나면 자리가 벽에 걸린 것이다
+const PLACE_TOLERANCE: float = 0.5
+## 탄이 부딪히는 벽의 충돌층 (Bolt.wall_mask의 기본값과 같게)
+const SHOT_WALL_MASK: int = 1
 const SHOT_DISTANCE: float = 110.0
 const DIRECTIONS: int = 8
 const HIT_TIMEOUT_FRAMES: int = 90
@@ -162,11 +168,20 @@ func _check_aim() -> void:
 	var results: PackedStringArray = []
 	for i: int in DIRECTIONS:
 		var direction: Vector2 = Vector2.from_angle(i * TAU / DIRECTIONS)
-		_necromancer.global_position = AIM_CENTER + direction * SHOT_DISTANCE
+		var spot: Vector2 = AIM_CENTER + direction * SHOT_DISTANCE
+		_necromancer.global_position = spot
 		_rat.health = 1000.0
 		_necromancer.mana.current = _necromancer.mana.maximum
 		await wait_frames(4)
 		_view.aim_override = _view.aim_from_screen(_view.world_to_screen(_rat.global_position, 0.0) - Vector2(0, RAT_SCREEN_CENTER))
+		# 검사 자리부터 본다: 자리가 벽에 걸려 밀려났거나 쏘는 선에 벽이 있으면 조준과 상관없이 빗나가므로 따로 알린다.
+		var origin: Vector2 = _necromancer.get_shot_origin()
+		var ray: PhysicsRayQueryParameters2D = PhysicsRayQueryParameters2D.create(origin, _view.aim_override, SHOT_WALL_MASK)
+		var wall: Dictionary = _necromancer.get_world_2d().direct_space_state.intersect_ray(ray)
+		if _necromancer.global_position.distance_to(spot) > PLACE_TOLERANCE or not wall.is_empty():
+			fail_step("조준", "%d도: 검사 자리가 벽에 막힘 (놓은 자리 %s, 지금 %s, 쏘는 선의 벽 %s). AIM_CENTER를 트인 곳으로 옮긴다" % [
+					i * 360 / DIRECTIONS, spot, _necromancer.global_position, wall.get("position", "없음")])
+			return
 		var before: float = _rat.health
 		press_mouse(true)
 		var frames: int = 0

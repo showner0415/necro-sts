@@ -9,6 +9,8 @@ extends "res://tests/balance/run_balance.gd"
 ## 박쥐·고블린의 겨누기와 시야: 봇이 겨눈 몬스터와 화면 방향의 차이, 시야가 튀는 정도, 공격이 시작될 때 봤는지와 그 공격에 맞았는지
 ##   bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_diagnose.gd -- --mode=aim_sight --runs=50
 ## 시야를 끄고 같은 싸움을 재서 비교: -- --mode=aim_sight --runs=50 --no_vision=1
+## 무리와 언데드 (계획 8b-3): 쥐 패거리와 쥐 언데드 2가 싸우는 동안 쥐가 누구를 노리는지, 살아 있는 언데드 하나에 공격권을 든 쥐가 몇 마리인지, 첫 언데드가 죽기까지
+##   bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_diagnose.gd -- --mode=pack_undead --runs=20 (봇 거리 두기를 끄려면 --keep=0)
 ## 시야를 따르기 전의 봇(커밋 f29cc34)으로도 돌도록 봇 내부는 Variant로 읽는다. 그 봇은 늘 모두 본다.
 
 var _mode: String = "charge_sight"
@@ -43,6 +45,9 @@ const AIM_JUMP_ANGLE: float = 30.0
 ## 돌이나 박쥐가 사라질 때 네크로맨서에게서 이 거리 안이고 체력이 줄었으면 맞은 것으로 센다 (픽셀)
 const AIM_HIT_DISTANCE: float = 24.0
 var _no_vision: bool = false
+## 무리와 언데드: 잴 대상과 이번 판의 프레임 집계
+const PACK_UNDEAD_TARGETS: Array[StringName] = [&"rat_gang3", &"rat_gang4", &"rat_gang4_leader"]
+var _pack: Dictionary = {}
 var _aim: Dictionary = {}
 var _attacks: Array[Dictionary] = []
 var _dodge_rows: Array[String] = []
@@ -76,6 +81,9 @@ func _on_scene_ready() -> void:
 		_undead_counts = [2]
 	elif _mode == "aim_sight":
 		_targets.assign(AIM_SIGHT_CASES.keys())
+	elif _mode == "pack_undead":
+		_targets.assign(PACK_UNDEAD_TARGETS)
+		_undead_counts = [2]
 	else:
 		_targets = [&"goblin_pair"]
 		_undead_counts = [0, 2]
@@ -84,6 +92,8 @@ func _on_scene_ready() -> void:
 		_run_charge_sight()
 	elif _mode == "aim_sight":
 		_run_aim_sight()
+	elif _mode == "pack_undead":
+		_run_pack_undead()
 	else:
 		_run_goblin_time()
 
@@ -108,6 +118,9 @@ func _on_fight_start(necromancer: Necromancer, bot: PlayerBot, spawned: Array[Mo
 	_last_facing = Vector2.ZERO
 	_last_aimed_id = 0
 	_last_health = necromancer.health
+	if _mode == "pack_undead":
+		_pack = {"rat_frames": 0, "on_necromancer": 0, "on_undead": 0, "on_none": 0, "undead_frames": 0, "holders": 0, "two_plus": 0, "first_death": -1.0}
+		return
 	if _mode == "aim_sight":
 		if _no_vision:
 			(current_scene.call(&"get_vision") as Vision).set_active(false)
@@ -130,6 +143,8 @@ func _on_fight_frame(necromancer: Necromancer, bot: PlayerBot, time: float) -> v
 		_track_charges(necromancer, bot, time)
 	elif _mode == "aim_sight":
 		_track_aim_sight(necromancer, bot)
+	elif _mode == "pack_undead":
+		_track_pack_undead(necromancer, time)
 	else:
 		_track_goblin(necromancer, bot, time)
 
@@ -156,6 +171,8 @@ func _on_fight_end(result: Dictionary, bot: PlayerBot) -> void:
 				entry["hit"] = true
 		result["aim"] = _aim
 		result["attacks"] = _attacks
+	elif _mode == "pack_undead":
+		result["pack"] = _pack
 	else:
 		result["goblin"] = _goblin
 
@@ -569,3 +586,66 @@ func _sum(results: Array[Dictionary], key: String) -> float:
 	for result: Dictionary in results:
 		total += result[key]
 	return total
+
+
+# --- 무리와 언데드 (pack_undead) ---
+
+## 프레임마다: 살아 있는 쥐가 누구를 노리는지, 살아 있는 언데드마다 공격권을 든 쥐 수, 첫 언데드가 죽은 때
+func _track_pack_undead(necromancer: Necromancer, time: float) -> void:
+	var undead: Array[Node] = get_nodes_in_group(&"undead").filter(func(node: Node) -> bool: return is_instance_valid(node) and not node.is_queued_for_deletion())
+	# 언데드는 싸움이 시작된 뒤 봇이 소환한다. 둘 다 나온 뒤에 하나가 줄면 첫 언데드가 죽은 때다
+	if undead.size() >= 2:
+		_pack["both_summoned"] = true
+	elif _pack.get("both_summoned", false) and _pack["first_death"] < 0.0:
+		_pack["first_death"] = time
+	for rat: Monster in _alive():
+		_pack["rat_frames"] += 1
+		# 대상이 막 사라졌으면 형이 있는 변수에 넣을 수 없으므로 Variant로 받아 먼저 확인한다
+		var target: Variant = rat.get_target()
+		if not is_instance_valid(target):
+			_pack["on_none"] += 1
+		elif target == necromancer:
+			_pack["on_necromancer"] += 1
+		elif target is Undead:
+			_pack["on_undead"] += 1
+		else:
+			_pack["on_none"] += 1
+	var board: AttackTokenBoard = get_first_node_in_group(&"attack_tokens") as AttackTokenBoard
+	for node: Node in undead:
+		var holders: int = board.tokens.holders_of(node).size() if board != null else 0
+		_pack["undead_frames"] += 1
+		_pack["holders"] += holders
+		if holders >= 2:
+			_pack["two_plus"] += 1
+
+
+func _run_pack_undead() -> void:
+	print("(봇 거리 두기: %s)" % ("끔 (--keep=0)" if _keep == 0.0 else "기본"))
+	print("| 대상 | 실력 | 판 | 언데드 죽음 (판당) | 첫 언데드가 죽기까지 (죽은 판만) | 쥐가 노림: 네크로맨서 / 언데드 / 없음 | 살아 있는 언데드 하나에 공격권 든 쥐 (평균) | 쥐 2마리 이상이 공격권을 든 비율 | 네크로맨서 죽음 |")
+	print("|---|---|---|---|---|---|---|---|---|")
+	for target_id: StringName in _targets:
+		for skill_id: StringName in _skills:
+			var results: Array[Dictionary] = []
+			for run: int in _runs:
+				var result: Dictionary = await _fight(target_id, 2, skill_id, run)
+				if not result.has("invalid"):
+					results.append(result)
+			print(_pack_row(target_id, skill_id, results))
+	finish(start_failures == 0)
+
+
+func _pack_row(target_id: StringName, skill_id: StringName, results: Array[Dictionary]) -> String:
+	var packs: Array = results.map(func(r: Dictionary) -> Dictionary: return r["pack"])
+	var total: Callable = func(key: String) -> float:
+		var sum: float = 0.0
+		for p: Dictionary in packs:
+			sum += p[key]
+		return sum
+	var deaths: Array = packs.filter(func(p: Dictionary) -> bool: return p["first_death"] >= 0.0).map(func(p: Dictionary) -> float: return p["first_death"])
+	var first_death: String = "%.1f초 (%d판)" % [deaths.reduce(func(a: float, b: float) -> float: return a + b, 0.0) / deaths.size(), deaths.size()] if not deaths.is_empty() else "-"
+	var rat_frames: float = maxf(total.call("rat_frames"), 1.0)
+	var undead_frames: float = maxf(total.call("undead_frames"), 1.0)
+	return "| %s | %s | %d | %.1f | %s | %.0f%% / %.0f%% / %.0f%% | %.2f | %.0f%% | %s |" % [TARGETS[target_id]["name"], skill_id, results.size(),
+		_sum(results, "undead_died") / maxf(results.size(), 1.0), first_death,
+		100.0 * total.call("on_necromancer") / rat_frames, 100.0 * total.call("on_undead") / rat_frames, 100.0 * total.call("on_none") / rat_frames,
+		total.call("holders") / undead_frames, 100.0 * total.call("two_plus") / undead_frames, _share(_count(results, "died"), results.size())]

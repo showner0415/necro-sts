@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="SkullPity" format=3]
+
+[ext_resource type="Script" path="res://items/skull_pity.gd" id="1_pity"]
+[ext_resource type="Resource" path="res://data/skulls/rat_skull.tres" id="2_rat_skull"]
+
+[resource]
+script = ExtResource("1_pity")
+skull = ExtResource("2_rat_skull")
+boosted_chance = 0.8

@@ -11,6 +11,7 @@
 script = ExtResource("3_drop")
 item = ExtResource("2_bone")
 count = 2
+expected_count = 2.4
 
 [sub_resource type="Resource" id="Resource_drop_skull"]
 script = ExtResource("3_drop")
@@ -37,6 +38,8 @@ summon_bone_cost = 5
 summon_mana_cost = 4.0
 undead_upkeep_mana_per_second = 1.3
 undead_damage_ratio_override = 0.5
+attack_tokens_per_target = 1
+token_wait_distance = 170.0
 undead_placeholder_color = Color(0.91764706, 0.83137256, 0.6666667, 1)
 placeholder_color = Color(0.24313726, 0.5372549, 0.28235295, 1)
 placeholder_radius = 6.0

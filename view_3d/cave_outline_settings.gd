@@ -36,3 +36,11 @@ extends Resource
 @export var foot_height_px: float = 6.0
 ## 벽 면을 나누는 높이들 (픽셀, 맨 아래·맨 위 제외. foot_height_px 위)
 @export var face_rows_px: PackedFloat32Array = PackedFloat32Array([67.0])
+
+@export_group("길목")
+## 길목(ChokeFinder) 입구마다 대기 자리 수와 입구에서 떨어뜨리는 거리 (칸) (사용자 결정 2026-11-14, 임시값)
+@export var choke_wait_count: int = 3
+@export var choke_wait_distance: float = 2.0
+## 대기 자리끼리 옆 간격과, 자리가 막혔을 때 옮겨 찾는 거리 (칸) (사용자 결정 2026-11-14, 임시값)
+@export var choke_wait_spacing: float = 1.0
+@export var choke_wait_search: int = 2

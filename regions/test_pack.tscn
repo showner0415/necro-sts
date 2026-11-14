@@ -1,0 +1,88 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://regions/region.gd" id="1_region"]
+[ext_resource type="Resource" path="res://data/regions/test_pack.tres" id="2_data"]
+[ext_resource type="Resource" path="res://data/regions/base.tres" id="3_base"]
+[ext_resource type="Script" path="res://regions/placeholder_ground.gd" id="4_ground"]
+[ext_resource type="PackedScene" path="res://regions/escape_point.tscn" id="5_escape"]
+[ext_resource type="PackedScene" path="res://necromancer/necromancer.tscn" id="6_necromancer"]
+[ext_resource type="PackedScene" path="res://monsters/monster.tscn" id="7_monster"]
+[ext_resource type="Resource" path="res://data/monsters/rat.tres" id="8_rat"]
+[ext_resource type="Resource" path="res://data/monsters/boar.tres" id="9_boar"]
+[ext_resource type="Script" path="res://monsters/monster_pack.gd" id="10_pack"]
+[ext_resource type="PackedScene" path="res://ui/hud.tscn" id="11_hud"]
+[ext_resource type="PackedScene" path="res://ui/inventory_screen.tscn" id="12_inventory"]
+
+[node name="TestPack" type="Node2D"]
+script = ExtResource("1_region")
+data = ExtResource("2_data")
+death_destination = ExtResource("3_base")
+
+[node name="Ground" type="Node2D" parent="."]
+script = ExtResource("4_ground")
+
+[node name="EscapePoint" parent="." instance=ExtResource("5_escape")]
+position = Vector2(0, 300)
+destination = ExtResource("3_base")
+
+[node name="Actors" type="Node2D" parent="."]
+y_sort_enabled = true
+
+[node name="Necromancer" parent="Actors" instance=ExtResource("6_necromancer")]
+position = Vector2(0, 160)
+
+[node name="GangRat1" parent="Actors" instance=ExtResource("7_monster")]
+position = Vector2(-24, -170)
+data = ExtResource("8_rat")
+
+[node name="GangRat2" parent="Actors" instance=ExtResource("7_monster")]
+position = Vector2(20, -180)
+data = ExtResource("8_rat")
+
+[node name="GangRat3" parent="Actors" instance=ExtResource("7_monster")]
+position = Vector2(-10, -140)
+data = ExtResource("8_rat")
+
+[node name="GangRat4" parent="Actors" instance=ExtResource("7_monster")]
+position = Vector2(30, -145)
+data = ExtResource("8_rat")
+
+[node name="EastRat1" parent="Actors" instance=ExtResource("7_monster")]
+position = Vector2(300, -40)
+data = ExtResource("8_rat")
+
+[node name="EastRat2" parent="Actors" instance=ExtResource("7_monster")]
+position = Vector2(330, -20)
+data = ExtResource("8_rat")
+
+[node name="EastRat3" parent="Actors" instance=ExtResource("7_monster")]
+position = Vector2(310, 5)
+data = ExtResource("8_rat")
+
+[node name="MixedBoar" parent="Actors" instance=ExtResource("7_monster")]
+position = Vector2(-320, -30)
+data = ExtResource("9_boar")
+
+[node name="MixedRat1" parent="Actors" instance=ExtResource("7_monster")]
+position = Vector2(-290, 0)
+data = ExtResource("8_rat")
+
+[node name="MixedRat2" parent="Actors" instance=ExtResource("7_monster")]
+position = Vector2(-340, 15)
+data = ExtResource("8_rat")
+
+[node name="RatGang" type="Node" parent="."]
+script = ExtResource("10_pack")
+members = Array[NodePath]([NodePath("../Actors/GangRat1"), NodePath("../Actors/GangRat2"), NodePath("../Actors/GangRat3"), NodePath("../Actors/GangRat4")])
+
+[node name="EastGang" type="Node" parent="."]
+script = ExtResource("10_pack")
+members = Array[NodePath]([NodePath("../Actors/EastRat1"), NodePath("../Actors/EastRat2"), NodePath("../Actors/EastRat3")])
+
+[node name="MixedPack" type="Node" parent="."]
+script = ExtResource("10_pack")
+members = Array[NodePath]([NodePath("../Actors/MixedBoar"), NodePath("../Actors/MixedRat1"), NodePath("../Actors/MixedRat2")])
+
+[node name="HUD" parent="." instance=ExtResource("11_hud")]
+
+[node name="InventoryScreen" parent="." instance=ExtResource("12_inventory")]

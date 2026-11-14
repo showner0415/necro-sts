@@ -21,7 +21,11 @@ static func run(scene: Node) -> void:
 	var layout: MapLayout = MapLayout.from_file(MAP_PNG)
 	# 쥐 굴이 여러 개이고 바위가 없는 굴도 있으므로, 쥐가 있는 모든 굴에서 가장 큰 바위를 고른다.
 	var rat_rooms: Dictionary = {}
-	for cell: Vector2i in layout.cells_of("rat"):
+	# 쥐 무리 자리도 쥐 굴로 본다 (계획 8a). 섞인 무리(진흙 굴, 2등급)는 빼서 예전처럼 1등급 쥐 굴에서 고른다
+	var rat_cells: Array[Vector2i] = layout.cells_of("rat")
+	for pack: String in ["pack_rat_big", "pack_rat_gang"]:
+		rat_cells.append_array(layout.cells_of(pack))
+	for cell: Vector2i in rat_cells:
 		rat_rooms[layout.room_at(cell)] = true
 	var rock: Dictionary = {}
 	for r: Dictionary in layout.rocks:

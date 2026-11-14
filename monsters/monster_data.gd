@@ -42,14 +42,25 @@ enum PlaceholderShape { CIRCLE, ELLIPSE, DIAMOND }
 @export var attack_cooldown: float = 1.0
 
 @export_group("추격")
-## 쫓는 대상(감지 범위 밖에서 때린 공격자, 또는 보다가 놓친 대상)과 이 거리보다 멀어지면 포기한다 (픽셀)
+## 종별 추격 포기 조건 (ChaseClock). 값이 0인 조건은 쓰지 않는다. 포기해도 돌아가지 않고 그 자리에서 평소 행동을 한다.
+## 무리(MonsterPack)는 무리원 모두가 자기 조건을 넘어야 함께 포기한다.
+## 쫓는 대상(감지 범위 밖에서 때린 공격자, 보다가 놓친 대상, 무리 대상)과 이 거리보다 멀어지면 포기한다 (픽셀)
 @export var chase_attacker_limit: float = 350.0
-## 쫓는 대상이 보이는 동안, 쫓기 시작한 자리(맞기 시작한 자리 또는 처음 대상을 본 자리)에서 이 거리보다 멀어지면 포기하고 그 자리로 돌아간다 (픽셀, 임시값)
-@export var chase_visible_home_limit: float = 400.0
-## 쫓는 대상이 보이지 않게 된 뒤(벽 뒤로 숨음) 이 시간(초) 동안 다시 보지 못하면 포기한다. 다시 보면 처음부터 잰다 (임시값)
+## 쫓는 대상을 이 시간(초) 넘게 보지 못하면(벽 뒤로 숨음) 포기한다. 다시 보면 처음부터 잰다 (임시값)
 @export var chase_lost_time: float = 5.0
-## 무리(MonsterPack)가 함께 포기하는 한계: 무리 싸움을 시작한 자리에서 이 거리보다 멀어진 멤버는 무리 대상을 더 원하지 않는다 (픽셀)
-@export var chase_home_limit: float = 150.0
+## 감지 범위 밖의(또는 안 보이는) 대상을 이 시간(초) 넘게 쫓으면 포기한다. 감지 범위 안에서 보이거나 맞으면 처음부터 잰다 (임시값)
+@export var chase_time_limit: float = 0.0
+
+@export_group("무리")
+## 무리(MonsterPack)에서 대상 하나를 함께 노린다 (박쥐). 한 마리라도 어그로가 끌리면 무리 전체가 그 대상을 노리고(PackAggro), 경보 신호를 쓰지 않는다.
+## 무리의 첫 멤버 값으로 정한다. false면 무리 경보(PackAlarm)를 쓴다: 신호 뒤 경보, 무리원마다 가장 가까운 적을 고른다
+@export var pack_one_target: bool = false
+## 무리원이 맞거나 적을 감지했을 때, 멈춰 깜빡이며 무리에 알리는 시간 (초, 임시값). 끝나면 무리 전체가 경보 상태가 된다
+@export var alarm_signal_time: float = 0.3
+## 대상 하나를 동시에 공격할 수 있는 이 종의 수 (공격권, AttackTokens. 대상마다 모든 몬스터가 함께 센다). 0이면 공격권 없이 공격한다 (박쥐)
+@export var attack_tokens_per_target: int = 0
+## 공격권이 없을 때 대상 둘레를 맴돌며 기다리는 거리 (픽셀, 임시값)
+@export var token_wait_distance: float = 64.0
 
 @export_group("배회")
 @export var wander_speed: float = 15.0
@@ -152,7 +163,9 @@ func make_undead_behavior() -> MonsterBehavior:
 
 
 func get_enemy_stats() -> CombatStats:
-	return _with_throw_stats(CombatStats.create(move_speed, attack_range, contact_damage, attack_cooldown))
+	var stats: CombatStats = _with_throw_stats(CombatStats.create(move_speed, attack_range, contact_damage, attack_cooldown))
+	stats.wait_distance = token_wait_distance
+	return stats
 
 
 func _with_throw_stats(stats: CombatStats) -> CombatStats:
@@ -164,8 +177,10 @@ func _with_throw_stats(stats: CombatStats) -> CombatStats:
 
 
 ## 언데드일 때의 능력치: 이동 속도·공격 간격은 몬스터와 같고, 공격력만 배율을 곱한다. 공격 거리는 따로 둔 값이 없으면 몬스터와 같다.
-func get_undead_stats() -> CombatStats:
-	return _with_throw_stats(CombatStats.create(move_speed, get_undead_attack_range(), undead_contact_damage, attack_cooldown))
+## 네임드 머리뼈(named)면 공격력은 원래 몬스터 공격력에 네임드 배율을 곱한다 (계획 6b).
+func get_undead_stats(named: bool = false) -> CombatStats:
+	var damage: float = contact_damage * get_undead_rules().named_damage_ratio if named else undead_contact_damage
+	return _with_throw_stats(CombatStats.create(move_speed, get_undead_attack_range(), damage, attack_cooldown))
 
 
 ## 언데드 공격 거리 (이 몬스터에 따로 둔 값이 있으면 그것, 없으면 몬스터의 attack_range)
@@ -181,6 +196,19 @@ func get_undead_health_ratio() -> float:
 ## 언데드 공격력 배율 (이 몬스터에 따로 둔 값이 있으면 그것, 없으면 기본 배율)
 func get_undead_damage_ratio() -> float:
 	return undead_damage_ratio_override if undead_damage_ratio_override >= 0.0 else get_undead_rules().damage_ratio
+
+
+## 언데드 최대 체력. 네임드 머리뼈(named)면 원래 몬스터 체력에 네임드 배율을 곱한다 (몬스터별 배율은 쓰지 않는다, 계획 6b)
+func get_undead_max_health(named: bool = false) -> float:
+	return max_health * get_undead_rules().named_health_ratio if named else undead_max_health
+
+
+## 드랍 목록의 첫 머리뼈 (없으면 null). 대장의 네임드 머리뼈가 이 종류로 나온다 (계획 6b)
+func get_drop_skull() -> SkullData:
+	for entry: DropEntry in drops:
+		if entry != null and entry.item is SkullData:
+			return entry.item as SkullData
+	return null
 
 
 ## 언데드 능력치 기본 배율 (data/undead_stat_rules.tres, 처음 쓸 때 한 번 불러 둔다)

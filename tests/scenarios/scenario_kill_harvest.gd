@@ -5,7 +5,7 @@ extends ScenarioTest
 ## 채집할 종류는 무작위라 순서는 매번 같지 않을 수 있다(시드가 고정이라 같은 코드면 같다). 두 번에 두 종류를 다 얻는지 본다.
 ##
 ## 확률 고정: 대상 쥐의 데이터를 복사해 모든 드랍 확률을 FORCED_DROP_CHANCE(1)로 바꾼다
-## (실제 데이터 파일은 바꾸지 않는다). 그래서 머리뼈가 매번 나온다.
+## (실제 데이터 파일은 바꾸지 않는다). 그래서 머리뼈가 매번 나온다. 뼈 기대값(expected_count)도 0으로 두어 뼈는 언제나 count(2)개다.
 ## 다른 몬스터는 처음에 치운다. 다가와서 때리면 채집이 피해로 취소되어 결과가 흔들린다.
 
 const FORCED_DROP_CHANCE: float = 1.0
@@ -111,6 +111,8 @@ func _with_forced_chance(data: MonsterData) -> MonsterData:
 	for entry: DropEntry in data.drops:
 		var entry_copy: DropEntry = entry.duplicate()
 		entry_copy.chance = FORCED_DROP_CHANCE
+		# 뼈 기대값(소수)은 개수가 확률로 갈리므로, 데이터의 count(쥐 2)로 고정한다
+		entry_copy.expected_count = 0.0
 		drops.append(entry_copy)
 	copy.drops = drops
 	return copy

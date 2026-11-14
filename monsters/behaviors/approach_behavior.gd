@@ -5,6 +5,7 @@ extends MonsterBehavior
 ## - hit_and_run을 켜면(살아 있는 쥐): 물고 나서 back_off_distance만큼 물러나고, pause_time초 멈췄다가 옆으로 돌며 다시 들어온다.
 ##   공격 간격이 아직 안 지났으면 대상 곁을 돌며 기다린다 (제자리에 서 있지 않는다).
 ##   옆으로 도는 쪽은 물 때마다 한 번만 정한다 (프레임마다 방향이 튀어 떨리지 않게)
+## 공격권(Monster.request_attack)이 없으면 들어오지 않고 대상에게서 맴도는 거리(stats.wait_distance)를 두고 돌며 기다린다 (MonsterBehavior.wait_around). 물면 공격 한 번이 끝난다(공격권 반납).
 
 enum Phase { CLOSE_IN, BACK_OFF, PAUSE }
 
@@ -65,6 +66,10 @@ func act(body: CharacterBody2D, stats: CombatStats, target: Node2D, delta: float
 				return
 	var to_target: Vector2 = target.global_position - body.global_position
 	var distance: float = to_target.length()
+	# 공격권을 묻는 거리 안에서 공격권이 없으면 들어오지 않고 대상 둘레를 맴돌며 기다린다 (하던 물기 직전 멈춤은 이어 간다).
+	if not _winding_up and must_wait_for_token(body, stats, target):
+		wait_around(body, stats, target)
+		return
 	if distance > stats.attack_range:
 		_winding_up = false
 		var direction: Vector2 = move_direction(body, target.global_position)
@@ -87,6 +92,8 @@ func act(body: CharacterBody2D, stats: CombatStats, target: Node2D, delta: float
 		_attack_timer = stats.attack_cooldown
 		# 네크로맨서·언데드·몬스터는 서로 다른 클래스라서 이름으로 부른다.
 		target.call(&"take_damage", stats.contact_damage, body)
+		# 문 것으로 공격 한 번이 끝난다 (공격권 반납).
+		attack_done(body)
 		if hit_and_run:
 			_begin_back_off(body, target)
 		return

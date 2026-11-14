@@ -12,6 +12,7 @@ extends Node2D
 ##   Tab·Esc를 누르거나 기계에서 멀어지면 둘 다 닫는다. 수리 창(RepairScreen)이 없는 지역에서는 열 수 없다
 ## - 네크로맨서가 죽으면 인벤토리를 전부 잃고 death_destination(거점)으로 간다
 ## - 지역 데이터의 limit_vision이 켜져 있으면 플레이어 시야를 제한한다 (Vision, 거점은 끔)
+## - 몬스터의 공격권(AttackTokenBoard)을 하나 넣는다 (대상마다 동시에 공격하는 수, 모든 몬스터가 함께 센다)
 ## 다른 씬으로 갈 때 소환 중인 언데드는 일반 해제된다. 네크로맨서는 새 씬에서 새로 만들어지므로 체력·마나가 가득 찬다.
 
 ## 3D 층을 켜지 않고 평면으로 그리는 실행 인자 (디버그 보기)
@@ -21,6 +22,8 @@ const VIEW_2D_ARG: String = "--view_2d"
 @export var data: RegionData
 ## 죽으면 돌아갈 곳 (거점)
 @export var death_destination: RegionData
+## 무리 자리에서 무리원을 놓을 때 벽에서 떨어뜨리는 거리 (픽셀, 사용자 결정 2026-11-14, 임시값)
+@export var spawn_floor_margin: float = 8.0
 
 var _inventory: Inventory
 ## 다른 씬으로 가는 중이면 true (두 번 가지 않게)
@@ -46,6 +49,7 @@ var _open_machine: RepairMachine
 
 
 func _ready() -> void:
+	_apply_dungeon_state()
 	_inventory = GameState.inventory
 	_necromancer.inventory = _inventory
 	_necromancer.summoner.bind(_inventory, GameState.hotbar)
@@ -76,6 +80,10 @@ func _ready() -> void:
 	_hud.hotbar_view.bind(GameState.hotbar, _necromancer.summoner.roster)
 	if data != null and data.limit_vision:
 		_add_vision()
+	# 몬스터의 공격권(대상마다 동시에 공격하는 수). 몬스터들이 물은 뒤에 돌도록 Actors보다 뒤에 넣는다.
+	var board: AttackTokenBoard = AttackTokenBoard.new()
+	board.name = "AttackTokens"
+	add_child(board)
 	if wants_view_3d():
 		add_view_3d()
 
@@ -106,11 +114,48 @@ func _ready() -> void:
 		_chest_screen.open_changed.connect(_on_chest_open_changed)
 
 
+## 던전 상태 (계획 5단계): 거점에 들어오면 던전 상태를 비운다 (몬스터 초기화). 거점에서 던전 지역에 처음 들어오면 던전을 시작하고,
+## 던전 안에서 다시 들어온 지역이면 떠날 때 남긴 상태(RegionSnapshot)를 되살린다.
+## 그다음 무리 자리(PackSpawn)마다 무리를 만든다: 되살린 지역이면 남긴 무리원만, 아니면 던전 시드 난수로 새로 (계획 5b).
+func _apply_dungeon_state() -> void:
+	var run: DungeonRun = GameState.dungeon
+	var snapshot: Dictionary = {}
+	if data != null:
+		if data.is_base:
+			run.clear()
+		elif not run.is_active():
+			run.start(randi())
+		elif run.has_snapshot(data.id):
+			snapshot = run.get_snapshot(data.id)
+			RegionSnapshot.restore(self, $Actors, snapshot)
+	var saved_packs: Dictionary = snapshot.get("packs", {})
+	for node: Node in RegionSnapshot.nodes_of(self, PackSpawn):
+		var spawn: PackSpawn = node as PackSpawn
+		var key: String = str(get_path_to(spawn))
+		if saved_packs.has(key):
+			spawn.spawn_saved($Actors, saved_packs[key])
+		else:
+			spawn.spawn($Actors, run.rng, _is_free_floor, spawn.pack != null and run.forces_leader(spawn.pack.id))
+
+
+## 무리원을 놓아도 되는 바닥인지: 벽(윤곽이 있으면 윤곽의 바위)에서 spawn_floor_margin만큼 떨어졌는지. 벽이 없는 지역이면 늘 true.
+func _is_free_floor(point: Vector2) -> bool:
+	var walls: PlaceholderWalls = get_node_or_null("Walls") as PlaceholderWalls
+	if walls == null:
+		return true
+	if walls.outline != null:
+		return not walls.outline.box_has_rock(point - walls.global_position, Vector2.ONE * spawn_floor_margin)
+	return not walls.is_wall(walls.world_to_cell(point))
+
+
 ## destination 지역 씬으로 간다. 소환 중인 언데드는 일반 해제된다 (머리뼈의 체력·내구도는 그대로).
 func travel_to(destination: RegionData) -> void:
 	if _traveling or destination == null:
 		return
 	_traveling = true
+	# 던전 지역을 떠나면 이 지역의 상태를 남긴다 (돌아오면 되살린다. 쫓던 무리는 놓친 것으로 본다).
+	if data != null and not data.is_base and GameState.dungeon.is_active():
+		GameState.dungeon.save(data.id, RegionSnapshot.capture(self))
 	_necromancer.summoner.roster.unsummon_all()
 	# 물리 처리 중(탈출 지점 판정 등)에 씬을 바꾸지 않도록 미룬다.
 	get_tree().change_scene_to_file.call_deferred(destination.scene_path)

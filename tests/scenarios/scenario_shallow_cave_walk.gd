@@ -140,7 +140,7 @@ func _monsters_reset() -> bool:
 		return _check("얕은 굴로", false, "얕은 굴에 다시 들어가지 못함")
 	await wait_frames(SETTLE_FRAMES)
 	var count: int = get_nodes_in_group(&"monsters").size()
-	return _check("다시 들어오면 몬스터가 처음대로", count == _monster_cells(), "몬스터를 없앤 뒤 거점에 갔다 오니 몬스터 %d마리 (PNG의 몬스터 %d)" % [count, _monster_cells()])
+	return _check("다시 들어오면 몬스터가 처음대로", count == _expected_monsters(), "몬스터를 없앤 뒤 거점에 갔다 오니 몬스터 %d마리 (PNG의 한 마리 %d + 무리원 %d)" % [count, _monster_cells(), _expected_monsters() - _monster_cells()])
 
 
 func _wait_scene(path: String) -> bool:

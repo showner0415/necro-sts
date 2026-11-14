@@ -3,7 +3,7 @@ extends TestCase
 ## 구운 파일이 없는 컴퓨터에서는(저장소에 올리지 않는 파일이다) 굽는 방법만 출력하고 넘어간다.
 
 ## [씬, 구울 때 쓰는 명령에 덧붙일 인자]
-const SCENES: Array[Array] = [["res://regions/shallow_cave.tscn", ""], ["res://tests/view_3d/wall_test_cave.tscn", " --in="]]
+const SCENES: Array[Array] = [["res://regions/shallow_cave.tscn", ""], ["res://tests/view_3d/wall_test_cave.tscn", " --in="], ["res://tests/choke_test_cave.tscn", " --in="]]
 const WALL_HEIGHT: float = 128.0
 const CAP_HEIGHT: float = 6.08
 const TEMP_SCRIPT: String = "user://test_cave_terrain_bake_script.txt"
@@ -13,6 +13,8 @@ const NOT_BAKE_CLASSES: Dictionary[String, String] = {
 	"CaveOutlineSettings": "값은 지문에 따로 들어간다",
 	"RegionView3D": "벽 높이 값만 읽고, 값은 지문에 따로 들어간다",
 	"PlaceholderGround": "구운 지형은 벽(from_walls)만 읽는다",
+	"ChokeFinder": "길목 데이터만 만들고 메시 모양은 정하지 않는다 (구운 길목이 맞는지는 test_outline_chokes_match_finder가 본다)",
+	"ChokeData": "길목 데이터를 담기만 한다",
 }
 
 var _walls: PlaceholderWalls
@@ -99,6 +101,20 @@ func test_outline_matches_png() -> void:
 	assert_eq(outline.source_png_md5, FileAccess.get_md5("res://art_src/maps/shallow_cave.png"), "PNG를 고쳤으면 다시 만들기: %s" % CaveTerrainBake.BAKE_TOOL)
 
 
+## 길목(chokes)도 윤곽 파일에 구워 둔다. 길목 찾기 코드나 값을 고치고 다시 굽지 않으면 실패한다.
+func test_outline_chokes_match_finder() -> void:
+	var outline: CaveOutlineData = load("res://regions/shallow_cave_outline.res")
+	var rows: PackedStringArray = MapLayout.from_file("res://art_src/maps/shallow_cave.png").rows
+	var fresh: Array[ChokeData] = ChokeFinder.from_settings(outline.settings).find(rows, outline.cell_px, MapLayout.WALL_CHARS)
+	assert_true(outline.chokes.size() > 0, "구운 길목이 있다")
+	assert_eq(outline.chokes.size(), fresh.size(), "길목 수가 같다. 다르면 다시 굽기: %s" % CaveTerrainBake.BAKE_TOOL)
+	for i: int in mini(outline.chokes.size(), fresh.size()):
+		var saved: ChokeData = outline.chokes[i]
+		assert_eq(saved.cells, fresh[i].cells, "길목 %d의 칸" % i)
+		assert_eq(saved.wait_spots, fresh[i].wait_spots, "길목 %d의 대기 자리" % i)
+		assert_eq(saved.detour_ratios, fresh[i].detour_ratios, "길목 %d의 우회 비율" % i)
+
+
 func _world_position(node: Node2D) -> Vector2:
 	var position: Vector2 = node.position
 	var parent: Node = node.get_parent()
@@ -110,13 +126,13 @@ func _world_position(node: Node2D) -> Vector2:
 
 func _collect_bodies(node: Node, found: Array[Node2D]) -> void:
 	for child: Node in node.get_children():
-		if child is Monster or child is Necromancer or child is LootChest or child is EscapePoint:
+		if child is Monster or child is Necromancer or child is LootChest or child is EscapePoint or child is PackSpawn:
 			found.append(child)
 		else:
 			_collect_bodies(child, found)
 
 
-## 윤곽은 넓은 곳에서 PNG 바닥을 덮기도 하므로, 씬의 몸과 물건이 바위에 묻히지 않았는지 본다.
+## 윤곽은 넓은 곳에서 PNG 바닥을 덮기도 하므로, 씬의 몸과 물건(무리 자리 포함)이 바위에 묻히지 않았는지 본다.
 func test_scene_objects_are_not_inside_rock() -> void:
 	var scene: Node = (load("res://regions/shallow_cave.tscn") as PackedScene).instantiate()
 	var outline: CaveOutlineData = (scene.get_node("Walls") as PlaceholderWalls).outline
@@ -134,7 +150,8 @@ func test_scene_objects_are_not_inside_rock() -> void:
 			center.y -= (node as Necromancer).body_radius
 		if outline.box_has_rock(center, half):
 			buried.append("%s %s" % [node.name, center])
-	assert_true(found.size() > 40, "몸과 물건을 찾음: %d" % found.size())
+	# 한 마리 몬스터 15·무리 자리 8·상자 12·탈출 지점 3·네크로맨서 1 = 39 (2026-11-14 무리 배치 뒤. 무리원은 실행 중에 생겨 씬에 없다)
+	assert_true(found.size() > 35, "몸과 물건을 찾음: %d" % found.size())
 	assert_eq(buried, PackedStringArray(), "바위에 묻힘")
 	scene.free()
 

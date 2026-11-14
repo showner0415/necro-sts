@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="RegionData" format=3]
+
+[ext_resource type="Script" path="res://regions/region_data.gd" id="1_region"]
+
+[resource]
+script = ExtResource("1_region")
+id = &"test_dungeon_b"
+display_name = "시험 던전 B"
+scene_path = "res://tests/dungeon_test_b.tscn"
+view_3d = true

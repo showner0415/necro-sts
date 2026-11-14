@@ -21,6 +21,16 @@ class FakeBody:
 	func get_hostile_groups() -> Array[StringName]:
 		return groups
 
+	## 공격권 (Monster.request_attack 흉내). 기본은 언제나 준다
+	var allowed: bool = true
+	var finished: int = 0
+
+	func request_attack(_target: Node2D) -> bool:
+		return allowed
+
+	func finish_attack() -> void:
+		finished += 1
+
 
 class FakeTarget:
 	extends CharacterBody2D
@@ -257,3 +267,18 @@ func test_landing_picks_nearest_in_radius() -> void:
 	var positions: Array[Vector2] = [Vector2(10, 0), Vector2(4, 0), Vector2(30, 0)]
 	assert_eq(Stone.nearest_in_radius(Vector2.ZERO, 12.0, positions), 1, "원 안의 가장 가까운 하나")
 	assert_eq(Stone.nearest_in_radius(Vector2(100, 0), 12.0, positions), -1, "원 안에 없으면 아무도 안 맞는다")
+
+
+# --- 공격권 ---
+
+func test_waits_around_without_token_instead_of_throwing() -> void:
+	body.allowed = false
+	stats.wait_distance = 170.0
+	target.position = Vector2((throw.retreat_distance + RANGE) / 2.0, 0)
+	_step()
+	assert_eq(_stones().size(), 0, "공격권이 없으면 던지지 않는다")
+	assert_true(body.velocity.x < 0.0, "맴도는 거리(170)까지 물러난다")
+	body.allowed = true
+	_step()
+	assert_eq(_stones().size(), 1, "공격권을 받으면 던진다")
+	assert_eq(body.finished, 1, "다 던지면 공격 한 번이 끝난다 (공격권 반납)")
