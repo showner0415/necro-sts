@@ -130,7 +130,7 @@ func act(body: CharacterBody2D, stats: CombatStats, target: Node2D, delta: float
 			_timer += delta
 			if _timer >= recover_time:
 				_state = State.APPROACH
-				# 예고 → 돌진 → 멈칫으로 공격 한 번이 끝난다 (공격권 반납. 거리 벌리기는 공격에 넣지 않는다, 제안).
+				# 예고 → 돌진 → 멈칫으로 공격 한 번이 끝난다 (공격권 반납. 거리 벌리기는 공격에 넣지 않는다, docs/game-design.md "몬스터 무리"의 공격권).
 				attack_done(body)
 				if back_off_after_charge and is_instance_valid(_locked_target):
 					_begin_turn_away(body, _locked_target)

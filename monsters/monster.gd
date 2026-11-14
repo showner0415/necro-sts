@@ -261,7 +261,7 @@ func get_move_direction(goal: Vector2) -> Vector2:
 
 
 ## 길목을 피하는지 (계획 4b): 공격권을 쓰는 몬스터가 대상을 쫓는데 그 대상의 공격권이 없을 때.
-## 대상이 없을 때(배회)는 피하지 않는다 (제안).
+## 대상이 없을 때(배회)는 피하지 않는다 (사용자 결정 2026-11-14, docs/game-design.md "몬스터 무리"의 길목).
 func _avoids_chokes() -> bool:
 	if data.attack_tokens_per_target <= 0 or _target == null:
 		return false
@@ -484,7 +484,7 @@ func draw_ground_marks(canvas: CanvasItem) -> void:
 	# 공격권을 든 몬스터는 발밑에 점 (보통 공격권 흰색, 추가 공격권 노랑). 무리가 없는 몬스터도 그린다.
 	if is_holding_token():
 		canvas.draw_circle(Vector2.ZERO, debug_token_radius, DEBUG_EXTRA_TOKEN_COLOR if is_holding_extra_token() else DEBUG_TOKEN_COLOR)
-	# 무리 대장은 무리 색 고리 바깥에 왕관 색 고리를 하나 더 그린다 (모양은 제안, 계획 6a)
+	# 무리 대장은 무리 색 고리 바깥에 왕관 색 고리를 하나 더 그린다 (사용자 결정 2026-11-15, 계획 6a)
 	if is_leader:
 		var leader_ring: float = data.get_placeholder_half_size().x + DEBUG_RING_MARGIN * 2.0
 		canvas.draw_arc(Vector2.ZERO, leader_ring, 0.0, TAU, DEBUG_ARC_POINTS, LeaderCrown.COLOR, 1.0)

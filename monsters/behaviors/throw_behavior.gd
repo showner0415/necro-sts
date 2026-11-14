@@ -151,7 +151,7 @@ func _release_first(body: CharacterBody2D, stats: CombatStats, target: Node2D) -
 
 func _finish_attack(body: CharacterBody2D) -> void:
 	_step = Step.MOVE
-	# 연달아 던지는 돌을 다 던지면 공격 한 번이 끝난다 (공격권 반납, 제안).
+	# 연달아 던지는 돌을 다 던지면 공격 한 번이 끝난다 (공격권 반납, docs/game-design.md "몬스터 무리"의 공격권).
 	attack_done(body)
 	_side = 1.0 if randf() < 0.5 else -1.0
 	if throw_pause_time > 0.0:
