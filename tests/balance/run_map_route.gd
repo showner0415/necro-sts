@@ -4,7 +4,7 @@ extends ScenarioTest
 ## - 걷기: 몬스터에게 걸리지 않은 동안은 길찾기로 다음 굴 가운데까지 걷는다 (언데드는 따라온다)
 ## - 싸우기: 누군가(네크로맨서·언데드)를 노리는 몬스터가 있으면 봇(PlayerBot)이 그 몬스터들만 상대한다. 모두 죽거나 포기하면 다시 걷는다
 ##   봇의 싸움 움직임은 시험 지역과 같다 (몬스터 쪽으로 곧게 다가가거나 물러난다. 길찾기는 하지 않아 벽에 미끄러질 수 있다)
-## - 길에 든 굴의 몬스터만 남기고 나머지는 없앤다. 판마다 맵을 새로 불러오고 난수 시드를 바꾼다
+## - 길에 든 굴의 몬스터만 남기고 나머지는 없앤다. 판마다 맵을 새로 불러오고, 판 번호 시드(BASE_SEED + 판 번호)로 던전 상태(무리 구성·대장·드랍)와 지역 공격권 난수를 맞춘다 (봇 측정 1단계)
 ## 판정(통과/실패)을 내지 않으므로 run_all.sh에는 넣지 않는다.
 ##
 ## 전부 (헤드리스, 빠르게):
@@ -178,7 +178,7 @@ func _run_all() -> void:
 
 
 func _pass(route_id: StringName, undead_count: int, skill_id: StringName, run: int, retreat: int) -> Dictionary:
-	await _reload_scene()
+	await _reload_scene(BASE_SEED + run)
 	seed(BASE_SEED + run)
 	var route: Dictionary = ROUTES[route_id]
 	var keep_rooms: Array[int] = []
@@ -331,8 +331,8 @@ func _give_undead(necromancer: Necromancer, count: int) -> Array[Skull]:
 
 
 ## 얕은 굴을 새로 불러오고, 전역 상태(인벤토리·핫바)를 비운다.
-func _reload_scene() -> void:
-	await reload_fight_scene(_scene)
+func _reload_scene(run_seed: int) -> void:
+	await reload_fight_scene(_scene, run_seed)
 
 
 ## 무리 자리가 만든 무리(MonsterPack, 계획 8a)는 첫 물리 프레임에 무리원을 묶는다. 위에서 지운 무리원이 남아 있으면 그때 사라진 몸을 읽으므로,
@@ -375,10 +375,10 @@ func _row(route_id: StringName, undead_count: int, retreat: int, skill_id: Strin
 		killed += r["killed"]
 		kept += r["kept"]
 		undead_died += r["undead_died"]
-	return "| %s | %s | %s | %s | %d | %.0f%% | %.0f%% | %s | %.1f / %.1f | %.1f / %d | %.1f | %d / %d | %d | %s |" % [
+	return "| %s | %s | %s | %s | %d | %.0f%% | %.0f%% | %s | %.1f / %.1f | %.1f / %.1f | %.1f | %d / %d | %d | %s |" % [
 		ROUTES[route_id]["name"], _condition_name(undead_count), RETREAT_NAMES[retreat], PlayerBot.SKILLS[skill_id]["name"], results.size(),
 		100.0 * died / results.size(), 100.0 * escaped / results.size(), "%.1f초" % _mean(times) if not times.is_empty() else "-", _mean(damages), damages.max(),
-		float(killed) / results.size(), kept / results.size(), float(undead_died) / results.size(), same_frame, undead_lost_runs, timeouts, "%.0f%%" % (100.0 * hits / shots) if shots > 0 else "-"]
+		float(killed) / results.size(), float(kept) / results.size(), float(undead_died) / results.size(), same_frame, undead_lost_runs, timeouts, "%.0f%%" % (100.0 * hits / shots) if shots > 0 else "-"]
 
 
 func _mean(values: Array) -> float:

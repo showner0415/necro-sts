@@ -11,6 +11,8 @@ extends ScenarioTest
 ## 일부만: -- --targets=boar,bat_pack --skills=normal --undead=0 --runs=5
 ## 쥐 패거리 (기본 대상에 없음, 계획 8b-2): -- --targets=rat_gang3,rat_gang3_leader,rat_gang4,rat_gang4_leader (결과 tests/balance/results/2026-11-15_rat_pack_fight.md)
 ## 벽 방의 쥐 (계획 8b-5): -- --targets=rat_room_s,rat_gang4_room_s,rat_gang4_leader_room_s,rat_room_l,rat_gang4_room_l,rat_gang4_leader_room_l (_s 작은 방 12×9칸, _l 입구 굴만 한 방 36×31칸)
+## 멧돼지·투석병·섞인 무리 (봇 측정 1단계): -- --targets=boar_pack2,boar_pack2_leader,boar_pack3,boar_pack3_leader,goblin_pack2,goblin_pack2_leader,goblin_pack3,goblin_pack3_leader,mixed3,mixed3_leader,mixed4,mixed4_leader
+## 판마다 시드(BASE_SEED + 판 번호)로 던전 상태와 지역 공격권의 난수도 맞추므로, 같은 대상·판 번호면 다른 대상·실력과 함께 돌려도 결과가 같다 (봇 측정 1단계)
 ## 봇이 몬스터와 유지하는 거리 바꾸기: -- --keep=0 (0이면 거리를 두지 않고 제자리에서 쏘며 예고만 피한다)
 ## 봇이 쏘기를 멈추고 뛰는 거리 바꾸기: -- --run_distance=20 (기본 55. keep이 이보다 작으면 다가오는 몬스터마다 뛰어서 싸움이 끝나지 않을 수 있다)
 ## 무리 동시 공격(박쥐 동시 돌진)을 처음 N번 일부러 못 피하게: -- --miss_pack=1
@@ -55,6 +57,24 @@ const TARGETS: Dictionary = {
 		"room": Vector2(1152, 992), "start": Vector2(-120, 0), "spawn": Vector2(110, 0), "arena": 472.0},
 	&"rat_gang4_leader_room_l": {"name": "쥐 패거리(4), 대장, 큰 방", "data": "res://data/monsters/rat.tres", "offsets": [Vector2(0, -16), Vector2(16, 0), Vector2(0, 16), Vector2(-16, 0)], "pack": true, "leader": true,
 		"room": Vector2(1152, 992), "start": Vector2(-120, 0), "spawn": Vector2(110, 0), "arena": 472.0},
+	## 멧돼지·투석병·섞인 무리 (봇 측정 계획 1단계, 사용자 결정 2026-11-15: 크기마다 대상 + 대장 판). 크기는 data/packs/*.tres의 범위 끝 둘.
+	## 몸이 쥐보다 커서 무리원 사이를 24px로 둔다. 대장은 첫 무리원이다 (섞인 무리는 멧돼지. 실제 무리 자리는 무리원 중 아무나). 기본 대상에는 넣지 않는다
+	&"boar_pack2": {"name": "멧돼지 무리(2)", "data": "res://data/monsters/boar.tres", "offsets": [Vector2(0, -12), Vector2(0, 12)], "pack": true},
+	&"boar_pack2_leader": {"name": "멧돼지 무리(2), 대장", "data": "res://data/monsters/boar.tres", "offsets": [Vector2(0, -12), Vector2(0, 12)], "pack": true, "leader": true},
+	&"boar_pack3": {"name": "멧돼지 무리(3)", "data": "res://data/monsters/boar.tres", "offsets": [Vector2(0, -24), Vector2(0, 0), Vector2(0, 24)], "pack": true},
+	&"boar_pack3_leader": {"name": "멧돼지 무리(3), 대장", "data": "res://data/monsters/boar.tres", "offsets": [Vector2(0, -24), Vector2(0, 0), Vector2(0, 24)], "pack": true, "leader": true},
+	&"goblin_pack2": {"name": "투석병 무리(2)", "data": "res://data/monsters/goblin_slinger.tres", "offsets": [Vector2(0, -12), Vector2(0, 12)], "pack": true},
+	&"goblin_pack2_leader": {"name": "투석병 무리(2), 대장", "data": "res://data/monsters/goblin_slinger.tres", "offsets": [Vector2(0, -12), Vector2(0, 12)], "pack": true, "leader": true},
+	&"goblin_pack3": {"name": "투석병 무리(3)", "data": "res://data/monsters/goblin_slinger.tres", "offsets": [Vector2(0, -24), Vector2(0, 0), Vector2(0, 24)], "pack": true},
+	&"goblin_pack3_leader": {"name": "투석병 무리(3), 대장", "data": "res://data/monsters/goblin_slinger.tres", "offsets": [Vector2(0, -24), Vector2(0, 0), Vector2(0, 24)], "pack": true, "leader": true},
+	&"mixed3": {"name": "섞인 무리(멧돼지 1 + 쥐 2)", "data": "res://data/monsters/boar.tres", "datas": ["res://data/monsters/boar.tres", "res://data/monsters/rat.tres", "res://data/monsters/rat.tres"],
+		"offsets": [Vector2(0, 0), Vector2(24, -16), Vector2(24, 16)], "pack": true},
+	&"mixed3_leader": {"name": "섞인 무리(멧돼지 1 + 쥐 2), 대장", "data": "res://data/monsters/boar.tres", "datas": ["res://data/monsters/boar.tres", "res://data/monsters/rat.tres", "res://data/monsters/rat.tres"],
+		"offsets": [Vector2(0, 0), Vector2(24, -16), Vector2(24, 16)], "pack": true, "leader": true},
+	&"mixed4": {"name": "섞인 무리(멧돼지 1 + 쥐 3)", "data": "res://data/monsters/boar.tres", "datas": ["res://data/monsters/boar.tres", "res://data/monsters/rat.tres", "res://data/monsters/rat.tres", "res://data/monsters/rat.tres"],
+		"offsets": [Vector2(0, 0), Vector2(24, -16), Vector2(24, 16), Vector2(40, 0)], "pack": true},
+	&"mixed4_leader": {"name": "섞인 무리(멧돼지 1 + 쥐 3), 대장", "data": "res://data/monsters/boar.tres", "datas": ["res://data/monsters/boar.tres", "res://data/monsters/rat.tres", "res://data/monsters/rat.tres", "res://data/monsters/rat.tres"],
+		"offsets": [Vector2(0, 0), Vector2(24, -16), Vector2(24, 16), Vector2(40, 0)], "pack": true, "leader": true},
 }
 ## 대장 값 (PackSpawn과 같은 파일)
 const LEADER_SETTINGS: String = "res://data/packs/leader_settings.tres"
@@ -163,7 +183,7 @@ func _run_all() -> void:
 
 ## 한 판 싸운다. 결과: time(초), damage, died, timeout, shots, hits
 func _fight(target_id: StringName, undead_count: int, skill_id: StringName, run: int) -> Dictionary:
-	await _reload_scene()
+	await _reload_scene(BASE_SEED + run)
 	seed(BASE_SEED + run)
 	var region: Node = current_scene
 	var necromancer: Necromancer = find_necromancer()
@@ -178,10 +198,12 @@ func _fight(target_id: StringName, undead_count: int, skill_id: StringName, run:
 
 	var data: MonsterData = load(target["data"])
 	var spawned: Array[Monster] = []
-	for offset: Vector2 in target["offsets"]:
+	var offsets: Array = target["offsets"]
+	for i: int in offsets.size():
 		var monster: Monster = (load(MONSTER_SCENE) as PackedScene).instantiate()
-		monster.data = data
-		monster.position = target.get("spawn", SPAWN_OFFSET) + offset
+		# 섞인 무리는 무리원마다 데이터가 다르다 ("datas", offsets와 같은 차례)
+		monster.data = load(target["datas"][i]) if target.has("datas") else data
+		monster.position = target.get("spawn", SPAWN_OFFSET) + offsets[i]
 		necromancer.get_parent().add_child(monster)
 		spawned.append(monster)
 	# 무리면 MonsterPack으로 묶는다: 어그로 공유와 동시 공격 시각 맞추기 (시험 지역의 BatPack과 같다).
@@ -194,7 +216,7 @@ func _fight(target_id: StringName, undead_count: int, skill_id: StringName, run:
 			var leader: Monster = spawned[0]
 			leader.is_leader = true
 			leader.leader_settings = settings
-			leader.health = data.max_health * settings.leader_health_ratio
+			leader.health = leader.data.max_health * settings.leader_health_ratio
 			pack.set_leader(leader, settings.member_damage_ratio)
 	if not check_fight_start(TEST_REGION_SCENE, spawned.size()):
 		return {"invalid": true}
@@ -335,8 +357,8 @@ func _give_undead(necromancer: Necromancer, count: int) -> Array[Skull]:
 
 
 ## 시험 지역을 새로 불러오고, 전역 상태(인벤토리·핫바)를 비운다.
-func _reload_scene() -> void:
-	await reload_fight_scene(TEST_REGION_SCENE)
+func _reload_scene(run_seed: int) -> void:
+	await reload_fight_scene(TEST_REGION_SCENE, run_seed)
 
 
 ## 한 조건의 결과 요약. 시간은 살아서 잡은 판만으로 낸다 (모두 죽거나 시간 초과면 time_mean은 -1).

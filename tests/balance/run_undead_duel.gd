@@ -8,6 +8,7 @@ extends ScenarioTest
 ##   그동안 투석병 돌은 네크로맨서를 지나가지 않고 몸에 막힐 수 있다 (scenario_projectile에서 시드 8개로 재 보니 던진 돌 170개 중 센 169개에서 0개, 2026-11-13).
 ## 1·3에서는 마나도 바닥나지 않게 한다 (능력치 배율만 보려고). 2번은 실제 마나 그대로라 유지비로 해제될 수 있다.
 ## 언데드는 감지 범위가 없으므로, 적이 언데드를 노리면 그때 싸운다 (적을 언데드의 감지 범위 밖이 아니라 적의 감지 범위 안에 둔다).
+## 판마다 시드(BASE_SEED + 판 번호)로 던전 상태와 지역 공격권 난수를 맞추므로, 같은 몬스터·경우·판 번호면 다른 것과 함께 돌려도 결과가 같다 (봇 측정 1단계)
 ## 판정이 없으므로 run_all.sh에는 넣지 않는다.
 ##
 ## bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_undead_duel.gd
@@ -236,7 +237,7 @@ func _print_boar_trace() -> void:
 
 ## 한 판. 결과: outcome("win"/"lose"/"released"/"timeout"), time, undead_ratio(남은 언데드 체력 비율 평균), enemy_ratio, necro_died
 func _fight(monster_id: StringName, case_id: int, run: int) -> Dictionary:
-	await _reload_scene()
+	await _reload_scene(BASE_SEED + run)
 	seed(BASE_SEED + run)
 	var region: Node = current_scene
 	var necromancer: Necromancer = find_necromancer()
@@ -365,8 +366,8 @@ func _total_durability(skulls: Array[Skull]) -> float:
 
 
 ## 시험 지역을 새로 불러오고, 전역 상태(인벤토리·핫바)를 비운다.
-func _reload_scene() -> void:
-	await reload_fight_scene(TEST_REGION_SCENE)
+func _reload_scene(run_seed: int) -> void:
+	await reload_fight_scene(TEST_REGION_SCENE, run_seed)
 
 
 func _mean(values: Array) -> float:

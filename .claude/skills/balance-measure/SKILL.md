@@ -17,9 +17,11 @@ description: 밸런스·몬스터 AI·언데드 능력치를 숫자로 잴 때 �
 - 전부: `bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_balance.gd` (약 1분)
 - 일부: `-- --targets=boar,bat_pack --skills=normal --undead=0 --runs=5`, 거리 두기를 끄려면 `--keep=0`, 쏘기를 멈추고 뛰는 거리는 `--run_distance=<px>` (기본 55. 거리 두기 값이 이보다 작으면 다가가고 뛰기를 되풀이해 시간 초과가 된다, tests/balance/results/2026-11-15_keep_sweep.md), 무리 동시 공격(박쥐 동시 돌진)을 처음 N번 일부러 못 피하게 하려면 `--miss_pack=N` (놓친 동시 공격 피해·직후 마나·최저 마나·언데드 죽음/해제 열로 "실수 한 번의 값"을 본다)
 - 쥐 패거리 (기본 대상에 없음): 열린 바닥 `--targets=rat_gang3,rat_gang3_leader,rat_gang4,rat_gang4_leader`, 벽 방 `--targets=rat_room_s,rat_gang4_room_s,rat_gang4_leader_room_s,rat_room_l,rat_gang4_room_l,rat_gang4_leader_room_l` (_s 12×9칸, _l 36×31칸. 결과 tests/balance/results/2026-11-15_rat_pack_room.md)
+- 멧돼지·투석병·섞인 무리 (기본 대상에 없음, 크기마다 대상 + 대장 판): `--targets=boar_pack2,boar_pack2_leader,boar_pack3,boar_pack3_leader,goblin_pack2,goblin_pack2_leader,goblin_pack3,goblin_pack3_leader,mixed3,mixed3_leader,mixed4,mixed4_leader`. 무리원 사이는 24px(실제 무리 자리는 16px)이고, 섞인 무리의 대장 판은 지금 늘 멧돼지가 대장이다 (실제는 무리원 중 아무나. 봇 측정 3단계에서 쥐 대장으로 바꾼다, 사용자 결정 2026-11-15). 창으로 보는 `play_case`는 이 대상들을 아직 못 세운다 (`data`만 읽음)
 - 창으로 보기: `bash tools/godot.sh --path . -s tests/balance/run_balance.gd -- --targets=boar --skills=normal --undead=0 --runs=1`
 - 표 아래에 잡은 시간·받은 피해·죽음의 95% 오차 범위 표가 함께 나온다. 전후를 비교할 때는 이 범위를 같이 본다.
 - 판마다 시작할 때 씬과 몬스터 수를 검사한다 (`check_fight_start`). 틀리면 `[실패] 판 시작 검사`를 남기고 그 판을 빼며, 측정은 계속하되 종료 코드 1로 끝난다.
+- 세 도구(run_balance·run_undead_duel·run_map_route)는 판마다 시드(`BASE_SEED` + 판 번호)로 던전 상태(무리 구성·대장·드랍)와 지역 공격권 난수까지 맞춘다 (`tests/scenario_test.gd` `reload_fight_scene(…, run_seed)`). 그래서 같은 대상·판 번호면 다른 대상·실력과 함께 돌려도 결과가 같다 (2026-11-15부터. 그 전 결과와 바로 비교하지 않는다).
 
 ## 2. 언데드 대 적 (run_undead_duel)
 
