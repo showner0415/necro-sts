@@ -76,8 +76,6 @@ var _debug_color: Color = Color(0, 0, 0, 0)
 var _debug_state: int = 0
 var _debug_anchor: Vector2 = Vector2.ZERO
 var _debug_radius: float = 0.0
-## 지난 프레임에 노리던 대상 (바뀌면 공격권을 반납한다)
-var _last_target: Node2D
 ## 간격 밀기의 이웃 칸 묶음 (_spacing_grid). 물리 프레임과 트리마다 한 번 만들어 모든 몬스터가 같이 쓴다
 static var _shared_spacing: SpacingGrid
 static var _shared_spacing_frame: int = -1
@@ -123,11 +121,10 @@ func _physics_process(delta: float) -> void:
 	_own_target = _aggro.attacker as Node2D if _aggro.state == Aggro.State.CHASING else nearest
 	# 무리에 대상이 있으면 자기 판단과 상관없이 그 대상을 노린다.
 	_target = _pack_target if _is_alive_node(_pack_target) else _own_target
-	# 대상이 바뀌거나 놓치면 공격권을 반납한다.
-	var last: Node2D = _last_target if is_instance_valid(_last_target) else null
-	if _target != last:
-		_release_token()
-		_last_target = _target
+	# 대상이 바뀌거나 놓치면 공격권을 반납한다: 든 공격권의 대상이 지금 대상과 다르면 반납한다.
+	# 공격 중(멧돼지의 예고~멈칫)이면 그 공격이 끝날 때(attack_done) 반납한다. 공격이 중간에 끊기면(벽에 막힌 예고) 그다음 프레임에 여기서 반납한다.
+	if not _behavior.keeps_token_on_target_change():
+		_release_token_of_other_target()
 	var target_visible: bool = _target != null and _path_follower.can_see(self, _target.global_position)
 	_ai.update(_target != null, _behavior.is_busy(), target_visible)
 	# 하던 동작(돌진 예고 등)은 대상이 사라져도 이어 간다. 찾기(대상이 벽 뒤)는 지금은 길을 따라 쫓는 것을 그대로 쓴다.
@@ -426,6 +423,13 @@ func is_holding_token() -> bool:
 func is_holding_extra_token() -> bool:
 	var board: AttackTokenBoard = _find_token_board()
 	return board != null and board.tokens.holds_extra(self)
+
+
+## 지금 대상(_target)이 아닌 대상의 공격권을 들고 있으면 반납한다 (대상이 없으면 든 공격권을 반납한다).
+func _release_token_of_other_target() -> void:
+	var board: AttackTokenBoard = _find_token_board()
+	if board != null and board.tokens.is_holding(self) and board.tokens.held_target(self) != _target:
+		board.tokens.release(self)
 
 
 func _release_token() -> void:

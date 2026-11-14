@@ -6,7 +6,8 @@ extends ScenarioTest
 ## 3. 시간 제한: 맴도는 거리 안에서 대상에게 닿지 못하는 쥐(속도 0)는 공격권을 6초 들고 있다가 반납하고, 그 뒤 1초 동안 그 대상의 공격권을 다시 받지 못함
 ## 4. 멧돼지 1 + 쥐 2가 섞인 무리: 멧돼지 공격권(1)과 쥐 공격권(2)을 따로 셈 (둘이 함께 들 수 있음)
 ## 5. 멧돼지 둘·투석병 둘이 한 대상을 노려도 종마다 보통 1을, 추가 공격권은 대상 하나에 하나를 넘지 않고, 공격권이 없는 멧돼지·투석병은 맴도는 거리(96·170)쯤에서 기다림
-## 6. 박쥐는 공격권을 쓰지 않음 (늘 공격해도 됨)
+## 6. 멧돼지는 예고부터 멈칫까지 노리는 대상이 바뀌어도(언데드가 곁에 옴) 예고를 시작한 대상의 공격권을 멈칫이 끝날 때까지 들고, 그동안 다른 멧돼지는 그 대상의 보통 공격권을 받지 못함. 멈칫이 끝나면 반납. 예고가 끊기면(벽에 막힘, 멈칫 없음) 옛 대상의 공격권을 곧 반납
+## 7. 박쥐는 공격권을 쓰지 않음 (늘 공격해도 됨)
 ## 몬스터는 데이터 복사로 배회 0·체력 크게 한다. 네크로맨서는 체력을 크게 한다. 실제 .tres는 바꾸지 않는다.
 
 const PACK_SCENE: String = "res://regions/test_pack.tscn"
@@ -44,6 +45,10 @@ const MIXED_OFFSETS: Array[Vector2] = [Vector2(0, -230), Vector2(-20, -215), Vec
 const BOAR_GOBLIN_OFFSETS: Array[Vector2] = [Vector2(-30, -240), Vector2(30, -240), Vector2(-220, -60), Vector2(220, -60)]
 ## 5. 공격을 끝내고 맴도는 거리로 돌아가는 시간을 빼려고, 이 프레임 수 넘게 공격권 없이 기다린 몸의 거리만 잰다
 const WAIT_SETTLE_FRAMES: int = 120
+## 6. 멧돼지 둘의 자리 (네크로맨서에게서, 감지 밖), 예고를 기다리는 최대 프레임, 언데드를 멧돼지 뒤에 두는 거리 (픽셀)
+const BOAR_PAIR_OFFSETS: Array[Vector2] = [Vector2(-30, -240), Vector2(30, -240)]
+const WINDUP_TIMEOUT_FRAMES: int = 600
+const UNDEAD_BEHIND: float = 20.0
 
 var _necromancer: Necromancer
 var _board: AttackTokenBoard
@@ -125,6 +130,10 @@ func _run() -> void:
 	if not await _mixed_pack():
 		return
 	if not await _boars_and_goblins():
+		return
+	if not await _boar_keeps_token():
+		return
+	if not await _boar_keeps_token(true):
 		return
 	_bats_unlimited()
 
@@ -356,7 +365,80 @@ func _boars_and_goblins() -> bool:
 			WATCH_FRAMES / float(Engine.physics_ticks_per_second), max_extra, " / ".join(text)])
 
 
-## 6. 박쥐는 공격권을 쓰지 않는다
+## 6. 멧돼지는 예고부터 멈칫까지 노리는 대상이 바뀌어도(언데드가 곁에 옴) 예고를 시작한 대상의 공격권을 멈칫이 끝날 때까지 들고, 그동안 다른 멧돼지는 그 대상의 보통 공격권을 받지 못한다
+## cut_windup이면 같은 준비에서 대상이 바뀐 뒤 예고가 끊긴 것처럼 하고(멈칫 없음), 옛 대상의 공격권을 곧 반납하는지 본다
+func _boar_keeps_token(cut_windup: bool = false) -> bool:
+	_clear()
+	var tokens: AttackTokens = _board.tokens
+	var boars: Array[Monster] = []
+	for offset: Vector2 in BOAR_PAIR_OFFSETS:
+		boars.append(_spawn(_tough(BOAR_PATH), NECRO_SPOT + offset))
+	_make_pack(boars)
+	await wait_frames(3)
+	boars[0].take_damage(0.1, _necromancer)
+	# 네크로맨서의 보통 공격권을 받고 예고를 시작한 멧돼지를 기다린다.
+	var attacker: Monster = null
+	for frame: int in WINDUP_TIMEOUT_FRAMES:
+		await wait_frames(1)
+		for boar: Monster in boars:
+			var charge: ChargeBehavior = boar.get_behavior() as ChargeBehavior
+			if charge.get_state() == ChargeBehavior.State.WINDUP and tokens.held_target(boar) == _necromancer and not tokens.holds_extra(boar):
+				attacker = boar
+		if attacker != null:
+			break
+	if attacker == null:
+		return _check("멧돼지는 멈칫까지 공격권을 듦", false, "%d프레임 안에 보통 공격권으로 예고를 시작한 멧돼지가 없음" % WINDUP_TIMEOUT_FRAMES)
+	var other: Monster = boars[1] if attacker == boars[0] else boars[0]
+	var behavior: ChargeBehavior = attacker.get_behavior() as ChargeBehavior
+	var undead: Node2D = await _summon_undead()
+	if undead == null:
+		return _check("멧돼지는 멈칫까지 공격권을 듦", false, "언데드를 소환하지 못함")
+	# 언데드를 그 멧돼지 바로 뒤(네크로맨서 반대쪽)에 두어, 멧돼지가 더 가까운 언데드를 노리게 하되 돌진에 맞지 않게 한다.
+	undead.global_position = attacker.global_position + _necromancer.global_position.direction_to(attacker.global_position) * UNDEAD_BEHIND
+	if cut_windup:
+		# 대상이 언데드로 바뀐 뒤, 벽에 막혀 예고가 끊긴 것처럼 한다 (ChargeBehavior._windup의 돌진할 거리 모자람: 멈칫 없이 다가가기로 돌아감).
+		var switch_frame: int = -1
+		for frame: int in WINDUP_TIMEOUT_FRAMES:
+			await wait_frames(1)
+			if behavior.get_state() != ChargeBehavior.State.WINDUP:
+				break
+			if is_instance_valid(undead) and attacker.get_target() == undead:
+				switch_frame = frame
+				break
+		var held_before: bool = tokens.held_target(attacker) == _necromancer
+		behavior.set(&"_state", ChargeBehavior.State.APPROACH)
+		behavior.set(&"_locked_target", null)
+		await wait_frames(2)
+		var released: bool = tokens.held_target(attacker) != _necromancer
+		_necromancer.summoner.toggle_selected()
+		await wait_frames(2)
+		return _check("예고가 끊기면 옛 대상의 공격권을 반납", switch_frame >= 0 and held_before and released, "예고 중 대상이 언데드로 바뀐 프레임 %d, 끊기 전 네크로맨서의 공격권을 듦 %s, 끊긴 뒤 2프레임 안에 반납 %s" % [
+				switch_frame, held_before, released])
+	var switched: bool = false
+	var kept_frames: int = 0
+	var busy_frames: int = 0
+	var other_normal: int = 0
+	while behavior.get_state() != ChargeBehavior.State.APPROACH and busy_frames < WINDUP_TIMEOUT_FRAMES:
+		await wait_frames(1)
+		# 멈칫이 끝난 프레임(다시 다가가기, 공격권 반납)은 세지 않는다.
+		if behavior.get_state() == ChargeBehavior.State.APPROACH:
+			break
+		busy_frames += 1
+		if is_instance_valid(undead) and attacker.get_target() == undead:
+			switched = true
+		if tokens.held_target(attacker) == _necromancer:
+			kept_frames += 1
+		if tokens.held_target(other) == _necromancer and not tokens.holds_extra(other):
+			other_normal += 1
+	var released_after: bool = tokens.held_target(attacker) != _necromancer
+	_necromancer.summoner.toggle_selected()
+	await wait_frames(2)
+	var ok: bool = switched and kept_frames == busy_frames and other_normal == 0 and released_after
+	return _check("멧돼지는 멈칫까지 공격권을 듦", ok, "예고 중 언데드를 곁에 둠: 대상이 언데드로 바뀜 %s, 예고~멈칫 %d프레임 중 네크로맨서의 공격권을 든 프레임 %d, 다른 멧돼지가 보통 공격권을 든 프레임 %d, 멈칫이 끝난 뒤 반납 %s" % [
+			switched, busy_frames, kept_frames, other_normal, released_after])
+
+
+## 7. 박쥐는 공격권을 쓰지 않는다
 func _bats_unlimited() -> void:
 	var bat: Monster = _spawn(load(BAT_PATH), NECRO_SPOT + Vector2(-200, 0))
 	await wait_frames(2)

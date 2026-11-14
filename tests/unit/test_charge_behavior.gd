@@ -279,3 +279,17 @@ func test_token_returned_when_recover_ends() -> void:
 		assert_eq(body.finished, 0, "돌진·멈칫 중에는 공격권을 들고 있다")
 		_step(false)
 	assert_eq(body.finished, 1, "멈칫이 끝나면 공격 한 번이 끝난다 (공격권 반납)")
+
+
+func test_keeps_token_on_target_change_only_while_attacking() -> void:
+	assert_false(charge.keeps_token_on_target_change(), "다가가는 중에는 대상이 바뀌면 반납한다")
+	target.position = Vector2(charge.charge_range - 10.0, 0)
+	_step()
+	assert_eq(charge.get_state(), ChargeBehavior.State.WINDUP)
+	var seen: Dictionary = {}
+	while charge.get_state() != ChargeBehavior.State.APPROACH:
+		seen[charge.get_state()] = true
+		assert_true(charge.keeps_token_on_target_change(), "예고·돌진·멈칫 중에는 들고 있다 (상태 %d)" % charge.get_state())
+		_step(false)
+	assert_eq(seen.size(), 3, "예고·돌진·멈칫을 모두 지남")
+	assert_false(charge.keeps_token_on_target_change(), "멈칫이 끝나면 다시 반납한다")

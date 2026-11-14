@@ -149,6 +149,12 @@ func may_attack(body: CharacterBody2D, target: Node2D) -> bool:
 	return true
 
 
+## 노리는 대상이 바뀌어도 지금 든 공격권을 반납하지 않는지. 시작한 공격을 처음 대상으로 끝까지 하는 동안(멧돼지의 예고~멈칫) true다.
+## 그때는 공격이 끝날 때 attack_done으로 반납한다.
+func keeps_token_on_target_change() -> bool:
+	return false
+
+
 ## 공격 한 번이 끝났다고 쓰는 쪽에 알린다 (공격권 반납).
 func attack_done(body: CharacterBody2D) -> void:
 	if body.has_method(&"finish_attack"):

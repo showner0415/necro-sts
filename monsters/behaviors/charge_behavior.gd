@@ -8,6 +8,7 @@ extends MonsterBehavior
 ## - 멈칫: recover_time초 동안 멈춘다 (때릴 기회)
 ## 노리는 대상은 다가가는 중에만 바뀐다. 예고를 시작할 때의 대상을 멈칫이 끝날 때까지 유지한다.
 ## 공격권(Monster.request_attack)이 없으면 예고를 시작하지 않고 대상에게서 맴도는 거리(stats.wait_distance)를 두고 돌며 기다린다. 멈칫이 끝나면 공격 한 번이 끝난다(공격권 반납).
+## 예고부터 멈칫까지는 노리는 대상이 바뀌어도 공격권을 들고 있다 (keeps_token_on_target_change).
 ## 칠 수 있는 상대는 쓰는 쪽의 get_hostiles()가 정한다 (적 멧돼지: 네크로맨서·언데드, 언데드 멧돼지: 몬스터).
 
 enum State { APPROACH, WINDUP, CHARGE, RECOVER }
@@ -76,6 +77,12 @@ var _turn_away_left: float = 0.0
 
 
 func is_busy() -> bool:
+	return _state != State.APPROACH
+
+
+## 예고부터 멈칫까지는 예고를 시작한 대상을 끝까지 노리므로, 노리는 대상이 바뀌어도 그 대상의 공격권을 멈칫이 끝날 때까지 든다
+## (다른 멧돼지가 같은 대상에게 겹쳐 돌진하지 않게. 사용자 결정 2026-11-14).
+func keeps_token_on_target_change() -> bool:
 	return _state != State.APPROACH
 
 
