@@ -18,3 +18,7 @@ regions/*_terrain.res
 
 # Claude Code가 만드는 git worktree (claude --worktree, isolation: worktree 서브에이전트)
 .claude/worktrees/
+
+# UI 그림 받는 곳 (ui-designer 에이전트). 받은 그림은 붙이기에서 art_src/ui/<화면 id>/로 옮긴다
+/art_src/ui/inbox/*
+!/art_src/ui/inbox/.gdignore
