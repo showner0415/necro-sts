@@ -1,6 +1,6 @@
 extends SceneTree
 ## 맵 PNG(또는 씬의 벽 배치) → 동굴 벽 윤곽 파일과 구역별 지형 메시 파일. 지금은 화면(3D 층)에서만 쓴다. 지역 씬과 map_from_png.gd는 건드리지 않는다.
-## 출력: 걸린 시간, 윤곽선 수, 바위가 PNG 바닥을 덮는 가장 깊은 곳, 좁은 바닥마다 지나갈 수 있는 폭, 구간별 메시 시간·삼각형 수.
+## 출력: 걸린 시간, 윤곽선 수, 바위가 PNG 바닥을 덮는 가장 깊은 곳, 좁은 바닥마다 지나갈 수 있는 폭, 길목(ChokeFinder, 윤곽 파일의 chokes에 저장)마다 칸 수·입구·대기 자리·우회 비율, 구간별 메시 시간·삼각형 수.
 ##
 ## 실행 (기본값은 얕은 굴): bash tools/godot.sh --headless --path . -s tools/map_png/make_cave_outline.gd
 ## 다른 맵: -- --scene=res://regions/<맵>.tscn --in=res://art_src/maps/<맵>.png --settings=res://data/terrain/<값>.tres
@@ -36,6 +36,8 @@ func _initialize() -> void:
 	var outline: CaveOutline = CaveOutline.new(rows, load(args.settings))
 	var data: CaveOutlineData = outline.build()
 	data.source_png_md5 = FileAccess.get_md5(args["in"]) if not (args["in"] as String).is_empty() else ""
+	var wall_chars: String = walls.wall_chars if (args["in"] as String).is_empty() else MapLayout.WALL_CHARS
+	data.chokes = ChokeFinder.from_settings(load(args.settings)).find(rows, data.cell_px, wall_chars)
 	print("윤곽 계산: %dms, 격자 점 %s, 윤곽선 %d개, 윤곽선 점 %d개, 모양 지문 %s" % [Time.get_ticks_msec() - started, data.nodes(), data.loops.size(), _points(data), _shape_hash(data)])
 	var outline_path: String = "%s_outline.res" % (args.scene as String).get_basename()
 	var error: int = ResourceSaver.save(data, outline_path, ResourceSaver.FLAG_COMPRESS)
@@ -46,6 +48,7 @@ func _initialize() -> void:
 	print("양쪽 끝이 있는 좁은 바닥 %d곳. 지나갈 수 있는 폭이 좁은 순서:" % chokes.size())
 	for entry: Dictionary in chokes.slice(0, REPORT_TAIL):
 		print("  칸 %s: %.0fpx (입력 칸 그대로면 %.0fpx)" % [entry.cell, entry.width, entry.png_width])
+	_print_chokes(data)
 	error = maxi(error, _bake(args.scene, data, walls, args["in"], args.settings))
 	scene.free()
 	quit(0 if error == OK else 1)
@@ -84,3 +87,18 @@ func _points(data: CaveOutlineData) -> int:
 	for line: PackedVector2Array in data.loops:
 		total += line.size()
 	return total
+
+
+## 구운 길목들을 출력한다 (칸 수, 입구, 대기 자리 수, 우회 비율)
+func _print_chokes(data: CaveOutlineData) -> void:
+	print("길목 %d곳 (폭 2칸 이하, 입구 둘 이상):" % data.chokes.size())
+	for i: int in data.chokes.size():
+		var choke: ChokeData = data.chokes[i]
+		var spots: PackedStringArray = PackedStringArray()
+		for list: PackedVector2Array in choke.wait_spots:
+			spots.append(str(list.size()))
+		var ratios: PackedStringArray = PackedStringArray()
+		for ratio: float in choke.detour_ratios:
+			ratios.append("없음" if ratio < 0.0 else "%.2f" % ratio)
+		var first: Vector2 = choke.cells[0]
+		print("  길목 %d: %d칸 (칸 %s 근처), 입구 %d개 %s, 대기 자리 %s, 우회 비율 %s" % [i, choke.cells.size(), Vector2i(first), choke.entrances.size(), choke.entrances, "/".join(spots), ", ".join(ratios)])

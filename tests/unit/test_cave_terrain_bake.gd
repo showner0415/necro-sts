@@ -13,6 +13,8 @@ const NOT_BAKE_CLASSES: Dictionary[String, String] = {
 	"CaveOutlineSettings": "값은 지문에 따로 들어간다",
 	"RegionView3D": "벽 높이 값만 읽고, 값은 지문에 따로 들어간다",
 	"PlaceholderGround": "구운 지형은 벽(from_walls)만 읽는다",
+	"ChokeFinder": "길목 데이터만 만들고 메시 모양은 정하지 않는다 (구운 길목이 맞는지는 test_outline_chokes_match_finder가 본다)",
+	"ChokeData": "길목 데이터를 담기만 한다",
 }
 
 var _walls: PlaceholderWalls
@@ -97,6 +99,20 @@ func test_bake_scripts_cover_their_classes() -> void:
 func test_outline_matches_png() -> void:
 	var outline: CaveOutlineData = load("res://regions/shallow_cave_outline.res")
 	assert_eq(outline.source_png_md5, FileAccess.get_md5("res://art_src/maps/shallow_cave.png"), "PNG를 고쳤으면 다시 만들기: %s" % CaveTerrainBake.BAKE_TOOL)
+
+
+## 길목(chokes)도 윤곽 파일에 구워 둔다. 길목 찾기 코드나 값을 고치고 다시 굽지 않으면 실패한다.
+func test_outline_chokes_match_finder() -> void:
+	var outline: CaveOutlineData = load("res://regions/shallow_cave_outline.res")
+	var rows: PackedStringArray = MapLayout.from_file("res://art_src/maps/shallow_cave.png").rows
+	var fresh: Array[ChokeData] = ChokeFinder.from_settings(outline.settings).find(rows, outline.cell_px, MapLayout.WALL_CHARS)
+	assert_true(outline.chokes.size() > 0, "구운 길목이 있다")
+	assert_eq(outline.chokes.size(), fresh.size(), "길목 수가 같다. 다르면 다시 굽기: %s" % CaveTerrainBake.BAKE_TOOL)
+	for i: int in mini(outline.chokes.size(), fresh.size()):
+		var saved: ChokeData = outline.chokes[i]
+		assert_eq(saved.cells, fresh[i].cells, "길목 %d의 칸" % i)
+		assert_eq(saved.wait_spots, fresh[i].wait_spots, "길목 %d의 대기 자리" % i)
+		assert_eq(saved.detour_ratios, fresh[i].detour_ratios, "길목 %d의 우회 비율" % i)
 
 
 func _world_position(node: Node2D) -> Vector2:
