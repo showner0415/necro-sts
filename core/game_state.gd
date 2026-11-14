@@ -1,6 +1,6 @@
 extends Node
 ## 오토로드 GameState: 지역 씬이 바뀌거나 다시 불러와도 유지되는 게임 전역 상태.
-## 네크로맨서의 인벤토리·핫바와 거점 창고를 가진다. 지역 씬은 시작할 때 여기서 받아 쓴다.
+## 네크로맨서의 인벤토리·핫바와 거점 창고, 던전 상태(DungeonRun)를 가진다. 지역 씬은 시작할 때 여기서 받아 쓴다.
 
 @export var inventory_data: InventoryData
 ## 거점 창고 설정 (칸 수)
@@ -10,6 +10,8 @@ var inventory: Inventory
 var hotbar: Hotbar
 ## 거점 창고. 죽어도 비우지 않는다.
 var storage: Inventory
+## 던전에 들어가 있는 동안의 상태 (지역마다 스냅샷, 시드 난수). 거점에 들어가면 비운다 (계획 5단계)
+var dungeon: DungeonRun = DungeonRun.new()
 
 
 func _ready() -> void:

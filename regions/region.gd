@@ -47,6 +47,7 @@ var _open_machine: RepairMachine
 
 
 func _ready() -> void:
+	_apply_dungeon_state()
 	_inventory = GameState.inventory
 	_necromancer.inventory = _inventory
 	_necromancer.summoner.bind(_inventory, GameState.hotbar)
@@ -111,11 +112,28 @@ func _ready() -> void:
 		_chest_screen.open_changed.connect(_on_chest_open_changed)
 
 
+## 던전 상태 (계획 5단계): 거점에 들어오면 던전 상태를 비운다 (몬스터 초기화). 거점에서 던전 지역에 처음 들어오면 던전을 시작하고,
+## 던전 안에서 다시 들어온 지역이면 떠날 때 남긴 상태(RegionSnapshot)를 되살린다.
+func _apply_dungeon_state() -> void:
+	if data == null:
+		return
+	var run: DungeonRun = GameState.dungeon
+	if data.is_base:
+		run.clear()
+	elif not run.is_active():
+		run.start(randi())
+	elif run.has_snapshot(data.id):
+		RegionSnapshot.restore(self, $Actors, run.get_snapshot(data.id))
+
+
 ## destination 지역 씬으로 간다. 소환 중인 언데드는 일반 해제된다 (머리뼈의 체력·내구도는 그대로).
 func travel_to(destination: RegionData) -> void:
 	if _traveling or destination == null:
 		return
 	_traveling = true
+	# 던전 지역을 떠나면 이 지역의 상태를 남긴다 (돌아오면 되살린다. 쫓던 무리는 놓친 것으로 본다).
+	if data != null and not data.is_base and GameState.dungeon.is_active():
+		GameState.dungeon.save(data.id, RegionSnapshot.capture(self))
 	_necromancer.summoner.roster.unsummon_all()
 	# 물리 처리 중(탈출 지점 판정 등)에 씬을 바꾸지 않도록 미룬다.
 	get_tree().change_scene_to_file.call_deferred(destination.scene_path)
