@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="PackLeaderSettings" format=3]
+
+[ext_resource type="Script" path="res://monsters/pack_leader_settings.gd" id="1_settings"]
+
+[resource]
+script = ExtResource("1_settings")
+chance = 0.15
+member_damage_ratio = 1.2
+leader_health_ratio = 1.5

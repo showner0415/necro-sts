@@ -7,6 +7,8 @@ extends RefCounted
 
 var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var _active: bool = false
+## 대장을 확정으로 낼 무리 종류 id (퀘스트 대상 무리. 퀘스트와 잇는 것은 나중, 계획 6a)
+var forced_leader_packs: Array[StringName] = []
 ## 지역 id → 스냅샷
 var _snapshots: Dictionary = {}
 
@@ -40,3 +42,8 @@ func has_snapshot(region_id: StringName) -> bool:
 ## 저장한 지역 상태 (없으면 빈 사전)
 func get_snapshot(region_id: StringName) -> Dictionary:
 	return _snapshots.get(region_id, {})
+
+
+## 이 무리 종류에는 반드시 대장을 내는지
+func forces_leader(pack_id: StringName) -> bool:
+	return forced_leader_packs.has(pack_id)

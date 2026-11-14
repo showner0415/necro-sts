@@ -44,6 +44,9 @@ static var _debug_toggled_frame: int = -1
 
 var _pack: PackAttack
 var _monsters: Array[Monster] = []
+## 무리 대장 (계획 6a). 살아 있는 동안 무리원 공격력에 대장 배율을 곱하고, 죽으면 바로 되돌린다
+var _leader: Monster
+var _leader_active: bool = false
 var _set_up: bool = false
 ## 대상 하나를 함께 노리는 무리인지 (첫 멤버의 MonsterData.pack_one_target)
 var _one_target: bool = false
@@ -102,6 +105,7 @@ func _physics_process(delta: float) -> void:
 	if not _set_up:
 		_set_up = true
 		_bind()
+	_check_leader()
 	var alive: Array[Monster] = _alive_members()
 	if not alive.is_empty():
 		if _one_target:
@@ -407,3 +411,29 @@ func _bind() -> void:
 		return
 	for monster: Monster in _monsters:
 		monster.get_behavior().join_pack(_pack)
+
+
+## 무리 대장을 정한다 (무리 자리 PackSpawn이 무리를 만들 때). 대장이 살아 있는 동안 무리원 모두(대장 포함)의 공격력에 ratio를 곱한다.
+func set_leader(leader: Monster, ratio: float) -> void:
+	_leader = leader
+	_leader_active = true
+	for monster: Monster in _monsters:
+		monster.damage_ratio = ratio
+
+
+## 테스트·디버그용: 대장 (없거나 죽었으면 null)
+func get_leader() -> Monster:
+	return _leader if _leader_active else null
+
+
+## 대장이 죽으면(사라지거나 체력 0) 강화를 바로 없앤다.
+func _check_leader() -> void:
+	if not _leader_active:
+		return
+	if is_instance_valid(_leader) and not _leader.is_queued_for_deletion() and _leader.health > 0.0:
+		return
+	_leader_active = false
+	_leader = null
+	for monster: Variant in _monsters:
+		if is_instance_valid(monster):
+			(monster as Monster).damage_ratio = 1.0

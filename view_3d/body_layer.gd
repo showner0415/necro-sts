@@ -6,6 +6,7 @@ extends Node3D
 ## - 그림이 없으면 임시 도형과 같은 모양의 흰 형판(PlaceholderArt)에 2D와 같은 색을 곱한다
 ## - 위치·보임·투명도(시야 Vision이 정한 값)·맞았을 때 번쩍임은 프레임마다 2D 노드에서 옮긴다
 ## - 몸은 화면 픽셀에 맞춰 놓는다 (꿈틀거리지 않게)
+## - 무리 대장은 몸 그림 위에 작은 왕관(LeaderCrown)을 같은 자리·같은 투명도로 덧그린다
 ## - 발밑이 화면 밖(offscreen_margin 여유)에 있는 몸은 숨기고 갱신하지 않는다. 앞벽 처리에는 화면 안의 몸(get_onscreen_bodies)만 넘긴다
 
 const BODY_SHADER: String = "res://view_3d/body.gdshader"
@@ -48,9 +49,13 @@ func sync_bodies(nodes: Array[Node2D], delta: float) -> void:
 			_update_visual(node, visual, delta)
 		else:
 			visual.quad.visible = false
+			if visual.crown != null:
+				visual.crown.visible = false
 	for node: Variant in _visuals.keys():
 		if not alive.has(node):
 			(_visuals[node] as _Visual).quad.queue_free()
+			if (_visuals[node] as _Visual).crown != null:
+				(_visuals[node] as _Visual).crown.queue_free()
 			_visuals.erase(node)
 
 
@@ -105,22 +110,47 @@ func _is_body(node: Node2D) -> bool:
 
 func _make_visual(node: Node2D) -> _Visual:
 	var visual: _Visual = _Visual.new()
-	var quad: MeshInstance3D = MeshInstance3D.new()
-	var mesh: QuadMesh = QuadMesh.new()
-	mesh.size = Vector2.ONE
-	quad.mesh = mesh
 	visual.material = ShaderMaterial.new()
-	visual.material.shader = _shader
-	visual.material.set_shader_parameter(&"depth_bias", depth_bias)
-	quad.material_override = visual.material
-	quad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	quad.extra_cull_margin = CULL_MARGIN
-	add_child(quad)
-	visual.quad = quad
+	visual.quad = _make_quad(visual.material)
 	for child: Node in node.get_children():
 		if child is FacingSprite:
 			visual.sprite = child as FacingSprite
 	return visual
+
+
+## 몸 셰이더를 쓰는 사각형 하나 (몸, 대장 왕관)
+func _make_quad(material: ShaderMaterial) -> MeshInstance3D:
+	var quad: MeshInstance3D = MeshInstance3D.new()
+	var mesh: QuadMesh = QuadMesh.new()
+	mesh.size = Vector2.ONE
+	quad.mesh = mesh
+	material.shader = _shader
+	material.set_shader_parameter(&"depth_bias", depth_bias)
+	quad.material_override = material
+	quad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	quad.extra_cull_margin = CULL_MARGIN
+	add_child(quad)
+	return quad
+
+
+## 무리 대장이면 몸 그림 위에 왕관(LeaderCrown)을 몸과 같은 자리·같은 투명도로 그린다. 대장이 아니면 숨긴다.
+func _update_crown(node: Node2D, visual: _Visual, color: Color) -> void:
+	var leader: bool = node is Monster and (node as Monster).is_leader
+	if not leader:
+		if visual.crown != null:
+			visual.crown.visible = false
+		return
+	if visual.crown == null:
+		visual.crown_material = ShaderMaterial.new()
+		visual.crown = _make_quad(visual.crown_material)
+		visual.crown_material.set_shader_parameter(&"sprite_texture", LeaderCrown.texture())
+	var size: Vector2 = Vector2(LeaderCrown.size())
+	var top_left: Vector2 = LeaderCrown.top_left_for_art(visual.texture, visual.offset)
+	visual.crown_material.set_shader_parameter(&"sprite_size", size)
+	visual.crown_material.set_shader_parameter(&"sprite_offset", Vector2(top_left.x, -(size.y + top_left.y)))
+	visual.crown_material.set_shader_parameter(&"tint", Vector4(1.0, 1.0, 1.0, color.a))
+	visual.crown.global_position = visual.quad.global_position
+	visual.crown.visible = visual.quad.visible
 
 
 func _update_visual(node: Node2D, visual: _Visual, delta: float) -> void:
@@ -138,6 +168,7 @@ func _update_visual(node: Node2D, visual: _Visual, delta: float) -> void:
 	visual.material.set_shader_parameter(&"tint", Vector4(color.r, color.g, color.b, color.a))
 	visual.quad.global_position = _view.snap_to_pixels(_position_3d(node))
 	visual.quad.visible = node.visible
+	_update_crown(node, visual, color)
 
 
 ## 상자가 시야 안에 있는 정도를 fade_time에 걸쳐 옮긴다. 시야가 없거나 꺼져 있으면 언제나 보인다.
@@ -223,3 +254,6 @@ class _Visual:
 	var sight: float = -1.0
 	## 이번 프레임에 화면 안(여유 포함)이라 그리는지
 	var on_screen: bool = false
+	## 무리 대장 왕관 사각형과 재질 (대장일 때 처음 만든다)
+	var crown: MeshInstance3D
+	var crown_material: ShaderMaterial

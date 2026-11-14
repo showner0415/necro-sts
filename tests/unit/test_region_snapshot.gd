@@ -103,6 +103,7 @@ func test_pack_spawn_members_are_captured_alive_only() -> void:
 	for monster: Monster in members:
 		# 단위 테스트 실행기는 _ready 전에 돈다. 살아 있는 몸으로 보이게 체력을 넣는다.
 		monster.health = 4.0
+	members[0].is_leader = true
 	var killed_name: String = members[1].name
 	members[1].free()
 	var packs: Dictionary = RegionSnapshot.capture(region)["packs"]
@@ -113,3 +114,4 @@ func test_pack_spawn_members_are_captured_alive_only() -> void:
 		assert_ne(entry["index"], 1, "죽은 번호(%s)는 없다" % killed_name)
 		assert_eq(entry["health"], 4.0, "체력")
 		assert_eq(entry["data"], load("res://data/monsters/rat.tres"), "몬스터 데이터")
+		assert_eq(entry["leader"], entry["index"] == 0, "대장 여부 (0번이 대장)")

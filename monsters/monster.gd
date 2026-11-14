@@ -4,7 +4,7 @@ extends CharacterBody2D
 ## 배회하다가 네크로맨서나 언데드가 감지 범위에 들어오면 그중 가장 가까운 대상을 노린다.
 ## 감지 범위에 아무도 없을 때 맞으면 공격한 대상을 쫓고, 종별 추격 포기 조건을 넘으면 포기한다 (Aggro). 포기해도 돌아가지 않고 그 자리에서 배회한다.
 ## 무리(MonsterPack)에 속해 있으면 무리가 정한 대상(set_pack_target)을 자기 판단보다 먼저 노린다. 무리에 알리는 신호 중(set_alarm_signal)에는 멈춰 깜빡인다.
-## 대상과 어떻게 싸울지는 데이터의 행동 조각(data.behavior)이 정하고, 수치는 적일 때의 값(data.get_enemy_stats())을 쓴다.
+## 대상과 어떻게 싸울지는 데이터의 행동 조각(data.behavior)이 정하고, 수치는 적일 때의 값에 무리 대장 강화를 곱한 값(_combat_stats())을 쓴다.
 ## 죽으면 드랍 목록(data.drops)의 확률을 굴려 나온 것을 담은 시체(Corpse)를 남긴다. 네크로맨서가 시체에서 채집한다.
 
 @export var data: MonsterData
@@ -53,6 +53,10 @@ var _necromancer_node: Node2D
 static var _next_think_slot: int = 0
 ## 지금까지 판단(_think)한 횟수 (모든 몬스터 합, 측정용)
 static var think_count: int = 0
+## 무리 대장인지 (머리 위 왕관을 그린다, 계획 6a). 무리 자리(PackSpawn)가 정한다
+var is_leader: bool = false
+## 공격력 배율: 무리 대장이 살아 있는 동안 같은 무리원은 대장 값만큼 세다 (MonsterPack이 정하고 대장이 죽으면 1로 되돌린다)
+var damage_ratio: float = 1.0
 ## 네크로맨서에게 맞은 횟수. 언데드가 "방금 맞았다"(계기)를 알아보는 데 쓴다.
 var _necromancer_hits: int = 0
 var _wander_direction: Vector2 = Vector2.ZERO
@@ -173,7 +177,7 @@ func _think(delta: float) -> void:
 	if _alarm_signalling:
 		velocity = Vector2.ZERO
 	elif _ai.is_fighting():
-		_behavior.act(self, data.get_enemy_stats(), _target, delta)
+		_behavior.act(self, _combat_stats(), _target, delta)
 	else:
 		_wander(delta)
 	# 길목 입구 밖에서 기다리는 동안은 대상과의 거리와 상관없이 공격권을 묻는다 (사용자 결정 2026-11-14). 받으면 다음 판단부터 길목에 들어간다.
@@ -433,6 +437,10 @@ func draw_ground_marks(canvas: CanvasItem) -> void:
 	# 공격권을 든 몬스터는 발밑에 점 (보통 공격권 흰색, 추가 공격권 노랑). 무리가 없는 몬스터도 그린다.
 	if is_holding_token():
 		canvas.draw_circle(Vector2.ZERO, debug_token_radius, DEBUG_EXTRA_TOKEN_COLOR if is_holding_extra_token() else DEBUG_TOKEN_COLOR)
+	# 무리 대장은 무리 색 고리 바깥에 왕관 색 고리를 하나 더 그린다 (모양은 제안, 계획 6a)
+	if is_leader:
+		var leader_ring: float = data.get_placeholder_half_size().x + DEBUG_RING_MARGIN * 2.0
+		canvas.draw_arc(Vector2.ZERO, leader_ring, 0.0, TAU, DEBUG_ARC_POINTS, LeaderCrown.COLOR, 1.0)
 
 
 ## 무리 디버그 표시 (F3, MonsterPack): 발밑에 무리 색 고리. 평소에는 배회 기준점까지 선과 기준점 둘레,
@@ -525,6 +533,12 @@ func _draw() -> void:
 	draw_ground_marks(self)
 	if _sprite == null:
 		PlaceholderBody.draw(self, data, get_placeholder_tint(), PlaceholderBody.center(data))
+	# 무리 대장은 몸 그림 위에 작은 왕관을 그린다.
+	if is_leader:
+		if _sprite != null:
+			LeaderCrown.draw(self, _sprite.position + LeaderCrown.top_left_for_art(_sprite.sprite_frames.get_frame_texture(_sprite.animation, _sprite.frame), _sprite.offset))
+		else:
+			LeaderCrown.draw(self, LeaderCrown.top_left_for_top(-data.get_placeholder_half_size().y * 2.0))
 
 
 ## 평소(IDLE)에 보던 대상을 기억했다가, 놓치면(벽 뒤로 숨거나 감지 범위를 벗어남) 공격자를 쫓을 때와 같은 포기 조건까지 쫓는다.
@@ -587,3 +601,10 @@ func _pause_token_in_choke() -> void:
 	if board == null or not board.tokens.is_holding(self) or _path_follower.choke_at_body(self) < 0:
 		return
 	board.tokens.pause_hold(self)
+
+
+## 싸울 때 쓰는 능력치: 데이터의 적 능력치에 무리 대장 강화(damage_ratio)를 곱한다.
+func _combat_stats() -> CombatStats:
+	var stats: CombatStats = data.get_enemy_stats()
+	stats.contact_damage *= damage_ratio
+	return stats

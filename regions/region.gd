@@ -135,7 +135,7 @@ func _apply_dungeon_state() -> void:
 		if saved_packs.has(key):
 			spawn.spawn_saved($Actors, saved_packs[key])
 		else:
-			spawn.spawn($Actors, run.rng, _is_free_floor)
+			spawn.spawn($Actors, run.rng, _is_free_floor, spawn.pack != null and run.forces_leader(spawn.pack.id))
 
 
 ## 무리원을 놓아도 되는 바닥인지: 벽(윤곽이 있으면 윤곽의 바위)에서 spawn_floor_margin만큼 떨어졌는지. 벽이 없는 지역이면 늘 true.
