@@ -6,7 +6,8 @@ extends ScenarioTest
 ##    공격권이 없는 쥐는 입구 밖 대기 자리에서 기다리며, 기다리는 동안 거리와 상관없이 공격권을 물어 받은 쥐는 길목에 들어간다
 ## 3. 기다리던 쥐가 대상을 잃으면(추격 포기) 대기 자리를 내놓는다 (같은 구역에 쥐를 새로 놓고 처음 기다리는 쥐를 포기시킨다)
 ## 4. 돌아가는 길목: 쥐 4마리가 길목 너머 네크로맨서를 쫓으면, 공격권 없이 길목에 들어가는 쥐가 없고, 기다리지 않고 아래 통로로 돌아간다
-## 쥐는 데이터 복사로 배회 0·체력 크게·추격 포기 없음·빠르게 한다 (긴 길목을 짧은 시간에 지나게). 네크로맨서는 체력을 크게 한다. 실제 .tres는 바꾸지 않는다.
+## 5. 실제 속도의 쥐가 돌아갈 길 없는 긴 길목(26칸, 약 21초)을 지나는 동안 공격권 시간 제한이 멈춰 공격권을 잃지 않는다
+## 쥐는 데이터 복사로 배회 0·체력 크게·추격 포기 없음·빠르게 한다 (긴 길목을 짧은 시간에 지나게. 5단계만 실제 속도). 네크로맨서는 체력을 크게 한다. 실제 .tres는 바꾸지 않는다.
 
 const CHOKE_SCENE: String = "res://tests/choke_test_cave.tscn"
 const MONSTER_SCENE: String = "res://monsters/monster.tscn"
@@ -24,6 +25,8 @@ const WATCH_FRAMES: int = 600
 const SPOT_REACH: float = 24.0
 ## 포기한 뒤 대기 자리를 내놓았는지 볼 때까지 기다리는 프레임 (먼 몸은 4프레임에 한 번 판단한다)
 const GIVE_UP_FRAMES: int = 10
+## 실제 속도 쥐가 긴 길목을 지나기를 기다리는 최대 시간 (초)
+const LONG_CHOKE_SECONDS: float = 45.0
 const DETOUR_TOP: float = 7.0 * 32.0
 const DETOUR_BOTTOM: float = 10.0 * 32.0
 
@@ -47,7 +50,10 @@ func _on_scene_ready() -> void:
 		return
 	if not await _wait_at_choke():
 		return
-	finish(await _detour())
+	if not await _detour():
+		finish(false)
+		return
+	finish(await _long_choke_keeps_token())
 
 
 ## 1. 구운 길목
@@ -183,4 +189,42 @@ func _detour() -> bool:
 		pass_step("돌아가는 길목", evidence)
 	else:
 		fail_step("돌아가는 길목", evidence)
+	return ok
+
+
+## 5. 실제 속도의 쥐가 돌아갈 길 없는 긴 길목을 지나는 동안 공격권 시간 제한이 멈춰 공격권을 잃지 않는다
+func _long_choke_keeps_token() -> bool:
+	_necromancer.global_position = FAR_NECRO
+	var data: MonsterData = _tough_rat()
+	data.move_speed = (load(RAT_PATH) as MonsterData).move_speed
+	for node: Node in get_nodes_in_group(&"monsters"):
+		node.free()
+	var rat: Monster = (load(MONSTER_SCENE) as PackedScene).instantiate()
+	rat.data = data
+	rat.position = FAR_RATS[0]
+	_necromancer.get_parent().add_child(rat)
+	await wait_frames(3)
+	rat.take_damage(0.01, _necromancer)
+	var index: ChokeIndex = _grid.get_choke_index()
+	var frames: int = roundi(LONG_CHOKE_SECONDS * Engine.physics_ticks_per_second)
+	var inside_frames: int = 0
+	var lost_inside: int = 0
+	var exited: bool = false
+	for frame: int in frames:
+		await wait_frames(1)
+		var inside: bool = index.choke_at(rat.global_position) >= 0
+		if inside:
+			inside_frames += 1
+			if _board.tokens.held_target(rat) != _necromancer:
+				lost_inside += 1
+		elif inside_frames > 0:
+			exited = true
+			break
+	var seconds: float = inside_frames / float(Engine.physics_ticks_per_second)
+	var ok: bool = exited and lost_inside == 0 and seconds > _board.hold_time_limit
+	var evidence: String = "속도 %.0f 쥐가 길목 안에 %.1f초 (공격권 시간 제한 %.0f초), 길목 안에서 공격권 없던 프레임 %d, 빠져나옴 %s" % [data.move_speed, seconds, _board.hold_time_limit, lost_inside, exited]
+	if ok:
+		pass_step("긴 길목에서 공격권 유지", evidence)
+	else:
+		fail_step("긴 길목에서 공격권 유지", evidence)
 	return ok

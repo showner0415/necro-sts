@@ -8,6 +8,7 @@ extends RefCounted
 ## - 반납: 공격이 끝남(finish_attack), 그 밖의 반납(release: 죽음, 대상이 바뀌거나 놓침, 멀리 밀려남), 시간 제한(hold_time_limit초)
 ## - 시간 제한으로 반납한 몸은 그 대상의 공격권을 retry_block_time초 받지 못한다 (기다리는 몸으로도 적지 않는다. 묶인 권한이 다른 몸에게 가게)
 ## - 기다리는 몸 목록은 update()마다 비운다 (그 프레임에 다시 묻지 않은 몸은 기다리지 않는 것이다)
+## - pause_hold(member)를 알린 프레임에는 그 몸의 시간 제한이 흐르지 않는다 (길목 안에서 움직이는 동안, 사용자 결정 2026-11-14). 멈춘 곳부터 이어서 센다
 ## 무작위는 넣어 준 난수(RandomNumberGenerator)를 쓴다 (시드로 재현할 수 있게).
 
 var extra_interval: float
@@ -22,6 +23,8 @@ var _waiting: Dictionary = {}
 var _extra_timers: Dictionary = {}
 ## 시간 제한으로 반납한 몸 → {"target": 대상, "left": 남은 시간}. 그동안 그 대상의 공격권을 받지 못한다
 var _blocked: Dictionary = {}
+## 이번 프레임에 시간 제한을 멈출 몸 (pause_hold로 알린다. update마다 비운다)
+var _paused: Dictionary = {}
 ## 지금까지 준 추가 공격권 수 (테스트·디버그용)
 var extra_granted: int = 0
 
@@ -63,6 +66,11 @@ func release(member: Object) -> void:
 	_holders.erase(member)
 
 
+## 이번 프레임에는 member의 공격권 시간 제한을 멈춘다 (update 전에 부른다. 다음 update 뒤에는 풀린다).
+func pause_hold(member: Object) -> void:
+	_paused[member] = true
+
+
 ## 물리 프레임마다 한 번, 몸들이 request()를 다 부른 뒤에 부른다.
 ## 시간 제한을 넘은 공격권을 반납하고, 기다리는 몸이 있는 대상마다 추가 공격권 시간을 재서 줄 때가 되면 준다.
 func update(delta: float) -> void:
@@ -75,7 +83,8 @@ func update(delta: float) -> void:
 		if not is_instance_valid(member) or not is_instance_valid(_holders[member]["target"]):
 			_holders.erase(member)
 			continue
-		_holders[member]["held"] += delta
+		if not _paused.has(member):
+			_holders[member]["held"] += delta
 		if hold_time_limit > 0.0 and _holders[member]["held"] > hold_time_limit:
 			if retry_block_time > 0.0:
 				_blocked[member] = {"target": _holders[member]["target"], "left": retry_block_time}
@@ -102,6 +111,7 @@ func update(delta: float) -> void:
 				extra_granted += 1
 		_extra_timers[target] = timer
 	_waiting.clear()
+	_paused.clear()
 
 
 ## target의 kind 종 보통 공격권을 들고 있는 몸 수

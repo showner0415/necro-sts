@@ -119,6 +119,13 @@ func stop_waiting(body: Node2D) -> void:
 	if grid != null:
 		_stop_waiting(grid, body)
 
+
+## body(몸 가운데)가 든 길목 번호. 길목이 없거나 밖이면 -1
+func choke_at_body(body: Node2D) -> int:
+	var grid: NavigationGrid = _find_grid(body)
+	var index: ChokeIndex = grid.get_choke_index() if grid != null else null
+	return index.choke_at(body.global_position + _center_offset) if index != null else -1
+
 ## 길목 입구 밖 대기 자리에서 기다리는 중인지 (공격권 없이 길목을 피하는 중)
 func is_waiting_at_choke() -> bool:
 	return _waiting_spot != Vector2.INF

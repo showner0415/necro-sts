@@ -148,3 +148,16 @@ func test_holders_of_lists_normal_and_extra() -> void:
 	assert_eq(holders.size(), 2, "보통 공격권 하나와 추가 공격권 하나")
 	assert_true(holders.has(rats[0]) and holders.has(rats[1]))
 	assert_true(tokens.holders_of(other_target).is_empty())
+
+
+func test_paused_hold_does_not_run_out_and_resumes() -> void:
+	tokens.request(rats[0], target, RAT, 1)
+	tokens.update(HOLD_LIMIT - 1.0)
+	for i: int in 10:
+		tokens.pause_hold(rats[0])
+		tokens.update(1.0)
+	assert_true(tokens.is_holding(rats[0]), "멈춘 동안은 시간 제한이 오지 않는다")
+	tokens.update(0.5)
+	assert_true(tokens.is_holding(rats[0]), "풀리면 멈춘 곳부터 이어서 센다 (남은 1초)")
+	tokens.update(0.6)
+	assert_false(tokens.is_holding(rats[0]), "이어서 센 시간이 시간 제한을 넘으면 반납")

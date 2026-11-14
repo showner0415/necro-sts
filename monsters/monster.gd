@@ -29,6 +29,8 @@ extends CharacterBody2D
 ## 네크로맨서에게서 이 거리(픽셀)보다 먼 몸은 판단(대상 찾기·시야·행동)을 far_think_interval 프레임에 한 번만 한다 (ThinkThrottle, 임시값. 계획 3b)
 @export var far_think_distance: float = 640.0
 @export var far_think_interval: int = 4
+## 길목 안에서 이 속도(픽셀/초)보다 빨리 움직이는 동안은 공격권 시간 제한을 멈춘다. 밀려나는 것도 센다 (계획 4c, 사용자 결정 2026-11-14)
+@export var choke_hold_pause_speed: float = 5.0
 
 ## 맞았을 때 (source는 때린 쪽). 무리가 이것으로 무리 대상을 정한다.
 signal hit_by(source: Node2D)
@@ -139,6 +141,7 @@ func _physics_process(delta: float) -> void:
 	if _knockback.is_active():
 		velocity = _knockback.get_velocity()
 	move_and_slide()
+	_pause_token_in_choke()
 	_knockback.update(delta)
 	_update_sprite()
 	# 예고 표시(깜빡임, 방향 선)가 프레임마다 바뀐다.
@@ -574,3 +577,13 @@ func _update_sprite() -> void:
 	if moved.length() > SPRITE_TURN_SPEED:
 		_sprite.face(moved)
 	_sprite.update_motion(moved, data.move_speed)
+
+
+## 공격권을 들고 길목 안에서 움직이는 동안은 그 프레임의 공격권 시간 제한을 멈춘다 (사용자 결정 2026-11-14). 서서 싸우면 다시 흐른다.
+func _pause_token_in_choke() -> void:
+	if get_real_velocity().length() < choke_hold_pause_speed:
+		return
+	var board: AttackTokenBoard = _find_token_board()
+	if board == null or not board.tokens.is_holding(self) or _path_follower.choke_at_body(self) < 0:
+		return
+	board.tokens.pause_hold(self)
