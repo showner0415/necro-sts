@@ -10,6 +10,7 @@ extends ScenarioTest
 ##   bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_balance.gd
 ## 일부만: -- --targets=boar,bat_pack --skills=normal --undead=0 --runs=5
 ## 쥐 패거리 (기본 대상에 없음, 계획 8b-2): -- --targets=rat_gang3,rat_gang3_leader,rat_gang4,rat_gang4_leader (결과 tests/balance/results/2026-11-15_rat_pack_fight.md)
+## 벽 방의 쥐 (계획 8b-5): -- --targets=rat_room_s,rat_gang4_room_s,rat_gang4_leader_room_s,rat_room_l,rat_gang4_room_l,rat_gang4_leader_room_l (_s 작은 방 12×9칸, _l 입구 굴만 한 방 36×31칸)
 ## 봇이 몬스터와 유지하는 거리 바꾸기: -- --keep=0 (0이면 거리를 두지 않고 제자리에서 쏘며 예고만 피한다)
 ## 봇이 쏘기를 멈추고 뛰는 거리 바꾸기: -- --run_distance=20 (기본 55. keep이 이보다 작으면 다가오는 몬스터마다 뛰어서 싸움이 끝나지 않을 수 있다)
 ## 무리 동시 공격(박쥐 동시 돌진)을 처음 N번 일부러 못 피하게: -- --miss_pack=1
@@ -39,6 +40,21 @@ const TARGETS: Dictionary = {
 	&"rat_gang3_leader": {"name": "쥐 패거리(3), 대장", "data": "res://data/monsters/rat.tres", "offsets": [Vector2(0, -16), Vector2(16, 0), Vector2(0, 16)], "pack": true, "leader": true},
 	&"rat_gang4": {"name": "쥐 패거리(4)", "data": "res://data/monsters/rat.tres", "offsets": [Vector2(0, -16), Vector2(16, 0), Vector2(0, 16), Vector2(-16, 0)], "pack": true},
 	&"rat_gang4_leader": {"name": "쥐 패거리(4), 대장", "data": "res://data/monsters/rat.tres", "offsets": [Vector2(0, -16), Vector2(16, 0), Vector2(0, 16), Vector2(-16, 0)], "pack": true, "leader": true},
+	## 벽 방의 쥐 (계획 8b-5, 사용자 결정 2026-11-15: 두 크기를 재서 비교). 시작·몬스터 자리는 두 방 모두 goblin_room과 같다 (방 크기만 다르게).
+	## "arena"는 봇이 방 가운데로 돌아오기 시작하는 거리 = 방 짧은 변의 절반 - 24 (goblin_room의 120과 같은 규칙). 기본 대상에는 넣지 않는다
+	## _s: 작은 방 12×9칸 (goblin_room 크기). _l: 입구 굴만 한 방 36×31칸 (입구 굴 바닥 1129칸과 넓이가 비슷하고 테두리 42×36칸과 비율이 비슷, 바위 없음)
+	&"rat_room_s": {"name": "쥐 1마리, 작은 방", "data": "res://data/monsters/rat.tres", "offsets": [Vector2.ZERO],
+		"room": Vector2(384, 288), "start": Vector2(-120, 0), "spawn": Vector2(110, 0), "arena": 120.0},
+	&"rat_gang4_room_s": {"name": "쥐 패거리(4), 작은 방", "data": "res://data/monsters/rat.tres", "offsets": [Vector2(0, -16), Vector2(16, 0), Vector2(0, 16), Vector2(-16, 0)], "pack": true,
+		"room": Vector2(384, 288), "start": Vector2(-120, 0), "spawn": Vector2(110, 0), "arena": 120.0},
+	&"rat_gang4_leader_room_s": {"name": "쥐 패거리(4), 대장, 작은 방", "data": "res://data/monsters/rat.tres", "offsets": [Vector2(0, -16), Vector2(16, 0), Vector2(0, 16), Vector2(-16, 0)], "pack": true, "leader": true,
+		"room": Vector2(384, 288), "start": Vector2(-120, 0), "spawn": Vector2(110, 0), "arena": 120.0},
+	&"rat_room_l": {"name": "쥐 1마리, 큰 방", "data": "res://data/monsters/rat.tres", "offsets": [Vector2.ZERO],
+		"room": Vector2(1152, 992), "start": Vector2(-120, 0), "spawn": Vector2(110, 0), "arena": 472.0},
+	&"rat_gang4_room_l": {"name": "쥐 패거리(4), 큰 방", "data": "res://data/monsters/rat.tres", "offsets": [Vector2(0, -16), Vector2(16, 0), Vector2(0, 16), Vector2(-16, 0)], "pack": true,
+		"room": Vector2(1152, 992), "start": Vector2(-120, 0), "spawn": Vector2(110, 0), "arena": 472.0},
+	&"rat_gang4_leader_room_l": {"name": "쥐 패거리(4), 대장, 큰 방", "data": "res://data/monsters/rat.tres", "offsets": [Vector2(0, -16), Vector2(16, 0), Vector2(0, 16), Vector2(-16, 0)], "pack": true, "leader": true,
+		"room": Vector2(1152, 992), "start": Vector2(-120, 0), "spawn": Vector2(110, 0), "arena": 472.0},
 }
 ## 대장 값 (PackSpawn과 같은 파일)
 const LEADER_SETTINGS: String = "res://data/packs/leader_settings.tres"
@@ -200,7 +216,7 @@ func _fight(target_id: StringName, undead_count: int, skill_id: StringName, run:
 	if _run_distance >= 0.0:
 		bot.run_distance = _run_distance
 	if target.has("room"):
-		bot.arena_radius = ROOM_ARENA_RADIUS
+		bot.arena_radius = target.get("arena", ROOM_ARENA_RADIUS)
 	var skulls: Array[Skull] = []
 	if undead_count > 0:
 		skulls = _give_undead(necromancer, undead_count)
