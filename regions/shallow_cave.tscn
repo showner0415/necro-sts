@@ -12,13 +12,17 @@
 [ext_resource type="PackedScene" path="res://necromancer/necromancer.tscn" id="10_necromancer"]
 [ext_resource type="PackedScene" path="res://monsters/monster.tscn" id="11_monster"]
 [ext_resource type="Resource" path="res://data/monsters/rat.tres" id="12_rat"]
-[ext_resource type="Resource" path="res://data/monsters/boar.tres" id="13_boar"]
-[ext_resource type="Resource" path="res://data/monsters/bat.tres" id="14_bat"]
-[ext_resource type="Resource" path="res://data/monsters/goblin_slinger.tres" id="15_goblin_slinger"]
-[ext_resource type="Script" path="res://monsters/monster_pack.gd" id="16_monster_pack"]
-[ext_resource type="PackedScene" path="res://ui/hud.tscn" id="17_hud"]
-[ext_resource type="PackedScene" path="res://ui/inventory_screen.tscn" id="18_inventory_screen"]
-[ext_resource type="PackedScene" path="res://ui/storage_screen.tscn" id="19_storage_screen"]
+[ext_resource type="Resource" path="res://data/monsters/bat.tres" id="13_bat"]
+[ext_resource type="Resource" path="res://data/monsters/goblin_slinger.tres" id="14_goblin_slinger"]
+[ext_resource type="Script" path="res://monsters/monster_pack.gd" id="15_monster_pack"]
+[ext_resource type="Script" path="res://regions/pack_spawn.gd" id="16_pack_spawn"]
+[ext_resource type="Resource" path="res://data/packs/rat_big.tres" id="17_rat_big"]
+[ext_resource type="Resource" path="res://data/packs/rat_gang.tres" id="18_rat_gang"]
+[ext_resource type="Resource" path="res://data/packs/boar_pack.tres" id="19_boar_pack"]
+[ext_resource type="Resource" path="res://data/packs/mixed_boar_rats.tres" id="20_mixed_boar_rats"]
+[ext_resource type="PackedScene" path="res://ui/hud.tscn" id="21_hud"]
+[ext_resource type="PackedScene" path="res://ui/inventory_screen.tscn" id="22_inventory_screen"]
+[ext_resource type="PackedScene" path="res://ui/storage_screen.tscn" id="23_storage_screen"]
 
 [node name="ShallowCave" type="Node2D"]
 script = ExtResource("1_region")
@@ -133,183 +137,115 @@ y_sort_enabled = true
 position = Vector2(464.0, 3984.0)
 
 [node name="Rat1" parent="Actors" instance=ExtResource("11_monster")]
-position = Vector2(1360.0, 912.0)
-data = ExtResource("12_rat")
-
-[node name="Rat2" parent="Actors" instance=ExtResource("11_monster")]
-position = Vector2(528.0, 944.0)
-data = ExtResource("12_rat")
-
-[node name="Rat3" parent="Actors" instance=ExtResource("11_monster")]
-position = Vector2(560.0, 1616.0)
-data = ExtResource("12_rat")
-
-[node name="Rat4" parent="Actors" instance=ExtResource("11_monster")]
-position = Vector2(4560.0, 1808.0)
-data = ExtResource("12_rat")
-
-[node name="Rat5" parent="Actors" instance=ExtResource("11_monster")]
-position = Vector2(3984.0, 1872.0)
-data = ExtResource("12_rat")
-
-[node name="Rat6" parent="Actors" instance=ExtResource("11_monster")]
-position = Vector2(4752.0, 2064.0)
-data = ExtResource("12_rat")
-
-[node name="Rat7" parent="Actors" instance=ExtResource("11_monster")]
-position = Vector2(3408.0, 2320.0)
-data = ExtResource("12_rat")
-
-[node name="Rat8" parent="Actors" instance=ExtResource("11_monster")]
-position = Vector2(4112.0, 2448.0)
-data = ExtResource("12_rat")
-
-[node name="Rat9" parent="Actors" instance=ExtResource("11_monster")]
-position = Vector2(4752.0, 2832.0)
-data = ExtResource("12_rat")
-
-[node name="Rat10" parent="Actors" instance=ExtResource("11_monster")]
-position = Vector2(7280.0, 3408.0)
-data = ExtResource("12_rat")
-
-[node name="Rat11" parent="Actors" instance=ExtResource("11_monster")]
-position = Vector2(6928.0, 3856.0)
-data = ExtResource("12_rat")
-
-[node name="Rat12" parent="Actors" instance=ExtResource("11_monster")]
-position = Vector2(2576.0, 3920.0)
-data = ExtResource("12_rat")
-
-[node name="Rat13" parent="Actors" instance=ExtResource("11_monster")]
 position = Vector2(4336.0, 3984.0)
 data = ExtResource("12_rat")
 
-[node name="Rat14" parent="Actors" instance=ExtResource("11_monster")]
-position = Vector2(6320.0, 3984.0)
-data = ExtResource("12_rat")
-
-[node name="Rat15" parent="Actors" instance=ExtResource("11_monster")]
-position = Vector2(5712.0, 4112.0)
-data = ExtResource("12_rat")
-
-[node name="Rat16" parent="Actors" instance=ExtResource("11_monster")]
-position = Vector2(4240.0, 5648.0)
-data = ExtResource("12_rat")
-
-[node name="Rat17" parent="Actors" instance=ExtResource("11_monster")]
-position = Vector2(3536.0, 5776.0)
-data = ExtResource("12_rat")
-
-[node name="Rat18" parent="Actors" instance=ExtResource("11_monster")]
-position = Vector2(2960.0, 5840.0)
-data = ExtResource("12_rat")
-
-[node name="Rat19" parent="Actors" instance=ExtResource("11_monster")]
-position = Vector2(3600.0, 6352.0)
-data = ExtResource("12_rat")
-
-[node name="Rat20" parent="Actors" instance=ExtResource("11_monster")]
-position = Vector2(4400.0, 6384.0)
-data = ExtResource("12_rat")
-
-[node name="Boar1" parent="Actors" instance=ExtResource("11_monster")]
-position = Vector2(14352.0, 1616.0)
-data = ExtResource("13_boar")
-
-[node name="Boar2" parent="Actors" instance=ExtResource("11_monster")]
-position = Vector2(13072.0, 1872.0)
-data = ExtResource("13_boar")
-
-[node name="Boar3" parent="Actors" instance=ExtResource("11_monster")]
-position = Vector2(12688.0, 2064.0)
-data = ExtResource("13_boar")
-
-[node name="Boar4" parent="Actors" instance=ExtResource("11_monster")]
-position = Vector2(14480.0, 4496.0)
-data = ExtResource("13_boar")
-
-[node name="Boar5" parent="Actors" instance=ExtResource("11_monster")]
-position = Vector2(13264.0, 4688.0)
-data = ExtResource("13_boar")
-
-[node name="Boar6" parent="Actors" instance=ExtResource("11_monster")]
-position = Vector2(12816.0, 5392.0)
-data = ExtResource("13_boar")
-
-[node name="Boar7" parent="Actors" instance=ExtResource("11_monster")]
-position = Vector2(13936.0, 6800.0)
-data = ExtResource("13_boar")
-
-[node name="Boar8" parent="Actors" instance=ExtResource("11_monster")]
-position = Vector2(13296.0, 6928.0)
-data = ExtResource("13_boar")
-
 [node name="Bat1" parent="Actors" instance=ExtResource("11_monster")]
 position = Vector2(7120.0, 1712.0)
-data = ExtResource("14_bat")
+data = ExtResource("13_bat")
 
 [node name="Bat2" parent="Actors" instance=ExtResource("11_monster")]
 position = Vector2(7152.0, 1712.0)
-data = ExtResource("14_bat")
+data = ExtResource("13_bat")
 
 [node name="Bat3" parent="Actors" instance=ExtResource("11_monster")]
 position = Vector2(7152.0, 1744.0)
-data = ExtResource("14_bat")
+data = ExtResource("13_bat")
 
 [node name="Bat4" parent="Actors" instance=ExtResource("11_monster")]
 position = Vector2(8400.0, 3856.0)
-data = ExtResource("14_bat")
+data = ExtResource("13_bat")
 
 [node name="Bat5" parent="Actors" instance=ExtResource("11_monster")]
 position = Vector2(8432.0, 3856.0)
-data = ExtResource("14_bat")
+data = ExtResource("13_bat")
 
 [node name="Bat6" parent="Actors" instance=ExtResource("11_monster")]
 position = Vector2(8400.0, 3888.0)
-data = ExtResource("14_bat")
+data = ExtResource("13_bat")
 
 [node name="SpiderSpot1" parent="Actors" instance=ExtResource("11_monster")]
 position = Vector2(11568.0, 5104.0)
-data = ExtResource("15_goblin_slinger")
+data = ExtResource("14_goblin_slinger")
 
 [node name="SpiderSpot2" parent="Actors" instance=ExtResource("11_monster")]
 position = Vector2(10832.0, 5136.0)
-data = ExtResource("15_goblin_slinger")
+data = ExtResource("14_goblin_slinger")
 
 [node name="SpiderSpot3" parent="Actors" instance=ExtResource("11_monster")]
 position = Vector2(8272.0, 5456.0)
-data = ExtResource("15_goblin_slinger")
+data = ExtResource("14_goblin_slinger")
 
 [node name="SpiderSpot4" parent="Actors" instance=ExtResource("11_monster")]
 position = Vector2(10864.0, 5552.0)
-data = ExtResource("15_goblin_slinger")
+data = ExtResource("14_goblin_slinger")
 
 [node name="SpiderSpot5" parent="Actors" instance=ExtResource("11_monster")]
 position = Vector2(11280.0, 5584.0)
-data = ExtResource("15_goblin_slinger")
+data = ExtResource("14_goblin_slinger")
 
 [node name="SpiderSpot6" parent="Actors" instance=ExtResource("11_monster")]
 position = Vector2(7696.0, 5680.0)
-data = ExtResource("15_goblin_slinger")
+data = ExtResource("14_goblin_slinger")
 
 [node name="SpiderSpot7" parent="Actors" instance=ExtResource("11_monster")]
 position = Vector2(9168.0, 6480.0)
-data = ExtResource("15_goblin_slinger")
+data = ExtResource("14_goblin_slinger")
 
 [node name="SpiderSpot8" parent="Actors" instance=ExtResource("11_monster")]
 position = Vector2(9648.0, 6640.0)
-data = ExtResource("15_goblin_slinger")
+data = ExtResource("14_goblin_slinger")
 
 [node name="Pack1" type="Node" parent="."]
-script = ExtResource("16_monster_pack")
+script = ExtResource("15_monster_pack")
 members = Array[NodePath]([NodePath("../Actors/Bat1"), NodePath("../Actors/Bat3"), NodePath("../Actors/Bat2")])
 
 [node name="Pack2" type="Node" parent="."]
-script = ExtResource("16_monster_pack")
+script = ExtResource("15_monster_pack")
 members = Array[NodePath]([NodePath("../Actors/Bat4"), NodePath("../Actors/Bat6"), NodePath("../Actors/Bat5")])
 
-[node name="HUD" parent="." instance=ExtResource("17_hud")]
+[node name="RatBigSpot1" type="Node2D" parent="."]
+position = Vector2(3984.0, 1872.0)
+script = ExtResource("16_pack_spawn")
+pack = ExtResource("17_rat_big")
 
-[node name="InventoryScreen" parent="." instance=ExtResource("18_inventory_screen")]
+[node name="RatGangSpot1" type="Node2D" parent="."]
+position = Vector2(1360.0, 912.0)
+script = ExtResource("16_pack_spawn")
+pack = ExtResource("18_rat_gang")
 
-[node name="ChestScreen" parent="." instance=ExtResource("19_storage_screen")]
+[node name="RatGangSpot2" type="Node2D" parent="."]
+position = Vector2(2576.0, 3920.0)
+script = ExtResource("16_pack_spawn")
+pack = ExtResource("18_rat_gang")
+
+[node name="RatGangSpot3" type="Node2D" parent="."]
+position = Vector2(6320.0, 3984.0)
+script = ExtResource("16_pack_spawn")
+pack = ExtResource("18_rat_gang")
+
+[node name="RatGangSpot4" type="Node2D" parent="."]
+position = Vector2(3536.0, 5776.0)
+script = ExtResource("16_pack_spawn")
+pack = ExtResource("18_rat_gang")
+
+[node name="BoarPackSpot1" type="Node2D" parent="."]
+position = Vector2(12560.0, 1776.0)
+script = ExtResource("16_pack_spawn")
+pack = ExtResource("19_boar_pack")
+
+[node name="BoarPackSpot2" type="Node2D" parent="."]
+position = Vector2(13264.0, 4688.0)
+script = ExtResource("16_pack_spawn")
+pack = ExtResource("19_boar_pack")
+
+[node name="MixedPackSpot1" type="Node2D" parent="."]
+position = Vector2(13296.0, 6928.0)
+script = ExtResource("16_pack_spawn")
+pack = ExtResource("20_mixed_boar_rats")
+
+[node name="HUD" parent="." instance=ExtResource("21_hud")]
+
+[node name="InventoryScreen" parent="." instance=ExtResource("22_inventory_screen")]
+
+[node name="ChestScreen" parent="." instance=ExtResource("23_storage_screen")]

@@ -132,7 +132,10 @@ func _find_roles() -> void:
 			_roles.junction = room
 	_roles.bat_nest = _layout.room_at(_layout.cells_of("bat")[0])
 	_roles.cave_mouth = _layout.room_at(_layout.cells_of("light")[0])
-	for cell: Vector2i in _layout.cells_of("boar"):
+	# 무리 자리(멧돼지 무리)도 멧돼지 굴로 본다 (계획 8a)
+	var boar_cells: Array[Vector2i] = _layout.cells_of("boar")
+	boar_cells.append_array(_layout.cells_of("pack_boar"))
+	for cell: Vector2i in boar_cells:
 		# 진흙 굴의 멧돼지는 빼고, 합류 굴과 이어진 멧돼지 굴을 고른다.
 		if _layout.room_at(cell) != _roles.cave_mouth and _layout.rooms[_layout.room_at(cell)].neighbors.has(_roles.junction):
 			_roles.light_room = _layout.room_at(cell)

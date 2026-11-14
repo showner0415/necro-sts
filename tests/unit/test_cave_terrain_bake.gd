@@ -126,13 +126,13 @@ func _world_position(node: Node2D) -> Vector2:
 
 func _collect_bodies(node: Node, found: Array[Node2D]) -> void:
 	for child: Node in node.get_children():
-		if child is Monster or child is Necromancer or child is LootChest or child is EscapePoint:
+		if child is Monster or child is Necromancer or child is LootChest or child is EscapePoint or child is PackSpawn:
 			found.append(child)
 		else:
 			_collect_bodies(child, found)
 
 
-## 윤곽은 넓은 곳에서 PNG 바닥을 덮기도 하므로, 씬의 몸과 물건이 바위에 묻히지 않았는지 본다.
+## 윤곽은 넓은 곳에서 PNG 바닥을 덮기도 하므로, 씬의 몸과 물건(무리 자리 포함)이 바위에 묻히지 않았는지 본다.
 func test_scene_objects_are_not_inside_rock() -> void:
 	var scene: Node = (load("res://regions/shallow_cave.tscn") as PackedScene).instantiate()
 	var outline: CaveOutlineData = (scene.get_node("Walls") as PlaceholderWalls).outline
@@ -150,7 +150,8 @@ func test_scene_objects_are_not_inside_rock() -> void:
 			center.y -= (node as Necromancer).body_radius
 		if outline.box_has_rock(center, half):
 			buried.append("%s %s" % [node.name, center])
-	assert_true(found.size() > 40, "몸과 물건을 찾음: %d" % found.size())
+	# 한 마리 몬스터 15·무리 자리 8·상자 12·탈출 지점 3·네크로맨서 1 = 39 (2026-11-14 무리 배치 뒤. 무리원은 실행 중에 생겨 씬에 없다)
+	assert_true(found.size() > 35, "몸과 물건을 찾음: %d" % found.size())
 	assert_eq(buried, PackedStringArray(), "바위에 묻힘")
 	scene.free()
 

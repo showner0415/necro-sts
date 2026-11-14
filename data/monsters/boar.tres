@@ -10,7 +10,7 @@
 script = ExtResource("3_drop")
 item = ExtResource("2_bone")
 count = 4
-expected_count = 4.8
+expected_count = 6.4
 
 [sub_resource type="Resource" id="Resource_drop_skull"]
 script = ExtResource("3_drop")
