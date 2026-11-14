@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="PackData" format=3]
+
+[ext_resource type="Script" path="res://monsters/pack_data.gd" id="1_pack"]
+[ext_resource type="Script" path="res://monsters/pack_member.gd" id="2_member"]
+[ext_resource type="Resource" path="res://data/monsters/boar.tres" id="3_boar"]
+[ext_resource type="Resource" path="res://data/monsters/rat.tres" id="4_rat"]
+
+[sub_resource type="Resource" id="Member_1"]
+script = ExtResource("2_member")
+monster = ExtResource("3_boar")
+min_count = 1
+max_count = 1
+
+[sub_resource type="Resource" id="Member_2"]
+script = ExtResource("2_member")
+monster = ExtResource("4_rat")
+min_count = 2
+max_count = 3
+
+[resource]
+script = ExtResource("1_pack")
+id = &"mixed_boar_rats"
+display_name = "섞인 무리 (멧돼지 + 쥐)"
+members = Array[ExtResource("2_member")]([SubResource("Member_1"), SubResource("Member_2")])

@@ -22,6 +22,8 @@ const VIEW_2D_ARG: String = "--view_2d"
 @export var data: RegionData
 ## 죽으면 돌아갈 곳 (거점)
 @export var death_destination: RegionData
+## 무리 자리에서 무리원을 놓을 때 벽에서 떨어뜨리는 거리 (픽셀, 사용자 결정 2026-11-14, 임시값)
+@export var spawn_floor_margin: float = 8.0
 
 var _inventory: Inventory
 ## 다른 씬으로 가는 중이면 true (두 번 가지 않게)
@@ -114,16 +116,36 @@ func _ready() -> void:
 
 ## 던전 상태 (계획 5단계): 거점에 들어오면 던전 상태를 비운다 (몬스터 초기화). 거점에서 던전 지역에 처음 들어오면 던전을 시작하고,
 ## 던전 안에서 다시 들어온 지역이면 떠날 때 남긴 상태(RegionSnapshot)를 되살린다.
+## 그다음 무리 자리(PackSpawn)마다 무리를 만든다: 되살린 지역이면 남긴 무리원만, 아니면 던전 시드 난수로 새로 (계획 5b).
 func _apply_dungeon_state() -> void:
-	if data == null:
-		return
 	var run: DungeonRun = GameState.dungeon
-	if data.is_base:
-		run.clear()
-	elif not run.is_active():
-		run.start(randi())
-	elif run.has_snapshot(data.id):
-		RegionSnapshot.restore(self, $Actors, run.get_snapshot(data.id))
+	var snapshot: Dictionary = {}
+	if data != null:
+		if data.is_base:
+			run.clear()
+		elif not run.is_active():
+			run.start(randi())
+		elif run.has_snapshot(data.id):
+			snapshot = run.get_snapshot(data.id)
+			RegionSnapshot.restore(self, $Actors, snapshot)
+	var saved_packs: Dictionary = snapshot.get("packs", {})
+	for node: Node in RegionSnapshot.nodes_of(self, PackSpawn):
+		var spawn: PackSpawn = node as PackSpawn
+		var key: String = str(get_path_to(spawn))
+		if saved_packs.has(key):
+			spawn.spawn_saved($Actors, saved_packs[key])
+		else:
+			spawn.spawn($Actors, run.rng, _is_free_floor)
+
+
+## 무리원을 놓아도 되는 바닥인지: 벽(윤곽이 있으면 윤곽의 바위)에서 spawn_floor_margin만큼 떨어졌는지. 벽이 없는 지역이면 늘 true.
+func _is_free_floor(point: Vector2) -> bool:
+	var walls: PlaceholderWalls = get_node_or_null("Walls") as PlaceholderWalls
+	if walls == null:
+		return true
+	if walls.outline != null:
+		return not walls.outline.box_has_rock(point - walls.global_position, Vector2.ONE * spawn_floor_margin)
+	return not walls.is_wall(walls.world_to_cell(point))
 
 
 ## destination 지역 씬으로 간다. 소환 중인 언데드는 일반 해제된다 (머리뼈의 체력·내구도는 그대로).

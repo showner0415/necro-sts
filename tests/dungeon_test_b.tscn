@@ -8,7 +8,7 @@
 [ext_resource type="PackedScene" path="res://necromancer/necromancer.tscn" id="6_necromancer"]
 [ext_resource type="PackedScene" path="res://monsters/monster.tscn" id="7_monster"]
 [ext_resource type="Resource" path="res://data/monsters/rat.tres" id="8_rat"]
-[ext_resource type="Script" path="res://monsters/monster_pack.gd" id="9_pack"]
+[ext_resource type="Script" path="res://regions/pack_spawn.gd" id="9_pack"]
 [ext_resource type="PackedScene" path="res://regions/region_exit.tscn" id="10_exit"]
 [ext_resource type="Resource" path="res://data/regions/test_dungeon_a.tres" id="11_other"]
 [ext_resource type="PackedScene" path="res://regions/loot_chest.tscn" id="12_chest"]
@@ -16,6 +16,7 @@
 [ext_resource type="PackedScene" path="res://ui/hud.tscn" id="14_hud"]
 [ext_resource type="PackedScene" path="res://ui/inventory_screen.tscn" id="15_inventory"]
 [ext_resource type="PackedScene" path="res://ui/storage_screen.tscn" id="16_chest_screen"]
+[ext_resource type="Resource" path="res://data/packs/rat_gang.tres" id="17_pack_data"]
 
 [node name="DungeonTestB" type="Node2D"]
 script = ExtResource("1_region")
@@ -44,25 +45,14 @@ y_sort_enabled = true
 [node name="Necromancer" parent="Actors" instance=ExtResource("6_necromancer")]
 position = Vector2(0, 160)
 
-[node name="GangRat1" parent="Actors" instance=ExtResource("7_monster")]
-position = Vector2(-24, -170)
-data = ExtResource("8_rat")
-
-[node name="GangRat2" parent="Actors" instance=ExtResource("7_monster")]
-position = Vector2(20, -180)
-data = ExtResource("8_rat")
-
-[node name="GangRat3" parent="Actors" instance=ExtResource("7_monster")]
-position = Vector2(-10, -140)
-data = ExtResource("8_rat")
-
 [node name="LoneRat" parent="Actors" instance=ExtResource("7_monster")]
 position = Vector2(-260, -40)
 data = ExtResource("8_rat")
 
-[node name="RatGang" type="Node" parent="."]
+[node name="RatGang" type="Node2D" parent="."]
+position = Vector2(0, -160)
 script = ExtResource("9_pack")
-members = Array[NodePath]([NodePath("../Actors/GangRat1"), NodePath("../Actors/GangRat2"), NodePath("../Actors/GangRat3")])
+pack = ExtResource("17_pack_data")
 
 [node name="HUD" parent="." instance=ExtResource("14_hud")]
 

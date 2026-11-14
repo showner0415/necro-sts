@@ -86,3 +86,30 @@ func test_runtime_monsters_are_not_captured() -> void:
 	region.get_node("Actors").add_child(extra)
 	var snapshot: Dictionary = RegionSnapshot.capture(region)
 	assert_eq((snapshot["monsters"] as Dictionary).size(), 2, "씬에 놓인 쥐 둘만 (실행 중에 만든 몸은 경로로 되살릴 수 없다)")
+
+
+func test_pack_spawn_members_are_captured_alive_only() -> void:
+	var region: Node2D = _region()
+	var spawn: PackSpawn = PackSpawn.new()
+	spawn.name = "Gang"
+	spawn.pack = load("res://data/packs/rat_gang.tres")
+	region.add_child(spawn)
+	spawn.owner = region
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = 4
+	spawn.spawn(region.get_node("Actors"), rng, func(_point: Vector2) -> bool: return true)
+	var members: Array[Monster] = spawn.get_members()
+	assert_true(members.size() >= 3 and members.size() <= 4, "쥐 패거리 3~4 (%d)" % members.size())
+	for monster: Monster in members:
+		# 단위 테스트 실행기는 _ready 전에 돈다. 살아 있는 몸으로 보이게 체력을 넣는다.
+		monster.health = 4.0
+	var killed_name: String = members[1].name
+	members[1].free()
+	var packs: Dictionary = RegionSnapshot.capture(region)["packs"]
+	assert_true(packs.has("Gang"), "자리 경로로 담는다")
+	var entries: Array = packs["Gang"]
+	assert_eq(entries.size(), members.size() - 1, "죽은 무리원은 담지 않는다")
+	for entry: Dictionary in entries:
+		assert_ne(entry["index"], 1, "죽은 번호(%s)는 없다" % killed_name)
+		assert_eq(entry["health"], 4.0, "체력")
+		assert_eq(entry["data"], load("res://data/monsters/rat.tres"), "몬스터 데이터")
