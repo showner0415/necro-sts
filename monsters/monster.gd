@@ -173,6 +173,12 @@ func _think(delta: float) -> void:
 		_behavior.act(self, data.get_enemy_stats(), _target, delta)
 	else:
 		_wander(delta)
+	# 길목 입구 밖에서 기다리는 동안은 대상과의 거리와 상관없이 공격권을 묻는다 (사용자 결정 2026-11-14). 받으면 다음 판단부터 길목에 들어간다.
+	# 대상을 잃고 싸움을 그만두면 대기 자리를 내놓는다 (배회는 길찾기를 거의 쓰지 않아 길찾기에서 끝나지 않는다).
+	if _target == null or not _ai.is_fighting():
+		_path_follower.stop_waiting(self)
+	elif _path_follower.is_waiting_at_choke():
+		request_attack(_target)
 
 
 ## 판단 줄이기에 쓰는 네크로맨서까지 거리. 네크로맨서가 없으면 0 (매 프레임 판단한다).
@@ -239,7 +245,16 @@ func get_ai_state() -> MonsterAiState.State:
 
 ## 행동 조각이 부른다: goal(발밑 좌표)로 가려면 움직일 방향. 벽이 가로막으면 돌아가는 방향이다.
 func get_move_direction(goal: Vector2) -> Vector2:
-	return _path_follower.get_direction(self, goal)
+	return _path_follower.get_direction(self, goal, _avoids_chokes())
+
+
+## 길목을 피하는지 (계획 4b): 공격권을 쓰는 몬스터가 대상을 쫓는데 그 대상의 공격권이 없을 때.
+## 대상이 없을 때(배회)는 피하지 않는다 (제안).
+func _avoids_chokes() -> bool:
+	if data.attack_tokens_per_target <= 0 or _target == null:
+		return false
+	var board: AttackTokenBoard = _find_token_board()
+	return board != null and board.tokens.held_target(self) != _target
 
 
 ## 행동 조각이 부른다: goal(발밑 좌표)까지 벽이 가로막지 않는지.

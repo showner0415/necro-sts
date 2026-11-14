@@ -28,6 +28,12 @@ extends Node
 ## 벽이 모두 타일인 지역이면 그 벽(PlaceholderWalls). 있으면 막힌 칸을 물리 질의 대신 타일에서 바로 계산한다 (훨씬 빠르다)
 @export var wall_tiles: NodePath
 
+@export_group("길목")
+## 공격권 없는 몬스터가 길목을 막고 돌아가는 우회 비율의 한계 (이 값 이하면 돌아가고, 넘으면 입구 밖에서 기다린다. 사용자 결정 2026-11-14)
+@export var choke_detour_limit: float = 1.5
+## 가려는 길이 길목 칸을 지나는지 볼 때 점을 찍는 간격 (픽셀, 제안)
+@export var choke_sample_step: float = 8.0
+
 ## 타일 경계에 딱 닿은 몸도 그 타일과 겹친 것으로 본다 (물리 질의와 같게). 나눗셈 오차를 흡수하는 여유 (타일 단위)
 const TILE_EPSILON: float = 0.0001
 
@@ -48,6 +54,10 @@ var _outline_mixed_sums: PackedInt32Array = PackedInt32Array()
 var path_searches: int = 0
 ## 길 찾기에 쓴 시간 (마이크로초. 측정용)
 var path_search_usec: int = 0
+## 구운 길목 (벽 윤곽 파일의 chokes, 계획 4b). 길목이 없으면 null
+var _choke_index: ChokeIndex
+## 길목 입구의 대기 자리 나눠 주기
+var wait_spots: ChokeWaitSpots = ChokeWaitSpots.new()
 
 
 func _ready() -> void:
@@ -63,6 +73,9 @@ func _ready() -> void:
 	params.collision_mask = world_mask
 	_has_walls = not _space().intersect_shape(params, 1).is_empty()
 	_ready_for_queries = true
+	var walls: PlaceholderWalls = get_node_or_null(wall_tiles) as PlaceholderWalls if not wall_tiles.is_empty() else null
+	if walls != null and walls.outline != null and not walls.outline.chokes.is_empty():
+		_choke_index = ChokeIndex.new(walls.outline.chokes, walls.outline.cell_px, walls.global_position, choke_sample_step)
 
 
 ## 벽이 하나라도 있는지. false면 쓰는 쪽은 곧장 간다.
@@ -97,6 +110,32 @@ func find_path(from: Vector2, to: Vector2, half_size: Vector2) -> PackedVector2A
 	var started: int = Time.get_ticks_usec()
 	var path: PackedVector2Array = _grid_for(half_size).find_path(from, to)
 	path_search_usec += Time.get_ticks_usec() - started
+	return path
+
+
+## 구운 길목 (없으면 null)
+func get_choke_index() -> ChokeIndex:
+	return _choke_index if has_walls() else null
+
+
+## find_path와 같되 choke 길목 칸을 잠깐 막고 찾는다 (공격권 없는 몬스터가 길목을 돌아갈 때).
+func find_path_without_choke(from: Vector2, to: Vector2, half_size: Vector2, choke: int) -> PackedVector2Array:
+	if _choke_index == null:
+		return find_path(from, to, half_size)
+	var grid: GridPath = _grid_for(half_size)
+	var blocked: Array[Vector2i] = []
+	for rect: Rect2 in _choke_index.cell_rects(choke):
+		var first: Vector2i = grid.world_to_cell(rect.position)
+		var last: Vector2i = grid.world_to_cell(rect.end - Vector2.ONE)
+		for y: int in range(first.y, last.y + 1):
+			for x: int in range(first.x, last.x + 1):
+				var cell: Vector2i = Vector2i(x, y)
+				if not grid.is_solid(cell):
+					grid.set_solid(cell, true)
+					blocked.append(cell)
+	var path: PackedVector2Array = find_path(from, to, half_size)
+	for cell: Vector2i in blocked:
+		grid.set_solid(cell, false)
 	return path
 
 

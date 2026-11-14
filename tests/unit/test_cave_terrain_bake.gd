@@ -3,7 +3,7 @@ extends TestCase
 ## 구운 파일이 없는 컴퓨터에서는(저장소에 올리지 않는 파일이다) 굽는 방법만 출력하고 넘어간다.
 
 ## [씬, 구울 때 쓰는 명령에 덧붙일 인자]
-const SCENES: Array[Array] = [["res://regions/shallow_cave.tscn", ""], ["res://tests/view_3d/wall_test_cave.tscn", " --in="]]
+const SCENES: Array[Array] = [["res://regions/shallow_cave.tscn", ""], ["res://tests/view_3d/wall_test_cave.tscn", " --in="], ["res://tests/choke_test_cave.tscn", " --in="]]
 const WALL_HEIGHT: float = 128.0
 const CAP_HEIGHT: float = 6.08
 const TEMP_SCRIPT: String = "user://test_cave_terrain_bake_script.txt"
