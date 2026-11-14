@@ -27,6 +27,11 @@ const LEGEND: Dictionary = {
 	"e4a672": {"kind": Kind.OBJECT, "object": "goblin_slinger", "name": "고블린 투석병"},
 	"a22633": {"kind": Kind.OBJECT, "object": "spider", "name": "거미 자리"},
 	"fee761": {"kind": Kind.OBJECT, "object": "light", "name": "바깥의 빛 표지"},
+	"ead4aa": {"kind": Kind.OBJECT, "object": "pack_rat_big", "name": "쥐 큰 무리 자리"},
+	"e8b796": {"kind": Kind.OBJECT, "object": "pack_rat_gang", "name": "쥐 패거리 자리"},
+	"d77643": {"kind": Kind.OBJECT, "object": "pack_boar", "name": "멧돼지 무리 자리"},
+	"c28569": {"kind": Kind.OBJECT, "object": "pack_goblin", "name": "투석병 무리 자리"},
+	"b86f50": {"kind": Kind.OBJECT, "object": "pack_mixed", "name": "섞인 무리 자리"},
 }
 ## 굴 바닥 글자 (통로가 아닌 바닥)
 const ROOM_CHARS: String = "12b"

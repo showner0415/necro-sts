@@ -1,0 +1,77 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://regions/region.gd" id="1_region"]
+[ext_resource type="Resource" path="res://data/regions/pack_test.tres" id="2_pack_test"]
+[ext_resource type="Resource" path="res://data/regions/base.tres" id="3_base"]
+[ext_resource type="Script" path="res://regions/placeholder_walls.gd" id="4_placeholder_walls"]
+[ext_resource type="Script" path="res://regions/navigation_grid.gd" id="5_navigation_grid"]
+[ext_resource type="PackedScene" path="res://regions/escape_point.tscn" id="6_escape_point"]
+[ext_resource type="PackedScene" path="res://necromancer/necromancer.tscn" id="7_necromancer"]
+[ext_resource type="Script" path="res://regions/pack_spawn.gd" id="8_pack_spawn"]
+[ext_resource type="Resource" path="res://data/packs/rat_big.tres" id="9_rat_big"]
+[ext_resource type="Resource" path="res://data/packs/rat_gang.tres" id="10_rat_gang"]
+[ext_resource type="Resource" path="res://data/packs/boar_pack.tres" id="11_boar_pack"]
+[ext_resource type="Resource" path="res://data/packs/goblin_pack.tres" id="12_goblin_pack"]
+[ext_resource type="Resource" path="res://data/packs/mixed_boar_rats.tres" id="13_mixed_boar_rats"]
+[ext_resource type="PackedScene" path="res://ui/hud.tscn" id="14_hud"]
+[ext_resource type="PackedScene" path="res://ui/inventory_screen.tscn" id="15_inventory_screen"]
+[ext_resource type="PackedScene" path="res://ui/storage_screen.tscn" id="16_storage_screen"]
+
+[node name="PackTestMap" type="Node2D"]
+script = ExtResource("1_region")
+data = ExtResource("2_pack_test")
+death_destination = ExtResource("3_base")
+
+[node name="Walls" type="Node2D" parent="."]
+script = ExtResource("4_placeholder_walls")
+layout = PackedStringArray("########################", "#1111111111111111111111#", "#1111111111111111111111#", "#1111111111111111111111#", "#1111111111111111111111#", "#1111111111111111111111#", "#1111111111111111111111#", "#1111111111111111111111#", "#1111111111111111111111#", "#1111111111111111111111#", "#1111111111111111111111#", "#1111111111111111111111#", "#1111111111111111111111#", "#1111111111111111111111#", "#1111111111111111111111#", "########################")
+wall_chars = "#x"
+wall_colors = Dictionary[String, Color]({"x": Color(0.40784314274788, 0.21960784494877, 0.42352941632271, 1)})
+floor_colors = Dictionary[String, PackedColorArray]({".": PackedColorArray(0.22745098173618, 0.26666668057442, 0.40000000596046, 1, 0.14901961386204, 0.16862745583057, 0.26666668057442, 1), "1": PackedColorArray(0.14901961386204, 0.36078432202339, 0.258823543787, 1, 0.09803921729326, 0.2352941185236, 0.24313725531101, 1), "2": PackedColorArray(0.45098039507866, 0.24313725531101, 0.22352941334248, 1, 0.24313725531101, 0.15294118225574, 0.19215686619282, 1), "b": PackedColorArray(0.07058823853731, 0.30588236451149, 0.53725492954254, 1, 0.14901961386204, 0.16862745583057, 0.26666668057442, 1)})
+
+[node name="NavigationGrid" type="Node" parent="."]
+script = ExtResource("5_navigation_grid")
+bounds = Rect2(0, 0, 768, 512)
+cell_size = 16.0
+wall_tiles = NodePath("../Walls")
+
+[node name="EscapePoint1" parent="." instance=ExtResource("6_escape_point")]
+position = Vector2(112.0, 400.0)
+destination = ExtResource("3_base")
+
+[node name="Actors" type="Node2D" parent="."]
+y_sort_enabled = true
+
+[node name="Necromancer" parent="Actors" instance=ExtResource("7_necromancer")]
+position = Vector2(112.0, 272.0)
+
+[node name="RatBigSpot1" type="Node2D" parent="."]
+position = Vector2(336.0, 144.0)
+script = ExtResource("8_pack_spawn")
+pack = ExtResource("9_rat_big")
+
+[node name="RatGangSpot1" type="Node2D" parent="."]
+position = Vector2(592.0, 144.0)
+script = ExtResource("8_pack_spawn")
+pack = ExtResource("10_rat_gang")
+
+[node name="BoarPackSpot1" type="Node2D" parent="."]
+position = Vector2(336.0, 368.0)
+script = ExtResource("8_pack_spawn")
+pack = ExtResource("11_boar_pack")
+
+[node name="GoblinPackSpot1" type="Node2D" parent="."]
+position = Vector2(592.0, 368.0)
+script = ExtResource("8_pack_spawn")
+pack = ExtResource("12_goblin_pack")
+
+[node name="MixedPackSpot1" type="Node2D" parent="."]
+position = Vector2(464.0, 272.0)
+script = ExtResource("8_pack_spawn")
+pack = ExtResource("13_mixed_boar_rats")
+
+[node name="HUD" parent="." instance=ExtResource("14_hud")]
+
+[node name="InventoryScreen" parent="." instance=ExtResource("15_inventory_screen")]
+
+[node name="ChestScreen" parent="." instance=ExtResource("16_storage_screen")]

@@ -1,6 +1,6 @@
 # 몬스터 무리화 (2026-11-13)
 
-상태: 진행 중 (5b-1단계 끝남. 다음은 5b-2단계: 맵 PNG 무리 색과 변환) (2026-11-14)
+상태: 진행 중 (5단계 끝남. 다음은 6단계 대장) (2026-11-14)
 브랜치: `monster-packs` (main `6102a99`에서 땀. main에는 cave-terrain과 automation이 합쳐져 있다)
 
 ## 목표
@@ -119,6 +119,7 @@
 - 5b 무리 배치: 맵 PNG에서 색 하나가 무리 종류 하나(PackData)다. 자리마다 픽셀 하나를 찍고, PackData(.tres)가 종 구성과 크기 범위를 들며, 던전 시드로 크기를 정한다 (사용자 결정, 2026-11-14).
 - 5b 세부: 무리 종류 다섯(쥐 큰 무리 ead4aa, 쥐 패거리 e8b796, 멧돼지 d77643, 투석병 c28569, 섞인 무리 멧돼지 1 + 쥐 2~3 b86f50), 무리원은 자리에서 48px 안 마구 자리(겹치지 않게, 임시값), 한 마리 색과 박쥐 규칙은 그대로, PackData는 종마다 (몬스터, 최소, 최대) 목록 (사용자 결정, 2026-11-14).
 - 5b-1 뒤: 무리원 흩어 놓기의 나머지 값(무리원 사이 16px, 다시 고르기 30번, 벽에서 8px, 못 고르면 한가운데)을 임시값으로 둔다 (사용자 결정, 2026-11-14. 8단계 때 다시 본다).
+- 5b-2 뒤: 맵 색 규칙 문서의 무리 자리 그리기 안내는 제안으로 표시하고 실제 동작대로 고친다. 6단계는 6a(대장: 생성·강화·해제·표시·확정 목록·지역 오가기)와 6b(네임드 머리뼈 드랍)로 나눈다. 대장은 무리원 중 던전 시드 난수로 아무나 된다. 대장 표시는 비교판으로 몇 가지를 보고 고른다 (사용자 결정, 2026-11-14).
 - `--fixed-fps 60` 없이 `check_bodies_3d.gd`를 돌린 판에서 45도 탄이 아예 나오지 않은 일은 3단계 전에 작게 원인을 본다 (2-2단계, 사용자 결정, 2026-11-14).
 - 3a단계는 대상마다 거리 지도를 만들지 않고, 몬스터 한 마리가 프레임마다 쓰는 시간이 어디에 드는지(벽 직선 확인, 시야, 이동 등)부터 나눠 재고 큰 것을 줄이는 안을 가져온다 (사용자 결정, 2026-11-14. 측정: 쥐 32 + 멧돼지 8, 프레임 4.0ms, 그중 A* 0.056ms).
 - 3a에서는 몸끼리 간격 밀기를 칸 묶음으로 바꾸는 것만 한다 (원래 3b 항목을 앞당김). 구간별로 재 보니 몬스터 40마리 프레임당 간격 밀기 1.37ms, 행동 1.00ms, 시야 0.59ms, 능력치 만들기 0.28ms였다. 나머지(능력치 한 번 만들기, 시야 검사 엇갈리기, 행동 구간 더 재기)는 고르지 않았다 (사용자 결정, 2026-11-14).
@@ -384,7 +385,7 @@
 
 ### 5단계: 던전 상태 (초기화와 유지)
 
-상태: 5a·5b-1 끝남 (2026-11-14), 5b-2(맵 PNG 무리 색과 변환) 할 일
+상태: 끝남 (5a·5b-1·5b-2, 2026-11-14)
 
 할 일:
 - `GameState`에 던전 상태(`DungeonRun`: 시드 난수, 지역마다 스냅샷). 무리는 배치 데이터에서 실행 중에 만든다. 맵 PNG에 무리 배치 표시를 더한다.
@@ -397,6 +398,8 @@
 결과 (5a, 2026-11-14): `core/dungeon_run.gd`(`DungeonRun`: 시드 난수, 지역 id마다 스냅샷, start·clear, 단위 테스트 3개)를 `GameState.dungeon`이 든다. `regions/region_snapshot.gd`(`RegionSnapshot.capture`·`restore`, 단위 테스트 2개): 씬에 놓인 몬스터(owner가 지역)의 위치·체력과 죽은 몬스터, 시체(같은 CorpseLoot), 바닥 물건(같은 ItemStack), 상자(같은 ChestContents)를 담는다 (사용자 결정). 대상·경보는 담지 않아 돌아오면 무리가 평소 상태로 배회한다(떠나면 놓침). `Region._apply_dungeon_state`(_ready 맨 앞): 거점이면 비우고, 던전이 아니면 시작하고, 스냅샷이 있으면 되살린다. `Region.travel_to`: 던전 지역을 떠날 때 스냅샷을 남긴다 (죽어서 거점으로 갈 때도 남기지만 거점이 곧 비운다). 시험 던전 `tests/dungeon_test_a.tscn`·`tests/dungeon_test_b.tscn`(쥐 무리 3 + 혼자 쥐 1, 상자, 서로 가는 개발용 출구, 거점 탈출 지점)과 `data/regions/test_dungeon_a.tres`·`test_dungeon_b.tres`. 시나리오 `scenario_dungeon_state.gd` 4줄 통과: 떠나면 상태를 남김 / 돌아오면 그대로 (무리 쥐 위치·체력 6.0 그대로, 잡은 쥐 다시 안 생김, 시체 같은 루팅, 바닥 뼈 3, 상자 같은 내용물) / 떠나면 놓침 (대상 있는 몬스터 없음, 무리 경보 평소) / 거점에 다녀오면 초기화. 구현 중 문제: `find_children`의 type은 엔진 클래스만 가려서 스크립트 클래스(Monster 등)를 못 찾음 → `is_instance_of`로 거름. 스크린샷 (시험 던전 A): 2D로 네크로맨서·상자·B 출구·탈출 지점, 검토 뒤 `tools/screenshot_setups/dungeon_rats.gd`(네크로맨서를 무리 아래로)로 2D·3D 다시 찍어 무리 쥐 셋·혼자 쥐·상자가 보임. `bash tests/run_all.sh` → `전체 결과: 통과`.
 
 결과 (5b-1, 2026-11-14): 무리 배치 데이터와 실행 중 만들기. `monsters/pack_data.gd`(`PackData`: id, 이름, 종마다 `PackMember`(몬스터, 최소, 최대) 목록, `roll(rng)`)와 `monsters/pack_member.gd`, `data/packs/` 다섯 (rat_big 6~8, rat_gang 3~4, boar_pack 2~3, goblin_pack 2~3, mixed_boar_rats 멧돼지 1 + 쥐 2~3). `monsters/pack_placer.gd`(`PackPlacer.place`: 자리에서 반지름 안 마구 자리, 바닥 검사, 서로 간격, 못 고르면 한가운데). 단위 테스트 5개 (`test_pack_data.gd`), 검토 뒤 `test_region_snapshot.gd`에 무리 자리의 산 무리원만 담는 테스트 1개. `regions/pack_spawn.gd`(`PackSpawn`, Node2D: spread_radius 48 사용자 결정·임시값, min_spacing 16·place_tries 30 임시값(사용자 결정)): 처음이면 던전 시드로 굴려 만들고, 되살릴 땐 담은 무리원만. 무리원 이름 "<자리>_<번호>", 무리 노드 "<자리>Pack". `Region._apply_dungeon_state`가 스냅샷을 되살린 뒤 자리마다 만든다 (`_is_free_floor`: 윤곽 바위·벽 칸에서 `spawn_floor_margin` 8px, 임시값(사용자 결정)). `RegionSnapshot.capture`가 자리마다 살아 있는 무리원(번호·데이터·위치·체력)을 "packs"에 담는다. 시험 던전의 쥐 무리를 무리 자리(rat_gang)로 바꿈. `scenario_dungeon_state.gd` 4줄 통과 (무리원 하나를 잡고 오가는 확인을 더함: 무리 4 → 돌아와서 3, 거점 다녀오면 무리 4마리 새로). 구현 중 문제: 죽은 무리원을 타입 있는 변수에 넣다가 "previously freed instance" 오류로 담기가 끊김 → 먼저 is_instance_valid. 스크린샷 (dungeon_rats.gd, 2D): 무리 자리가 만든 쥐들이 위쪽에. `bash tests/run_all.sh` → `전체 결과: 통과`. 남은 것 (5b-2): 맵 PNG 무리 색과 변환.
+
+결과 (5b-2, 2026-11-14): 맵 PNG 무리 색과 변환. `MapLayout` 색 표에 무리 자리 다섯(ead4aa 쥐 큰 무리, e8b796 쥐 패거리, d77643 멧돼지 무리, c28569 투석병 무리, b86f50 섞인 무리), `tools/map_from_png.gd`의 `PACK_SPOTS`가 픽셀마다 PackSpawn 노드("<종류>Spot<번호>", pack 지정)를 쓰고 저장 줄에 무리 자리 수를 낸다. `docs/maps/map_png_rules.md`에 색 다섯과 "무리 자리" 절. 시험 맵: `tools/map_png/make_pack_test_png.gd`가 `art_src/maps/pack_test.png`(24×16, 1등급 굴 하나에 무리 색 하나씩)를 만들고, `data/regions/pack_test.tres`로 `tests/pack_test_map.tscn`으로 바꿈 (윤곽 없이 칸 충돌). 시나리오 `scenario_pack_spawn_map.gd` 2줄 통과 (PackSpawn 5 = PNG 무리 색 5, 종류가 색 표대로 / 자리마다 범위 안의 수·반지름 안·무리로 묶임: 쥐 큰 무리 6, 쥐 패거리 3, 멧돼지 3, 투석병 2, 섞인 무리 멧돼지 1 + 쥐 3). 얕은 굴을 기본값으로 다시 바꿔도 씬이 그대로(무리 자리 0). `map_layout.gd`가 굽기 지문에 들어 있어 구운 지형 셋을 다시 구움 (`bash tools/godot.sh --headless --path . -s tools/map_png/make_cave_outline.gd` → "저장: res://regions/shallow_cave_outline.res (OK)", "…_terrain.res (OK)", 같은 명령에 `-- --scene=res://tests/view_3d/wall_test_cave.tscn --in=`, `-- --scene=res://tests/choke_test_cave.tscn --in=`). 스크린샷 (시험 맵, 2D): 처음엔 다섯 중 셋만 화면에 들어, 검토 뒤 `map_overview.gd`로 맵 전체를 찍어 다섯 자리 무리가 모두 보임. `bash tests/run_all.sh` → `전체 결과: 통과`.
 
 ### 6단계: 대장
 
@@ -454,7 +457,8 @@
 | 2026-11-14 | 4b단계 | 길목 피하기 (돌아가기·입구 밖 대기·기다리며 공격권 묻기), 길목 시험 맵과 시나리오 | 1a7e638 |
 | 2026-11-14 | 4c단계 | 길목 안에서 움직이는 동안 공격권 시간 제한 멈춤 | 237039a |
 | 2026-11-14 | 5a단계 | 던전 상태: 지역 오가기 유지(몬스터·시체·바닥 물건·상자), 떠나면 놓침, 거점 초기화 | 4085e3d |
-| 2026-11-14 | 5b-1단계 | 무리 배치 데이터(PackData 다섯)와 무리 자리, 실행 중 만들기·되살리기 | (이 커밋) |
+| 2026-11-14 | 5b-1단계 | 무리 배치 데이터(PackData 다섯)와 무리 자리, 실행 중 만들기·되살리기 | 2a30649 |
+| 2026-11-14 | 5b-2단계 | 맵 PNG 무리 색 다섯과 변환, 시험 맵과 시나리오 | (이 커밋) |
 
 ## 보류
 

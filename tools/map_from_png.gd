@@ -1,6 +1,6 @@
 extends SceneTree
 ## 맵 배치 PNG(픽셀 하나 = 타일 한 칸)를 읽어 지역 씬(.tscn)을 만든다. 색 규칙은 docs/maps/map_png_rules.md.
-## 만든 씬에는 벽(충돌 포함)·바닥 색 칸(PlaceholderWalls), 길찾기(NavigationGrid), 네크로맨서(도착 지점), 몬스터, 상자, 탈출 지점,
+## 만든 씬에는 벽(충돌 포함)·바닥 색 칸(PlaceholderWalls), 길찾기(NavigationGrid), 네크로맨서(도착 지점), 몬스터, 무리 자리(PackSpawn), 상자, 탈출 지점,
 ## HUD·인벤토리·상자 화면이 들어간다. PNG를 고친 뒤 다시 실행하면 씬을 통째로 새로 쓴다 (씬을 손으로 고치지 않는다).
 ## 벽 모양은 칸 그대로 쓰지 않고 tools/map_png/make_cave_outline.gd가 만든 윤곽을 쓴다. 씬의 칸(layout)은 PNG 그대로다.
 ## 다 만든 뒤 굴 목록(입구 수, 이어진 굴, 안의 물건)과 문제(모르는 색 등)를 출력한다. 문제가 있으면 씬을 쓰지 않고 종료 코드 1.
@@ -31,6 +31,14 @@ const MONSTER_DATA: Dictionary = {
 }
 ## 이 몬스터의 픽셀끼리 붙어 있으면(대각선 포함) 한 무리(MonsterPack)다
 const PACK_MONSTERS: Array[String] = ["bat"]
+## 무리 자리 물건 이름 → 무리 종류(PackData)와 노드 이름. 픽셀 하나가 무리 자리(PackSpawn) 하나다 (사용자 결정 2026-11-14)
+const PACK_SPOTS: Dictionary = {
+	"pack_rat_big": ["res://data/packs/rat_big.tres", "RatBigSpot"],
+	"pack_rat_gang": ["res://data/packs/rat_gang.tres", "RatGangSpot"],
+	"pack_boar": ["res://data/packs/boar_pack.tres", "BoarPackSpot"],
+	"pack_goblin": ["res://data/packs/goblin_pack.tres", "GoblinPackSpot"],
+	"pack_mixed": ["res://data/packs/mixed_boar_rats.tres", "MixedPackSpot"],
+}
 ## 노드 이름에 쓰는 물건 이름
 const NODE_NAMES: Dictionary = {"rat": "Rat", "boar": "Boar", "bat": "Bat", "goblin_slinger": "Goblin", "spider": "SpiderSpot"}
 ## 바깥의 빛 표지: 그 칸 바닥 위에 이 색을 반투명하게 덮는다 (Endesga 32, 그림이 생기기 전까지)
@@ -78,8 +86,9 @@ func _initialize() -> void:
 	var file: FileAccess = FileAccess.open(args.out, FileAccess.WRITE)
 	file.store_string(text)
 	file.close()
-	print("저장: %s (%d×%d칸, 몬스터 %d, 상자 %d, 탈출 지점 %d)" % [args.out, layout.size.x, layout.size.y,
-		layout.objects.filter(func(o: Dictionary) -> bool: return MONSTER_DATA.has(o.object)).size(),
+	var pack_spots: int = layout.objects.filter(func(o: Dictionary) -> bool: return PACK_SPOTS.has(o.object)).size()
+	print("저장: %s (%d×%d칸, 몬스터 %d, 무리 자리 %d, 상자 %d, 탈출 지점 %d)" % [args.out, layout.size.x, layout.size.y,
+		layout.objects.filter(func(o: Dictionary) -> bool: return MONSTER_DATA.has(o.object)).size(), pack_spots,
 		layout.cells_of("chest").size(), layout.cells_of("escape").size()])
 	quit(0)
 
@@ -178,6 +187,12 @@ func _build(layout: MapLayout, rows: PackedStringArray, region_path: String, roo
 		nodes.append('[node name="Pack%d" type="Node" parent="."]\nscript = %s\nmembers = Array[NodePath]([%s])\n' % [
 			i + 1, _id("res://monsters/monster_pack.gd", "Script"), ", ".join(members)])
 
+	# 무리 자리: 픽셀 하나가 PackSpawn 하나. 지역이 시작할 때 무리를 만든다 (무리원 이름은 "<자리 이름>_<번호>"라 자리 이름이 겹치지 않게 종류마다 번호를 붙인다).
+	for object: String in PACK_SPOTS:
+		var spots: Array[Vector2i] = layout.cells_of(object)
+		for i: int in spots.size():
+			nodes.append('[node name="%s%d" type="Node2D" parent="."]\nposition = %s\nscript = %s\npack = %s\n' % [
+				PACK_SPOTS[object][1], i + 1, _center(spots[i]), _id("res://regions/pack_spawn.gd", "Script"), _id(PACK_SPOTS[object][0], "Resource")])
 	nodes.append('[node name="HUD" parent="." instance=%s]\n' % _id("res://ui/hud.tscn", "PackedScene"))
 	nodes.append('[node name="InventoryScreen" parent="." instance=%s]\n' % _id("res://ui/inventory_screen.tscn", "PackedScene"))
 	nodes.append('[node name="ChestScreen" parent="." instance=%s]\n' % _id("res://ui/storage_screen.tscn", "PackedScene"))
