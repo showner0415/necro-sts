@@ -4,6 +4,7 @@ extends RefCounted
 ## - 거점에서 던전 지역에 처음 들어갈 때 start(시드)로 시작하고, 거점에 들어가면 clear()로 비운다 (몬스터 초기화)
 ## - 지역을 떠날 때 그 지역의 상태(스냅샷: RegionSnapshot.capture가 만든 사전)를 지역 id로 저장하고, 돌아오면 꺼내 되살린다
 ## - 무리 규칙의 무작위(대장, 소수 뼈 등)는 이 시드 난수를 쓴다 (테스트·측정 재현용, 계획 9)
+## - 이번 던전에서 시체에 머리뼈가 나왔는지(skull_in_corpse)를 기억한다. 나왔으면 거점까지 머리뼈 보정을 끈다 (SkullPity, 사용자 결정 2026-11-15)
 
 var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var _active: bool = false
@@ -11,12 +12,15 @@ var _active: bool = false
 var forced_leader_packs: Array[StringName] = []
 ## 지역 id → 스냅샷
 var _snapshots: Dictionary = {}
+## 이번 던전에서 시체에 머리뼈(모든 종, 네임드 포함)가 한 번이라도 나왔는지. start·clear에서 끈다
+var skull_in_corpse: bool = false
 
 
 ## 던전에 들어간다. 저장해 둔 지역 상태를 비우고 시드를 정한다.
 func start(seed_value: int) -> void:
 	_active = true
 	rng.seed = seed_value
+	skull_in_corpse = false
 	_snapshots.clear()
 
 
@@ -29,6 +33,7 @@ func is_active() -> bool:
 func clear() -> void:
 	_active = false
 	_snapshots.clear()
+	skull_in_corpse = false
 
 
 func save(region_id: StringName, snapshot: Dictionary) -> void:
