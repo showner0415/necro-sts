@@ -3,7 +3,7 @@
 # ChatGPT 구독 한도를 쓰고 API 키는 쓰지 않는다. ui-designer 에이전트(.claude/agents/ui-designer.md)가 쓴다.
 #
 # 사용법 (저장소 폴더에서):
-#   bash tools/ui_gen/codex_image.sh --prompt-file=<요청문.txt> --out-dir=<폴더> --name=<부품> [--count=3] [--ref=<기준 그림.png>]... [--timeout=300]
+#   bash tools/ui_gen/codex_image.sh --prompt-file=<요청문.txt> --out-dir=<폴더> --name=<부품> [--count=3] [--ref=<기준 그림.png>]... [--timeout=300] [--model=gpt-6.1-sol] [--effort=medium]
 #     --prompt-file  요청문이 든 UTF-8 글 파일. 요청문은 영어로 쓴다 (한글을 명령 인자로 넘기면 Windows에서 깨질 수 있다).
 #                    앞에 $imagegen이 없으면 붙이고, "그림 하나만, 파일은 고치지 말 것"을 덧붙인다
 #     --out-dir      받은 그림을 둘 폴더 (보통 art_src/ui/inbox/<화면 id>/). 없으면 만든다
@@ -11,6 +11,8 @@
 #     --count        후보 수. Codex를 이 횟수만큼 따로 부른다 (기본 3). 한 장마다 구독 한도를 쓴다
 #     --ref          함께 넣을 기준 그림. 여러 번 줄 수 있다 (Codex의 -i)
 #     --timeout      한 장을 기다리는 초 (기본 300)
+#     --model        요청문을 읽고 그림 도구를 부르는 글 모델 (기본 gpt-6.1-sol). 그림 모델은 Codex가 정해서 고를 수 없다
+#     --effort       그 글 모델의 생각 정도 (기본 medium). 그림 품질보다 시간과 구독 한도에 영향을 준다
 #
 # 출력: 받은 그림마다 "저장: <경로>", 마지막 줄 "결과: <받은 수>/<요청 수>장".
 # 종료 코드: 0 = 한 장 이상 받음, 1 = 한 장도 못 받음, 2 = 인자 오류, 3 = codex 명령이 없음.
@@ -20,6 +22,11 @@
 #   다른 Codex 창에서 같은 때에 그림을 만들면 그것도 딸려 올 수 있다. 붙이기 검사에서 걸러진다.
 # Codex는 읽기 전용 샌드박스로 부른다 (저장소 파일을 고치지 못하게). 버전에 따라 옵션이 다르면
 #   CODEX_IMAGE_FLAGS 환경 변수로 바꾼다 (기본 "--sandbox read-only". 예: CODEX_IMAGE_FLAGS="--sandbox read-only --enable image_generation").
+# 모델과 effort는 사용자가 정했다 (2026-11-15, GPT-6.1 Sol · medium). 각 PC의 Codex 설정과 상관없이 같게 돈다.
+#   환경 변수 CODEX_IMAGE_MODEL, CODEX_IMAGE_EFFORT로도 바꿀 수 있다. 빈 값을 주면 그 항목은 넘기지 않고 Codex 설정을 따른다
+#   (예: 그 모델을 쓸 수 없을 때 CODEX_IMAGE_MODEL= bash tools/ui_gen/codex_image.sh ...).
+#   부를 때마다 Codex 시작 안내에서 실제로 쓴 모델과 effort를 읽어 "적용:" 줄로 보이고, 정한 값과 다르면 경고한다
+#   (관리자 설정 managed_config.toml이 있으면 -c를 덮어쓸 수 있다).
 set -u
 
 COUNT=3
@@ -29,10 +36,12 @@ OUT_DIR=""
 NAME=""
 REFS=()
 DEFAULT_FLAGS="--sandbox read-only"
+MODEL="${CODEX_IMAGE_MODEL-gpt-6.1-sol}"
+EFFORT="${CODEX_IMAGE_EFFORT-medium}"
 # 요청문 끝에 늘 붙이는 말: 한 번에 한 장만, Codex가 파일을 고치지 않게
 SUFFIX=$'\n\nGenerate exactly one image. Do not create, edit or delete any files in the workspace.'
 
-die_usage() { echo "인자 오류: $1" >&2; sed -n '5,13p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
+die_usage() { echo "인자 오류: $1" >&2; sed -n '5,15p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
 
 for arg in "$@"; do
 	case "$arg" in
@@ -42,6 +51,8 @@ for arg in "$@"; do
 		--count=*) COUNT="${arg#*=}" ;;
 		--ref=*) REFS+=("${arg#*=}") ;;
 		--timeout=*) TIMEOUT_SEC="${arg#*=}" ;;
+		--model=*) MODEL="${arg#*=}" ;;
+		--effort=*) EFFORT="${arg#*=}" ;;
 		*) die_usage "모르는 인자 $arg" ;;
 	esac
 done
@@ -56,6 +67,8 @@ case "$TIMEOUT_SEC" in ''|*[!0-9]*|0) die_usage "--timeout은 1 이상의 정수
 for ref in ${REFS[@]+"${REFS[@]}"}; do
 	[ -f "$ref" ] || die_usage "기준 그림이 없다: $ref"
 done
+case "$MODEL" in *[!A-Za-z0-9._-]*) die_usage "--model 이름이 이상하다: $MODEL" ;; esac
+case "$EFFORT" in *[!a-z]*) die_usage "--effort는 영문 소문자다 (예: low, medium, high): $EFFORT" ;; esac
 
 if ! command -v codex >/dev/null 2>&1; then
 	echo "codex 명령이 없다. 이 컴퓨터에 Codex CLI를 설치하고 codex login으로 ChatGPT 계정에 로그인한다." >&2
@@ -74,6 +87,23 @@ PROMPT="$PROMPT$SUFFIX"
 read -r -a FLAGS <<< "${CODEX_IMAGE_FLAGS:-$DEFAULT_FLAGS}"
 REF_ARGS=()
 for ref in ${REFS[@]+"${REFS[@]}"}; do REF_ARGS+=(-i "$ref"); done
+MODEL_ARGS=()
+[ -n "$MODEL" ] && MODEL_ARGS+=(-m "$MODEL")
+[ -n "$EFFORT" ] && MODEL_ARGS+=(-c "model_reasoning_effort=\"$EFFORT\"")
+
+# Codex 시작 안내(로그)에서 실제로 쓴 모델과 effort를 읽어 알린다. 정한 값과 다르면 경고한다
+report_applied() {
+	local log="$1" used_model used_effort
+	used_model="$(grep -i -m1 -E '^[[:space:]]*model:' "$log" | sed -E 's/^[^:]*:[[:space:]]*//; s/[[:space:]]*$//')"
+	used_effort="$(grep -i -m1 -E '^[[:space:]]*reasoning effort:' "$log" | sed -E 's/^[^:]*:[[:space:]]*//; s/[[:space:]]*$//')"
+	echo "적용: 모델 ${used_model:-알 수 없음}, effort ${used_effort:-알 수 없음} (정한 값: 모델 ${MODEL:-Codex 설정}, effort ${EFFORT:-Codex 설정})"
+	if [ -n "$MODEL" ] && [ -n "$used_model" ] && [ "$used_model" != "$MODEL" ]; then
+		echo "  경고: 모델이 정한 값과 다르다. Codex 관리자 설정이나 버전을 확인한다" >&2
+	fi
+	if [ -n "$EFFORT" ] && [ -n "$used_effort" ] && [ "$used_effort" != "$EFFORT" ]; then
+		echo "  경고: effort가 정한 값과 다르다. Codex 관리자 설정(managed_config.toml)이 덮어썼을 수 있다" >&2
+	fi
+}
 
 TIMEOUT_CMD=()
 if command -v timeout >/dev/null 2>&1; then TIMEOUT_CMD=(timeout -k 10 "$TIMEOUT_SEC"); fi
@@ -96,8 +126,9 @@ for ((n = 1; n <= COUNT; n++)); do
 	sleep 1  # 표시 파일과 새 그림의 시각이 같은 초로 겹치지 않게
 	log="$LOG_DIR/${NAME}_try$n.log"
 	# -i는 값을 여러 개 받으므로(-i <FILE>...) 요청문 앞에 --를 둔다. 없으면 요청문까지 그림 경로로 먹혀 "No prompt provided"로 끝난다
-	"${TIMEOUT_CMD[@]}" codex exec "${FLAGS[@]}" ${REF_ARGS[@]+"${REF_ARGS[@]}"} -- "$PROMPT" > "$log" 2>&1 < /dev/null
+	"${TIMEOUT_CMD[@]}" codex exec "${FLAGS[@]}" ${MODEL_ARGS[@]+"${MODEL_ARGS[@]}"} ${REF_ARGS[@]+"${REF_ARGS[@]}"} -- "$PROMPT" > "$log" 2>&1 < /dev/null
 	status=$?
+	[ "$n" -eq 1 ] && report_applied "$log"
 	found=0
 	if [ -d "$GEN_DIR" ]; then
 		while IFS= read -r img; do

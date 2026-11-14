@@ -18,6 +18,7 @@ Codex 스크립트: `tools/ui_gen/codex_image.sh`
 2. **두 PC 모두 Codex CLI 준비.** Git Bash에서 `codex --version`이 나오고 `codex login`으로 ChatGPT 계정에 로그인되어 있어야 한다. 없으면 `npm install -g @openai/codex`로 설치하고 `codex login`을 한다 (로그인 확인: `codex login status`). Codex는 만든 그림을 홈 폴더의 .codex/generated_images/에 두고, 스크립트가 거기서 새 그림만 가져온다.
    - 처음 한 번 시험: `echo 'A small bone icon on a transparent background' > /tmp/p.txt && bash tools/ui_gen/codex_image.sh --prompt-file=/tmp/p.txt --out-dir=art_src/ui/inbox/test --name=test --count=1` → `결과: 1/1장`이 나오고 그 폴더에 test_1.png가 생기면 된다. 시험 폴더는 지운다.
    - 옵션 오류가 나면(버전마다 다르다) `CODEX_IMAGE_FLAGS` 환경 변수로 바꾼다 (스크립트 맨 위 주석).
+   - **모델과 effort는 정해져 있다 (2026-11-15): 글 모델 GPT-6.1 Sol, effort medium.** 글 모델은 요청문을 읽고 그림 도구를 부르기만 한다. 그림을 그리는 모델은 Codex가 정하고 고를 수 없다. 스크립트가 이 값을 매번 넘기므로 각 PC의 Codex 설정과 상관없이 같게 돈다. 실행하면 `적용: 모델 …, effort …` 줄이 나온다. 시험 때 이 줄이 정한 값과 같은지 본다.
    - Codex가 없는 컴퓨터에서는 에이전트가 요청문만 주고 멈춘다. 그때는 아래 "직접 받기"대로 한다.
 3. **구독 한도.** 그림 한 장마다 ChatGPT 구독 한도를 쓰고, 글 작업보다 빨리 닳는다. 에이전트는 한 번에 12장까지만 뽑고 보고에 받은 수를 적는다. Codex에서 `/status`로 남은 한도를 볼 수 있다.
 
@@ -80,6 +81,8 @@ Claude Code에 말한다:
 |---|---|
 | 한 부품의 후보가 모두 버려졌다 | 에이전트가 고친 요청문을 준다. "그 부품 다시 뽑아 줘"라고 하면 Codex로 다시 뽑는다 |
 | Codex가 그림을 못 받았다 | 보고에 로그 끝 줄이 나온다. 한도가 찼으면 기다리거나 직접 받기로 한다. 옵션 오류면 `CODEX_IMAGE_FLAGS`를 바꾼다 |
+| 그 모델을 쓸 수 없다는 오류 | 계정에 GPT-6.1 Sol이 없다는 뜻이다. Codex에서 `/model`로 쓸 수 있는 모델을 보고 다시 정한다. 당장은 `CODEX_IMAGE_MODEL=` 을 앞에 붙이면 그 PC의 Codex 설정 모델로 돈다 |
+| "effort가 정한 값과 다르다" 경고 | Codex 관리자 설정이 덮어쓴 것이다. 그림은 그대로 받으니 써도 된다. 계속 나오면 Codex 버전·설정을 본다 |
 | 버려진 그림이 아깝다 | "rejected의 <파일 이름> 살려, <이유>"라고 말한다 |
 | 그림에 글자가 들어갔다 | 쓰지 않는다. 글자는 게임 글꼴로 넣는다. 요청문에 "글자 없음"이 있는지 본다 |
 | 흰 배경이 그려져 나온다 | 스크립트 검사가 거른다. 계속 나오면 "요청문 정리해 줘"로 틀에 투명 배경 문장을 더 분명히 넣는다 |
