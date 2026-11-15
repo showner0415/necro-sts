@@ -10,6 +10,8 @@ extends RefCounted
 ## - 거리 두기: 근접 몬스터와 keep_distance를 유지하며 쏜다. 다가오는 몬스터가 아주 가까우면 쏘기를 멈추고 뛴다 (쏘는 동안은 느리고 뛸 수 없다)
 ##   예고 중인 공격(돌진 등)은 뛰어서 피하지 않는다. 피하기는 구르기 판단(반응 시간, 회피 성공률) 하나로만 한다.
 ##   그래야 실력 단계의 회피 성공률이 결과에 그대로 드러난다
+## - 늦게 물러나기 (사용자 결정 2026-11-15): 몬스터가 keep_distance 안에 들어온 뒤 반응 시간이 지나야 그 몬스터에게서 물러나고,
+##   run_distance 안에 들어온 뒤 반응 시간이 지나야 쏘기를 멈추고 뛴다. 거리 밖으로 나갔다 다시 들어오면 처음부터 센다
 ## - 줄 피하기: 몬스터가 예고 중일 때, 그 몬스터와 언데드를 잇는 줄 위(언데드 뒤쪽)에 있으면 옆으로 비킨다 (물러나지는 않는다).
 ##   언데드를 노린 공격이 뒤로 이어지지 않게. 사람도 예고 선이 보일 때 비키므로 예고 중에만 한다
 ## - 언데드: 핫바의 머리뼈가 소환 중이 아니고 마나가 넉넉하면 숫자키 → G로 다시 소환한다
@@ -20,7 +22,7 @@ extends RefCounted
 ##   안 보이는 몬스터에게 맞으면 hit_turn_delay초 뒤 맞은 쪽을 hit_look_time초 동안 본다 (맵을 걸을 때는 look_around를 부른다)
 ## - 놓친 몬스터 (사용자 결정): 살아 있는 몬스터가 시야에서 사라지면 반응 시간 동안 마우스를 그대로 두고, 그 뒤 last_seen_look_time초 동안 마지막으로 본 자리를 본다.
 ##   실제 위치가 아니라 마지막으로 본 자리만 쓴다. 싸우는 중이면 그다음 둘러보기도 그쪽을 기준으로 한다
-## 실력은 반응 시간, 조준 오차, 회피 성공률(, 둘러보는 간격) 값으로 정한다 (SKILLS, 임시값).
+## 실력은 반응 시간(겨누기·예고 피하기·돌 피하기·물러나기), 조준 오차, 회피 성공률(, 둘러보는 간격) 값으로 정한다 (SKILLS, 임시값).
 
 ## 실력 단계: [이름, 반응 시간(초), 조준 오차(도, 표준편차), 회피 성공률, 둘러보는 간격(초, 사용자 확정)]
 const SKILLS: Dictionary = {
@@ -122,6 +124,9 @@ var _retreat_follower: PathFollower
 
 ## 시야: 몬스터마다 처음 보인 시각, 마지막으로 걸은 방향, 둘러보기 시계, 맞은 쪽 보기 (-1이면 안 함)
 var _seen_at: Dictionary = {}
+## 늦게 물러나기: 몬스터마다 keep_distance 안·run_distance 안에 들어온 시각 (밖으로 나가면 지운다)
+var _near_since: Dictionary = {}
+var _close_since: Dictionary = {}
 var _walk_direction: Vector2 = Vector2.RIGHT
 var _scan_timer: float = 0.0
 var _hit_timer: float = -1.0
@@ -202,6 +207,10 @@ func tick(delta: float) -> void:
 	var monsters: Array[Monster] = _alive_monsters()
 	_update_seen(monsters)
 	_check_hit()
+	if retreating or monsters.is_empty():
+		# 상대할 몬스터가 없거나 싸우지 않는 동안에는 거리 안에 든 기록을 지운다 (다시 싸울 때 처음부터 센다).
+		_near_since.clear()
+		_close_since.clear()
 	if retreating:
 		_retreat_tick(monsters, delta)
 		return
@@ -212,6 +221,7 @@ func tick(delta: float) -> void:
 	_track_group_attack(monsters, delta)
 	# 겨누고 거리를 두는 것은 보인 뒤 반응 시간이 지난 몬스터만. 예고 피하기는 보이는 몬스터 모두 (예고를 본 때부터 반응 시간을 센다).
 	var known: Array[Monster] = monsters.filter(func(m: Monster) -> bool: return _time - _seen_at[m] >= skill["reaction"])
+	_update_near(known)
 	if known.is_empty():
 		_test.press_mouse(false)
 		look_around(delta, Vector2.ZERO)
@@ -349,7 +359,35 @@ func _nearest(monsters: Array[Monster]) -> Monster:
 	return nearest
 
 
-## 예고 없이 다가오는 몬스터가 아주 가까우면, 쏘기를 멈추고 뛰어서 벗어난다.
+## 몬스터마다 keep_distance 안·run_distance 안에 들어온 시각을 적고, 밖으로 나간 몬스터는 지운다 (늦게 물러나기).
+func _update_near(monsters: Array[Monster]) -> void:
+	var position: Vector2 = _necromancer.global_position
+	var near_now: Dictionary = {}
+	var close_now: Dictionary = {}
+	for monster: Monster in monsters:
+		var distance: float = position.distance_to(monster.global_position)
+		if distance < keep_distance:
+			near_now[monster] = true
+			if not _near_since.has(monster):
+				_near_since[monster] = _time
+		if distance < run_distance:
+			close_now[monster] = true
+			if not _close_since.has(monster):
+				_close_since[monster] = _time
+	for monster: Variant in _near_since.keys():
+		if not near_now.has(monster):
+			_near_since.erase(monster)
+	for monster: Variant in _close_since.keys():
+		if not close_now.has(monster):
+			_close_since.erase(monster)
+
+
+## since(_near_since·_close_since)에 적힌 뒤 반응 시간이 지났는지: 그 거리 안에 든 것을 알아차렸다.
+func _noticed(since: Dictionary, monster: Monster) -> bool:
+	return since.has(monster) and _time - since[monster] >= skill["reaction"]
+
+
+## 예고 없이 다가오는 몬스터가 run_distance 안에 든 것을 알아차렸으면, 쏘기를 멈추고 뛰어서 벗어난다.
 func _should_flee(monsters: Array[Monster]) -> bool:
 	if keep_distance <= 0.0 or not _necromancer.stamina.can_run():
 		return false
@@ -357,7 +395,7 @@ func _should_flee(monsters: Array[Monster]) -> bool:
 		var behavior: MonsterBehavior = monster.get_behavior()
 		if behavior != null and behavior.is_telegraphing():
 			continue
-		if monster.global_position.distance_to(_necromancer.global_position) < run_distance:
+		if _noticed(_close_since, monster):
 			return true
 	return false
 
@@ -510,7 +548,7 @@ func _move(monsters: Array[Monster]) -> void:
 	var away: Vector2 = Vector2.ZERO
 	for monster: Monster in monsters:
 		var distance: float = position.distance_to(monster.global_position)
-		if distance < keep_distance and distance > 0.0:
+		if distance < keep_distance and distance > 0.0 and _noticed(_near_since, monster):
 			away += monster.global_position.direction_to(position) * (keep_distance - distance) / keep_distance
 	var sidestep: Vector2 = _line_avoidance(monsters)
 	var direction: Vector2 = Vector2.ZERO
