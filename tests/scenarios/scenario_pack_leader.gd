@@ -6,7 +6,7 @@ extends ScenarioTest
 ## 4. A에 갔다 B로 돌아와도 같은 무리원이 대장이고 체력·강화가 그대로다
 ## 5. 대장을 잡으면 남은 무리원의 공격력이 바로 원래대로 돌아온다
 ## 6. 다시 A에 갔다 오면 죽은 대장은 다시 생기지 않고 강화도 없다
-## 확률은 data/packs/leader_settings.tres(임시값)를 불러온 리소스에서 메모리로만 바꾸고 되돌린다 (파일은 바꾸지 않는다). 15% 자체는 단위 테스트(test_pack_leader.gd)가 본다.
+## 확률은 data/packs/leader_settings.tres(대장 3%)를 불러온 리소스에서 메모리로만 바꾸고 되돌린다 (파일은 바꾸지 않는다). 확률대로 고르는지는 단위 테스트(test_pack_leader.gd)가 본다.
 
 const SCENE_A: String = "res://tests/dungeon_test_a.tscn"
 const DATA_A: String = "res://data/regions/test_dungeon_a.tres"

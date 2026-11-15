@@ -15,7 +15,7 @@ static var _default: SkullPity
 
 ## 보정을 받는 머리뼈
 @export var skull: SkullData
-## 머리뼈가 하나도 없을 때의 확률 (임시값, 원래 쥐의 머리뼈는 0.5)
+## 머리뼈가 하나도 없을 때의 확률 (사용자 결정 2026-11-15, 봇 측정 5a에서 확정. 원래 쥐의 머리뼈는 0.5)
 @export_range(0.0, 1.0) var boosted_chance: float = 0.8
 
 

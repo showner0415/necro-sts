@@ -7,7 +7,7 @@ extends Node2D
 ## - 대장(계획 6a): 처음 만들 때 PackLeader로 고르고 체력을 대장 배율만큼 늘린다. 되살릴 때는 담은 대장 여부·체력을 그대로 쓴다 (죽은 대장은 다시 생기지 않아 강화도 없다)
 
 const MONSTER_SCENE: String = "res://monsters/monster.tscn"
-## 대장 값을 따로 넣지 않으면 이 값을 쓴다 (확률 15%, 공격력 1.2배, 체력 1.5배, 모두 임시값)
+## 대장 값을 따로 넣지 않으면 이 값을 쓴다 (확률 3%, 공격력 1.2배, 체력 1.5배, 네임드 머리뼈 40%)
 const DEFAULT_LEADER_SETTINGS: String = "res://data/packs/leader_settings.tres"
 
 ## 이 자리의 무리 종류
