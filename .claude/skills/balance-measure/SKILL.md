@@ -60,6 +60,11 @@ description: 밸런스·몬스터 AI·언데드 능력치를 숫자로 잴 때 �
 - `bash tools/godot.sh --headless --path . -s tools/bone_expectation.gd` (기본 얕은 굴, 다른 씬은 `-- --scene=res://<씬>.tscn`). 판정 없이 출력만 하고 몇 초 걸린다
 - 종마다 마릿수 × 마리당 뼈 기대값과 합계를 낸다. 무리 자리는 무리원 수의 가운데((최소 + 최대) / 2)로 세고, 상자 뼈는 세지 않는다. 기준은 얕은 굴 120 (`docs/game-design.md` "몬스터 무리"의 드랍 줄)
 
+## 5-2. 무리 흩어 놓기 배치 (pack_placement_stats)
+
+- `bash tools/godot.sh --headless --path . -s tools/pack_placement_stats.gd` (기본 얕은 굴·시드 50개, `-- --seeds=<수> --scene=res://<씬>.tscn`). 판정 없이 출력만 하고 몇 초 걸린다
+- 무리 자리마다 게임의 `PackSpawn.spawn`으로 시드마다 놓아 보고, 30번 안에 못 골라 한가운데로 간 무리원 수, 무리원 사이 가장 가까운 거리, 둘레(흩어 놓기 반지름 안) 바닥 비율, 가장 가까운 벽을 낸다. 결과 예: tests/balance/results/2026-11-15_pack_placement.md (봇 측정 5a-2)
+
 ## 6. 결과 저장과 전후 비교
 
 - 측정 결과를 사용자에게 보고할 때 저장하는 곳과 이름: `tests/balance/results/<날짜>_<내용>.md` (CLAUDE.md 규칙). 지난 결과도 이 폴더에 있다.

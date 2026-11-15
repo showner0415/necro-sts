@@ -12,11 +12,11 @@ const DEFAULT_LEADER_SETTINGS: String = "res://data/packs/leader_settings.tres"
 
 ## 이 자리의 무리 종류
 @export var pack: PackData
-## 무리원을 놓을 범위 (자리에서 픽셀, 사용자 결정 2026-11-14, 임시값)
+## 무리원을 놓을 범위 (자리에서 픽셀, 사용자 결정 2026-11-15, 봇 측정 5a-2에서 확정)
 @export var spread_radius: float = 48.0
-## 무리원끼리 이만큼(픽셀) 떨어뜨려 놓는다 (사용자 결정 2026-11-14, 임시값)
+## 무리원끼리 이만큼(픽셀) 떨어뜨려 놓는다 (사용자 결정 2026-11-15, 봇 측정 5a-2에서 확정)
 @export var min_spacing: float = 16.0
-## 놓을 곳을 다시 고르는 횟수 (사용자 결정 2026-11-14, 임시값). 끝내 못 고르면 자리 한가운데에 둔다
+## 놓을 곳을 다시 고르는 횟수 (사용자 결정 2026-11-15, 봇 측정 5a-2에서 확정). 끝내 못 고르면 자리 한가운데에 둔다
 @export var place_tries: int = 30
 ## 무리 대장 값 (비우면 DEFAULT_LEADER_SETTINGS)
 @export var leader_settings: PackLeaderSettings

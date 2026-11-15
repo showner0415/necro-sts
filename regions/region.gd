@@ -22,7 +22,7 @@ const VIEW_2D_ARG: String = "--view_2d"
 @export var data: RegionData
 ## 죽으면 돌아갈 곳 (거점)
 @export var death_destination: RegionData
-## 무리 자리에서 무리원을 놓을 때 벽에서 떨어뜨리는 거리 (픽셀, 사용자 결정 2026-11-14, 임시값)
+## 무리 자리에서 무리원을 놓을 때 벽에서 떨어뜨리는 거리 (픽셀, 사용자 결정 2026-11-15, 봇 측정 5a-2에서 확정)
 @export var spawn_floor_margin: float = 8.0
 
 var _inventory: Inventory
