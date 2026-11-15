@@ -539,7 +539,7 @@ func _aim_row(target_id: StringName, undead_count: int, skill_id: StringName, re
 	var seconds: float = maxf(total["frames"] / float(Engine.physics_ticks_per_second), 0.01)
 	var aim_frames: float = maxf(total["aim_frames"], 1.0)
 	return "| %s | %s | %s | %d | %s | %s | %.0f%% | %.0f%% | %.1f도 | %.0f%% | %.0f%% | %.2f | %.2f | %.0f%% |" % [
-		TARGETS[target_id]["name"], "혼자" if undead_count == 0 else "쥐 언데드 %d" % undead_count, PlayerBot.SKILLS[skill_id]["name"], results.size(),
+		get_target(target_id)["name"], "혼자" if undead_count == 0 else "쥐 언데드 %d" % undead_count, PlayerBot.SKILLS[skill_id]["name"], results.size(),
 		_rate_range(deaths, results.size()), _mean_error(results.map(func(r: Dictionary) -> float: return r["damage"]), ""),
 		100.0 * total["seen"] / maxf(total["alive"], 1.0), 100.0 * total["not_known"] / maxf(total["frames"], 1.0),
 		total["off_sum"] / aim_frames, 100.0 * total["off_bright"] / aim_frames, 100.0 * total["off_cone"] / aim_frames,
@@ -561,7 +561,7 @@ func _attack_rows(target_id: StringName, undead_count: int, skill_id: StringName
 		var unseen: Array[Dictionary] = attacks.filter(func(a: Dictionary) -> bool: return not a["seen_at_start"])
 		var hit: Callable = func(a: Dictionary) -> bool: return a["hit"]
 		rows.append("| %s | %s | %s | %s | %d | %s | %s | %s | %s | %s |" % [
-			TARGETS[target_id]["name"], "혼자" if undead_count == 0 else "쥐 언데드 %d" % undead_count, PlayerBot.SKILLS[skill_id]["name"],
+			get_target(target_id)["name"], "혼자" if undead_count == 0 else "쥐 언데드 %d" % undead_count, PlayerBot.SKILLS[skill_id]["name"],
 			{"dive": "혼자 돌진", "group": "동시 돌진", "stone": "돌"}[kind], attacks.size(), _share(seen.size(), attacks.size()), _share(_count(attacks, "windup_seen"), attacks.size()),
 			_share(seen.filter(hit).size(), seen.size()), _share(unseen.filter(hit).size(), unseen.size()), _share(_count(attacks, "rolled"), attacks.size())])
 		_dodge_rows.append(_dodge_row(target_id, skill_id, kind, attacks, hit))
@@ -573,11 +573,11 @@ func _dodge_row(target_id: StringName, skill_id: StringName, kind: String, attac
 	var not_tried: Array[Dictionary] = attacks.filter(func(a: Dictionary) -> bool: return not a.get("tried", a["rolled"]))
 	var tried: Array[Dictionary] = attacks.filter(func(a: Dictionary) -> bool: return a.get("tried", a["rolled"]))
 	if kind == "stone":
-		return "| %s | %s | 돌 | %s | - | %s | - |" % [TARGETS[target_id]["name"], PlayerBot.SKILLS[skill_id]["name"], _share(not_tried.filter(hit).size(), not_tried.size()), _share(tried.filter(hit).size(), tried.size())]
+		return "| %s | %s | 돌 | %s | - | %s | - |" % [get_target(target_id)["name"], PlayerBot.SKILLS[skill_id]["name"], _share(not_tried.filter(hit).size(), not_tried.size()), _share(tried.filter(hit).size(), tried.size())]
 	var late: Array[Dictionary] = tried.filter(func(a: Dictionary) -> bool: return not a["rolled"])
 	var failed: Array[Dictionary] = tried.filter(func(a: Dictionary) -> bool: return a["rolled"] and not a["real_roll"])
 	var rolled: Array[Dictionary] = tried.filter(func(a: Dictionary) -> bool: return a["rolled"] and a["real_roll"])
-	return "| %s | %s | %s | %s | %s | %s | %s |" % [TARGETS[target_id]["name"], PlayerBot.SKILLS[skill_id]["name"], {"dive": "혼자 돌진", "group": "동시 돌진"}[kind],
+	return "| %s | %s | %s | %s | %s | %s | %s |" % [get_target(target_id)["name"], PlayerBot.SKILLS[skill_id]["name"], {"dive": "혼자 돌진", "group": "동시 돌진"}[kind],
 		_share(not_tried.filter(hit).size(), not_tried.size()), _share(late.filter(hit).size(), late.size()), _share(rolled.filter(hit).size(), rolled.size()), _share(failed.filter(hit).size(), failed.size())]
 
 
@@ -645,7 +645,7 @@ func _pack_row(target_id: StringName, skill_id: StringName, results: Array[Dicti
 	var first_death: String = "%.1f초 (%d판)" % [deaths.reduce(func(a: float, b: float) -> float: return a + b, 0.0) / deaths.size(), deaths.size()] if not deaths.is_empty() else "-"
 	var rat_frames: float = maxf(total.call("rat_frames"), 1.0)
 	var undead_frames: float = maxf(total.call("undead_frames"), 1.0)
-	return "| %s | %s | %d | %.1f | %s | %.0f%% / %.0f%% / %.0f%% | %.2f | %.0f%% | %s |" % [TARGETS[target_id]["name"], skill_id, results.size(),
+	return "| %s | %s | %d | %.1f | %s | %.0f%% / %.0f%% / %.0f%% | %.2f | %.0f%% | %s |" % [get_target(target_id)["name"], skill_id, results.size(),
 		_sum(results, "undead_died") / maxf(results.size(), 1.0), first_death,
 		100.0 * total.call("on_necromancer") / rat_frames, 100.0 * total.call("on_undead") / rat_frames, 100.0 * total.call("on_none") / rat_frames,
 		total.call("holders") / undead_frames, 100.0 * total.call("two_plus") / undead_frames, _share(_count(results, "died"), results.size())]

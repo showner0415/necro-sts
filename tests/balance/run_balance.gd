@@ -12,6 +12,9 @@ extends ScenarioTest
 ## 쥐 패거리 (기본 대상에 없음, 계획 8b-2): -- --targets=rat_gang3,rat_gang3_leader,rat_gang4,rat_gang4_leader (결과 tests/balance/results/2026-11-15_rat_pack_fight.md)
 ## 벽 방의 쥐 (계획 8b-5): -- --targets=rat_room_s,rat_gang4_room_s,rat_gang4_leader_room_s,rat_room_l,rat_gang4_room_l,rat_gang4_leader_room_l (_s 작은 방 12×9칸, _l 입구 굴만 한 방 36×31칸)
 ## 멧돼지·투석병·섞인 무리 (봇 측정 1단계): -- --targets=boar_pack2,boar_pack2_leader,boar_pack3,boar_pack3_leader,goblin_pack2,goblin_pack2_leader,goblin_pack3,goblin_pack3_leader,mixed3,mixed3_leader,mixed4,mixed4_leader
+## 쥐 큰 무리 (봇 측정 3단계): -- --targets=rat_big6,rat_big6_leader,rat_big8,rat_big8_leader
+## 벽 방 판 (봇 측정 3단계): -- --targets=boar_pack2,rat_big6 --rooms=s,l (대상마다 작은 방 _room_s·큰 방 _room_l 판으로 바꾼다. 결과 tests/balance/results/2026-11-15_pack_room.md)
+##   3a 측정 전부 (무리 열여섯 × 두 방, 결과 tests/balance/results/2026-11-15_pack_room.md): -- --targets=boar_pack2,boar_pack2_leader,boar_pack3,boar_pack3_leader,goblin_pack2,goblin_pack2_leader,goblin_pack3,goblin_pack3_leader,mixed3,mixed3_leader,mixed4,mixed4_leader,rat_big6,rat_big6_leader,rat_big8,rat_big8_leader --rooms=s,l
 ## 판마다 시드(BASE_SEED + 판 번호)로 던전 상태와 지역 공격권의 난수도 맞추므로, 같은 대상·판 번호면 다른 대상·실력과 함께 돌려도 결과가 같다 (봇 측정 1단계)
 ## 봇이 몬스터와 유지하는 거리 바꾸기: -- --keep=0 (0이면 거리를 두지 않고 제자리에서 쏘며 예고만 피한다)
 ## 봇이 쏘기를 멈추고 뛰는 거리 바꾸기: -- --run_distance=20 (기본 55. keep이 이보다 작으면 다가오는 몬스터마다 뛰어서 싸움이 끝나지 않을 수 있다)
@@ -58,7 +61,8 @@ const TARGETS: Dictionary = {
 	&"rat_gang4_leader_room_l": {"name": "쥐 패거리(4), 대장, 큰 방", "data": "res://data/monsters/rat.tres", "offsets": [Vector2(0, -16), Vector2(16, 0), Vector2(0, 16), Vector2(-16, 0)], "pack": true, "leader": true,
 		"room": Vector2(1152, 992), "start": Vector2(-120, 0), "spawn": Vector2(110, 0), "arena": 472.0},
 	## 멧돼지·투석병·섞인 무리 (봇 측정 계획 1단계, 사용자 결정 2026-11-15: 크기마다 대상 + 대장 판). 크기는 data/packs/*.tres의 범위 끝 둘.
-	## 몸이 쥐보다 커서 무리원 사이를 24px로 둔다. 대장은 첫 무리원이다 (섞인 무리는 멧돼지. 실제 무리 자리는 무리원 중 아무나). 기본 대상에는 넣지 않는다
+	## 몸이 쥐보다 커서 무리원 사이를 24px로 둔다. 대장은 첫 무리원이고, "leader_index"가 있으면 그 차례의 무리원이다.
+	## 섞인 무리의 대장은 첫 쥐다 (봇 측정 3단계, 사용자 결정 2026-11-15: 쥐만 대장. 실제 무리 자리는 무리원 중 아무나). 기본 대상에는 넣지 않는다
 	&"boar_pack2": {"name": "멧돼지 무리(2)", "data": "res://data/monsters/boar.tres", "offsets": [Vector2(0, -12), Vector2(0, 12)], "pack": true},
 	&"boar_pack2_leader": {"name": "멧돼지 무리(2), 대장", "data": "res://data/monsters/boar.tres", "offsets": [Vector2(0, -12), Vector2(0, 12)], "pack": true, "leader": true},
 	&"boar_pack3": {"name": "멧돼지 무리(3)", "data": "res://data/monsters/boar.tres", "offsets": [Vector2(0, -24), Vector2(0, 0), Vector2(0, 24)], "pack": true},
@@ -70,11 +74,24 @@ const TARGETS: Dictionary = {
 	&"mixed3": {"name": "섞인 무리(멧돼지 1 + 쥐 2)", "data": "res://data/monsters/boar.tres", "datas": ["res://data/monsters/boar.tres", "res://data/monsters/rat.tres", "res://data/monsters/rat.tres"],
 		"offsets": [Vector2(0, 0), Vector2(24, -16), Vector2(24, 16)], "pack": true},
 	&"mixed3_leader": {"name": "섞인 무리(멧돼지 1 + 쥐 2), 대장", "data": "res://data/monsters/boar.tres", "datas": ["res://data/monsters/boar.tres", "res://data/monsters/rat.tres", "res://data/monsters/rat.tres"],
-		"offsets": [Vector2(0, 0), Vector2(24, -16), Vector2(24, 16)], "pack": true, "leader": true},
+		"offsets": [Vector2(0, 0), Vector2(24, -16), Vector2(24, 16)], "pack": true, "leader": true, "leader_index": 1},
 	&"mixed4": {"name": "섞인 무리(멧돼지 1 + 쥐 3)", "data": "res://data/monsters/boar.tres", "datas": ["res://data/monsters/boar.tres", "res://data/monsters/rat.tres", "res://data/monsters/rat.tres", "res://data/monsters/rat.tres"],
 		"offsets": [Vector2(0, 0), Vector2(24, -16), Vector2(24, 16), Vector2(40, 0)], "pack": true},
 	&"mixed4_leader": {"name": "섞인 무리(멧돼지 1 + 쥐 3), 대장", "data": "res://data/monsters/boar.tres", "datas": ["res://data/monsters/boar.tres", "res://data/monsters/rat.tres", "res://data/monsters/rat.tres", "res://data/monsters/rat.tres"],
-		"offsets": [Vector2(0, 0), Vector2(24, -16), Vector2(24, 16), Vector2(40, 0)], "pack": true, "leader": true},
+		"offsets": [Vector2(0, 0), Vector2(24, -16), Vector2(24, 16), Vector2(40, 0)], "pack": true, "leader": true, "leader_index": 1},
+	## 쥐 큰 무리 (봇 측정 3단계): 크기는 data/packs/rat_big.tres의 범위 끝 둘(6·8). 무리원 사이는 쥐 패거리 대상과 같은 16px로, 두 줄 격자에 놓는다 (측정 조건). 기본 대상에는 넣지 않는다
+	&"rat_big6": {"name": "쥐 큰 무리(6)", "data": "res://data/monsters/rat.tres", "offsets": [Vector2(-16, -8), Vector2(0, -8), Vector2(16, -8), Vector2(-16, 8), Vector2(0, 8), Vector2(16, 8)], "pack": true},
+	&"rat_big6_leader": {"name": "쥐 큰 무리(6), 대장", "data": "res://data/monsters/rat.tres", "offsets": [Vector2(-16, -8), Vector2(0, -8), Vector2(16, -8), Vector2(-16, 8), Vector2(0, 8), Vector2(16, 8)], "pack": true, "leader": true},
+	&"rat_big8": {"name": "쥐 큰 무리(8)", "data": "res://data/monsters/rat.tres",
+		"offsets": [Vector2(-24, -8), Vector2(-8, -8), Vector2(8, -8), Vector2(24, -8), Vector2(-24, 8), Vector2(-8, 8), Vector2(8, 8), Vector2(24, 8)], "pack": true},
+	&"rat_big8_leader": {"name": "쥐 큰 무리(8), 대장", "data": "res://data/monsters/rat.tres",
+		"offsets": [Vector2(-24, -8), Vector2(-8, -8), Vector2(8, -8), Vector2(24, -8), Vector2(-24, 8), Vector2(-8, 8), Vector2(8, 8), Vector2(24, 8)], "pack": true, "leader": true},
+}
+## 벽 방 판 (봇 측정 3단계, 사용자 결정 2026-11-15: 벽 방 두 크기): TARGETS에 없는 "<대상>_room_s"·"<대상>_room_l"은 그 대상에 이 방을 붙여 만든다 (get_target).
+## 방 크기·시작·몬스터 자리·arena는 벽 방의 쥐 대상(rat_room_s·rat_room_l)과 같다. TARGETS에 직접 적은 방 대상이 있으면 그것을 쓴다
+const ROOMS: Dictionary = {
+	"_room_s": {"name": "작은 방", "room": Vector2(384, 288), "start": Vector2(-120, 0), "spawn": Vector2(110, 0), "arena": 120.0},
+	"_room_l": {"name": "큰 방", "room": Vector2(1152, 992), "start": Vector2(-120, 0), "spawn": Vector2(110, 0), "arena": 472.0},
 }
 ## 대장 값 (PackSpawn과 같은 파일)
 const LEADER_SETTINGS: String = "res://data/packs/leader_settings.tres"
@@ -100,6 +117,8 @@ var _keep: float = -1.0
 var _run_distance: float = -1.0
 ## 처음 이 횟수만큼의 무리 동시 공격은 봇이 일부러 피하지 않는다
 var _miss_pack: int = 0
+## 대상마다 붙일 방 (--rooms=s,l → "_room_s", "_room_l"). 비어 있으면 대상 그대로
+var _rooms: Array[String] = []
 
 
 func get_start_scene() -> String:
@@ -135,6 +154,31 @@ func _parse_args() -> void:
 				_keep = float(parts[1])
 			"run_distance":
 				_run_distance = float(parts[1])
+			"rooms":
+				_rooms.assign(Array(values).map(func(v: String) -> String: return "_room_" + v))
+	# --rooms=s,l: 대상마다 방 판으로 바꾼다 (대상 차례대로, 대상 하나의 방 판이 붙어 나온다)
+	if not _rooms.is_empty():
+		var expanded: Array[StringName] = []
+		for target_id: StringName in _targets:
+			for suffix: String in _rooms:
+				expanded.append(StringName(String(target_id) + suffix))
+		_targets = expanded
+
+
+## 대상 id의 설정. TARGETS에 없고 "<대상>_room_s"·"<대상>_room_l" 꼴이면 그 대상에 ROOMS의 방을 붙여 만든다.
+static func get_target(target_id: StringName) -> Dictionary:
+	if TARGETS.has(target_id):
+		return TARGETS[target_id]
+	for suffix: String in ROOMS:
+		var base: StringName = StringName(String(target_id).trim_suffix(suffix))
+		if String(target_id).ends_with(suffix) and TARGETS.has(base):
+			var target: Dictionary = (TARGETS[base] as Dictionary).duplicate()
+			var room: Dictionary = ROOMS[suffix]
+			for key: String in room:
+				target[key] = room[key]
+			target["name"] = "%s, %s" % [TARGETS[base]["name"], room["name"]]
+			return target
+	return TARGETS[target_id]
 
 
 func _run_all() -> void:
@@ -191,7 +235,7 @@ func _fight(target_id: StringName, undead_count: int, skill_id: StringName, run:
 		node.free()
 	for node: Node in region.find_children("*", "EscapePoint", true, false):
 		node.free()
-	var target: Dictionary = TARGETS[target_id]
+	var target: Dictionary = get_target(target_id)
 	necromancer.global_position = target.get("start", Vector2.ZERO)
 	if target.has("room"):
 		_build_room(region, target["room"])
@@ -213,7 +257,7 @@ func _fight(target_id: StringName, undead_count: int, skill_id: StringName, run:
 		region.add_child(pack)
 		if target.get("leader", false):
 			var settings: PackLeaderSettings = load(LEADER_SETTINGS)
-			var leader: Monster = spawned[0]
+			var leader: Monster = spawned[target.get("leader_index", 0)]
 			leader.is_leader = true
 			leader.leader_settings = settings
 			leader.health = leader.data.max_health * settings.leader_health_ratio
@@ -228,7 +272,8 @@ func _fight(target_id: StringName, undead_count: int, skill_id: StringName, run:
 		print("[실패] 판 시작 검사: 대장 %d마리 (기대 1), 무리원 강화 %s. 이 판은 뺀다" % [leaders, boosted])
 		return {"invalid": true}
 	if target.get("leader", false):
-		print("[대장] %s: 대장 %d마리 (체력 %.1f), 무리원 강화 %d/%d" % [target["name"], leaders, spawned[0].health,
+		var leader: Monster = spawned.filter(func(m: Monster) -> bool: return m.is_leader)[0]
+		print("[대장] %s: 대장 %d마리 (%s, 체력 %.1f), 무리원 강화 %d/%d" % [target["name"], leaders, leader.data.display_name, leader.health,
 				spawned.filter(func(m: Monster) -> bool: return m.damage_ratio > 1.0).size(), spawned.size()])
 
 	var bot: PlayerBot = PlayerBot.new(self, necromancer, skill_id)
@@ -318,7 +363,7 @@ func _durability_row(target_id: StringName, undead_count: int, skill_id: StringN
 	for result: Dictionary in results:
 		lost += result["durability_lost"]
 		time += result["time"]
-	return "| %s | 쥐 언데드 %d | %s | %d | %s | %.2f |" % [TARGETS[target_id]["name"], undead_count, PlayerBot.SKILLS[skill_id]["name"], results.size(),
+	return "| %s | 쥐 언데드 %d | %s | %d | %s | %.2f |" % [get_target(target_id)["name"], undead_count, PlayerBot.SKILLS[skill_id]["name"], results.size(),
 		_mean_error(results.map(func(r: Dictionary) -> float: return r["durability_lost"]), ""), lost / maxf(time, 0.01)]
 
 
@@ -412,7 +457,7 @@ func _summary_row(target_id: StringName, undead_count: int, skill_id: StringName
 			effect_damage = _change(stats["damage_mean"], base["damage_mean"], "")
 			effect_death = "%+.0f%%p" % (stats["death_rate"] - base["death_rate"])
 	return "| %s | %s | %s | %s | %s | %.1f | %.0f | %.0f%% | %.0f%% | %s | %s | %s | %.0f%% | %.1f | %.1f | %.1f | %.0f | %.1f | %s | %s | %.1f | %.1f | %.1f |" % [
-		TARGETS[target_id]["name"], condition, PlayerBot.SKILLS[skill_id]["name"],
+		get_target(target_id)["name"], condition, PlayerBot.SKILLS[skill_id]["name"],
 		"%.1f초" % stats["time_mean"] if stats["time_mean"] >= 0.0 else "-",
 		"%.1f초" % stats["time_worst"] if stats["time_worst"] >= 0.0 else "-",
 		stats["damage_mean"], stats["damage_worst"], stats["death_rate"], stats["timeout_rate"],
@@ -427,7 +472,7 @@ func _error_row(target_id: StringName, undead_count: int, skill_id: StringName, 
 	var finished: Array[Dictionary] = results.filter(func(r: Dictionary) -> bool: return not r["died"] and not r["timeout"])
 	var deaths: int = results.filter(func(r: Dictionary) -> bool: return r["died"]).size()
 	return "| %s | %s | %s | %d | %s | %s | %s |" % [
-		TARGETS[target_id]["name"], "혼자" if undead_count == 0 else "쥐 언데드 %d" % undead_count, PlayerBot.SKILLS[skill_id]["name"], results.size(),
+		get_target(target_id)["name"], "혼자" if undead_count == 0 else "쥐 언데드 %d" % undead_count, PlayerBot.SKILLS[skill_id]["name"], results.size(),
 		_mean_error(finished.map(func(r: Dictionary) -> float: return r["time"]), "초"),
 		_mean_error(results.map(func(r: Dictionary) -> float: return r["damage"]), ""),
 		_rate_range(deaths, results.size())]
