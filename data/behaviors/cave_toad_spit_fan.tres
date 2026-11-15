@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="SpitFanBehavior" format=3]
+
+[ext_resource type="Script" path="res://monsters/behaviors/spit_fan_behavior.gd" id="1_spit_fan"]
+[ext_resource type="PackedScene" path="res://monsters/spit.tscn" id="2_spit"]
+
+[resource]
+script = ExtResource("1_spit_fan")
+spit_scene = ExtResource("2_spit")
+spit_count = 3
+spread_degrees = 24.0
+spit_speed = 240.0
+spit_range = 220.0
+spit_height = 6.0
+windup_time = 0.7
+lock_time = 0.3
+recover_time = 0.6

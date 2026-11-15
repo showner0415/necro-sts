@@ -13,13 +13,20 @@ description: 밸런스·몬스터 AI·언데드 능력치를 숫자로 잴 때 �
 ## 1. 봇과 싸움 측정 (run_balance)
 
 - 플레이어 봇(`tests/balance/player_bot.gd`)이 실제 입력만 흉내 내서 싸우고, `run_balance.gd`가 대상 × 조건(혼자 / 쥐 언데드 2마리) × 실력(숙련·보통·초보)마다 여러 번 싸워 잡는 시간·받은 피해·죽은 비율·명중률을 표로 낸다. 실력 이름은 `skilled`·`normal`·`novice`다.
+  - 실력은 반응 시간·조준 오차·회피 성공률·둘러보는 간격으로 갈린다 (`player_bot.gd` `SKILLS`). 반응 시간은 겨누기·예고 피하기·돌 피하기와 함께 물러나기에도 쓴다. 몬스터가 거리 두기(`keep_distance`) 안에 들어온 뒤 반응 시간이 지나야 물러나고, 뛰기 거리(`run_distance`) 안에 들어온 뒤 반응 시간이 지나야 쏘기를 멈추고 뛴다 (봇 측정 2단계, 2026-11-15)
+  - 시험 지역(run_balance)에서는 예고 없는 근접 몬스터(쥐·쥐 패거리)가 늦게 물러나는 봇도 물지 못해서 받은 피해가 실력과 상관없이 0이다. 실력은 잡는 시간과 가장 가까이 온 거리에서만 갈린다 (`tests/balance/results/2026-11-15_bot_skill_model.md`). 실제 굴(run_map_route)에서는 바꾸기 전 봇도 쥐 패거리에게 물렸다 (`2026-11-15_rat_pack_route.md`)
 - 봇의 시야는 `--sight=full`(기본, 시야와 상관없이 모든 몬스터·돌의 위치를 안다)과 `--sight=cone`(플레이어나 언데드 시야에 보이는 몬스터·돌만 앎)이 있다. cone이면 겨눌 몬스터가 없으면 걷는 방향을 보며 실력마다 정한 간격으로 좌우를 둘러본다 (`player_bot.gd`의 `look_around`).
 - 전부: `bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_balance.gd` (약 1분)
 - 일부: `-- --targets=boar,bat_pack --skills=normal --undead=0 --runs=5`, 거리 두기를 끄려면 `--keep=0`, 쏘기를 멈추고 뛰는 거리는 `--run_distance=<px>` (기본 55. 거리 두기 값이 이보다 작으면 다가가고 뛰기를 되풀이해 시간 초과가 된다, tests/balance/results/2026-11-15_keep_sweep.md), 무리 동시 공격(박쥐 동시 돌진)을 처음 N번 일부러 못 피하게 하려면 `--miss_pack=N` (놓친 동시 공격 피해·직후 마나·최저 마나·언데드 죽음/해제 열로 "실수 한 번의 값"을 본다)
 - 쥐 패거리 (기본 대상에 없음): 열린 바닥 `--targets=rat_gang3,rat_gang3_leader,rat_gang4,rat_gang4_leader`, 벽 방 `--targets=rat_room_s,rat_gang4_room_s,rat_gang4_leader_room_s,rat_room_l,rat_gang4_room_l,rat_gang4_leader_room_l` (_s 12×9칸, _l 36×31칸. 결과 tests/balance/results/2026-11-15_rat_pack_room.md)
+- 멧돼지·투석병·섞인 무리 (기본 대상에 없음, 크기마다 대상 + 대장 판): `--targets=boar_pack2,boar_pack2_leader,boar_pack3,boar_pack3_leader,goblin_pack2,goblin_pack2_leader,goblin_pack3,goblin_pack3_leader,mixed3,mixed3_leader,mixed4,mixed4_leader`. 무리원 사이는 24px(실제 무리 자리는 16px)이고, 섞인 무리의 대장 판은 첫 쥐가 대장이다 (`"leader_index"`. 실제는 무리원 중 아무나, 사용자 결정 2026-11-15: 쥐만 대장). 창으로 보는 `play_case`는 이 대상들을 아직 못 세운다 (`data`만 읽음)
+- 쥐 큰 무리 (기본 대상에 없음, 6·8 × 대장 있음/없음, 무리원 사이 16px의 두 줄 격자): `--targets=rat_big6,rat_big6_leader,rat_big8,rat_big8_leader`
+- 벽 방 판: `--rooms=s,l`을 붙이면 대상마다 작은 방(`_room_s`, 12×9칸)·큰 방(`_room_l`, 36×31칸) 판으로 바꿔 잰다. 방은 벽 방의 쥐 대상과 같다 (`run_balance.gd` `ROOMS`, `get_target`). 대상 id에 `_room_s`·`_room_l`을 직접 붙여도 된다. 3단계 3a 측정 전부(무리 열여섯 × 두 방): `--targets=boar_pack2,boar_pack2_leader,boar_pack3,boar_pack3_leader,goblin_pack2,goblin_pack2_leader,goblin_pack3,goblin_pack3_leader,mixed3,mixed3_leader,mixed4,mixed4_leader,rat_big6,rat_big6_leader,rat_big8,rat_big8_leader --rooms=s,l` (결과 tests/balance/results/2026-11-15_pack_room.md)
+- 공격권 값 바꿔 재기 (측정 안에서만, 게임 값은 그대로): `--extra_interval=<초>` (추가 공격권 간격, 지역 기본 1.0초. 봇 측정 4a, 결과 tests/balance/results/2026-11-15_token_extra_interval.md), `--hold_time_limit=<초>` (공격권 시간 제한, 기본 6초), `--retry_block_time=<초>` (시간 제한 뒤 막기, 기본 1초), `--wait_distance=<px>` (놓는 몬스터의 맴도는 거리, 데이터 복사본. 봇 측정 4b, 결과 tests/balance/results/2026-11-15_token_hold_block_wait.md). 멧돼지 무리는 `--timeout=120`으로 잰다
 - 창으로 보기: `bash tools/godot.sh --path . -s tests/balance/run_balance.gd -- --targets=boar --skills=normal --undead=0 --runs=1`
 - 표 아래에 잡은 시간·받은 피해·죽음의 95% 오차 범위 표가 함께 나온다. 전후를 비교할 때는 이 범위를 같이 본다.
 - 판마다 시작할 때 씬과 몬스터 수를 검사한다 (`check_fight_start`). 틀리면 `[실패] 판 시작 검사`를 남기고 그 판을 빼며, 측정은 계속하되 종료 코드 1로 끝난다.
+- 세 도구(run_balance·run_undead_duel·run_map_route)는 판마다 시드(`BASE_SEED` + 판 번호)로 던전 상태(무리 구성·대장·드랍)와 지역 공격권 난수까지 맞춘다 (`tests/scenario_test.gd` `reload_fight_scene(…, run_seed)`). 그래서 같은 대상·판 번호면 다른 대상·실력과 함께 돌려도 결과가 같다 (2026-11-15부터. 그 전 결과와 바로 비교하지 않는다).
 
 ## 2. 언데드 대 적 (run_undead_duel)
 
@@ -31,6 +38,8 @@ description: 밸런스·몬스터 AI·언데드 능력치를 숫자로 잴 때 �
 
 - `bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_map_route.gd` (얕은 굴의 박쥐 길(둥지 가운데로·입구 → 출구 기본 길·몰래 가는 길)·멧돼지 쪽 지나가기·멧돼지 잡으러, 약 3분. 일부: `-- --routes=bat --skills=normal --undead=0 --runs=3`. 물러나기도 재려면 `--retreat=0,1,2`: 1은 언데드를 모두 잃거나 체력이 절반 이하면, 2는 체력이 절반 이하일 때만 싸움을 그만두고 탈출 B로 간다. 1이나 2 중 하나만 줘도 둘 다 나란히 잰다. 시험용으로 실제 데이터를 바꾸지 않고 `--undead_attack_range=<px>`(쥐 언데드 공격 거리)를 줄 수 있다. 시간 초과한 판은 멈춘 자리와 노리는 몬스터 상태를 출력한다. 다른 판의 맵과 비교하려면 `--scene=<씬> --png=<배치 PNG>`)
 - 초반 쥐 길 (기본 길에 없음): `-- --routes=rat_gang,rat_gang_hunt` (지나가기: 거점 → 입구 굴 → 쥐 둥지, 잡으러: 거점 → 입구 굴의 쥐에게. 입구 굴의 쥐 패거리만 남기고 판마다 무리 크기·대장 줄을 찍는다. 결과 tests/balance/results/2026-11-15_rat_pack_route.md)
+- 무리 잡으러 (기본 길에 없음, 봇 측정 3b): `-- --routes=rat_nest_hunt,mud_hunt` (쥐 둥지: 입구 굴 → 쥐 큰 무리, 진흙 굴: 합류 굴 → 섞인 무리. 그 굴만 남김). 3b 측정 전부: `-- --routes=rat_nest_hunt,mud_hunt,boar,boar_hunt` (멧돼지 길도 판마다 `[무리]` 줄에 남긴 수·대장을 찍는다. 대장은 실제 확률(3%, 3b 때는 15%)이라 기본 5판에서는 거의 안 나온다. 결과 tests/balance/results/2026-11-15_pack_route.md)
+- 한 판을 들여다보기: `--trace_runs=1,3`이면 그 판 번호에서 1초마다 네크로맨서 칸·체력, 쏜 탄·맞힌 탄, 노리는 몬스터의 상태·공격권·벽까지 거리를 찍는다 (`[추적]` 줄). 시간 한계는 `--timeout=<초>` (기본 180. 멧돼지 잡으러 길은 살아남은 판 평균 171~227초가 걸려 180초면 잘린다, 2026-11-15_boar_pack_diagnose.md)
 - 걸려 온 몬스터만 봇이 상대하고 나머지는 길찾기로 걷는다. 지나간 시간·피해·죽은 비율·물러나 탈출한 비율·잡은 수·언데드 죽음·언데드가 같은 프레임에 함께 죽은 판을 낸다
 - 얕은 굴 2배 맵의 새 기준값은 아직 없다 (`tests/balance/results/2026-11-10_map_route_2x_partial.md`, 사용자가 측정을 멈춤). 맵·밸런스 작업에서 이 측정이 필요해지면 먼저 사용자에게 다시 재자고 말한다.
 
@@ -40,6 +49,7 @@ description: 밸런스·몬스터 AI·언데드 능력치를 숫자로 잴 때 �
 - `--mode=goblin_time --runs=50` (고블린이 살아 있는 동안 봇이 무엇을 했는지, 누가 때렸는지. `--no_retreat=1`은 테스트 안에서만 물러나기를 끈다)
 - `--mode=aim_sight --runs=50` (박쥐 혼자·고블린+쥐 언데드 2에서 겨눈 몬스터와 화면 방향의 차이, 시야가 튄 횟수, 공격이 시작될 때 봤는지와 맞았는지. `--no_vision=1`은 시야를 끄고 잰다)
 - `--mode=pack_undead --runs=20` (쥐 패거리(3)·(4)·(4) 대장 + 쥐 언데드 2에서 쥐가 누구를 노리는지, 살아 있는 언데드 하나에 공격권을 든 쥐 수, 첫 언데드가 죽기까지. `--keep=0`이면 봇이 거리를 두지 않는다)
+- `--mode=pack_charge --runs=20` (봇 측정 3c: 멧돼지 1마리·작은 방 멧돼지 무리(2)·(3)에서 네크로맨서를 노린 돌진마다 구르기 시도·키 누름·실제로 구름·맞음, 다른 멧돼지와 겹쳤는지, 추가 공격권 돌진인지. 결과 tests/balance/results/2026-11-15_boar_pack_diagnose.md)
 
 ## 5. 사람이 같은 상황을 직접 해 보기 (play_case)
 
@@ -49,6 +59,15 @@ description: 밸런스·몬스터 AI·언데드 능력치를 숫자로 잴 때 �
 
 - `bash tools/godot.sh --headless --path . -s tools/bone_expectation.gd` (기본 얕은 굴, 다른 씬은 `-- --scene=res://<씬>.tscn`). 판정 없이 출력만 하고 몇 초 걸린다
 - 종마다 마릿수 × 마리당 뼈 기대값과 합계를 낸다. 무리 자리는 무리원 수의 가운데((최소 + 최대) / 2)로 세고, 상자 뼈는 세지 않는다. 기준은 얕은 굴 120 (`docs/game-design.md` "몬스터 무리"의 드랍 줄)
+
+## 5-1-1. 긴 길목 공격권 (run_choke_tokens)
+
+- `bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_choke_tokens.gd -- --rats=8` (길목 시험 동굴의 돌아갈 길 없는 26칸 길목 너머에서 물린 횟수, 한 판 60초가 약 3초). 여러 판은 `--seeds=10`(판마다 시드 4000 + 판 번호, [요약]에 평균·최소~최대), 공격권을 든 쥐가 어디에 있었는지는 `--diagnose=1`. 결과: tests/balance/results/2026-11-15_choke_tokens.md, 2026-11-15_choke_diagnose.md, 2026-11-15_choke_pass.md (봇 측정 5b). 길목 통행 자리(2026-11-15) 뒤로는 길목을 지나는 쥐가 공격권 대신 통행 자리를 들어, "길목 안 공격권 없는 쥐"는 길목을 지나는 쥐 수에 가깝다
+
+## 5-2. 무리 흩어 놓기 배치 (pack_placement_stats)
+
+- `bash tools/godot.sh --headless --path . -s tools/pack_placement_stats.gd` (기본 얕은 굴·시드 50개, `-- --seeds=<수> --scene=res://<씬>.tscn`). 판정 없이 출력만 하고 몇 초 걸린다
+- 무리 자리마다 게임의 `PackSpawn.spawn`으로 시드마다 놓아 보고, 30번 안에 못 골라 한가운데로 간 무리원 수, 무리원 사이 가장 가까운 거리, 둘레(흩어 놓기 반지름 안) 바닥 비율, 가장 가까운 벽을 낸다. 결과 예: tests/balance/results/2026-11-15_pack_placement.md (봇 측정 5a-2)
 
 ## 6. 결과 저장과 전후 비교
 

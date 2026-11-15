@@ -10,9 +10,9 @@ extends Resource
 @export_flags_2d_physics var world_collision_mask: int = 1
 
 @export_group("공격권 기다리기")
-## 공격권이 없어 맴돌 때, 맴도는 거리(stats.wait_distance)에서 이만큼 벗어나도 그대로 돈다 (픽셀, 임시값)
+## 공격권이 없어 맴돌 때, 맴도는 거리(stats.wait_distance)에서 이만큼 벗어나도 그대로 돈다 (픽셀. 사용자 결정 2026-11-15, 봇 측정 4단계에서 확정)
 @export var wait_band: float = 8.0
-## 맴돌 때 옆으로 도는 속도와, 너무 가까워 물러나는 속도 (픽셀/초, 임시값. 쥐가 쓰던 값)
+## 맴돌 때 옆으로 도는 속도와, 너무 가까워 물러나는 속도 (픽셀/초, 쥐가 쓰던 값. 사용자 결정 2026-11-15, 봇 측정 4단계에서 확정)
 @export var wait_circle_speed: float = 30.0
 @export var wait_back_off_speed: float = 40.0
 ## 맴돌거나 물러나는 쪽이 이 거리 안에서 벽에 막히면 방향을 튼다 (픽셀)
@@ -180,6 +180,10 @@ func must_wait_for_token(body: CharacterBody2D, stats: CombatStats, target: Node
 ## 공격권이 없을 때: 대상에게서 stats.wait_distance(± wait_band)를 두고 옆으로 돌며 기다린다.
 ## 멀면 다가가고(stats.move_speed), 가까우면 물러나고(wait_back_off_speed), 그 사이면 wait_circle_speed로 돈다. 도는 쪽이 벽에 막히면 반대로 돈다.
 func wait_around(body: CharacterBody2D, stats: CombatStats, target: Node2D) -> void:
+	# 길목 입구에서 기다리는 몸은 대상 둘레를 돌지 않고 길(대기 자리)을 따른다 (돌다가 통행 자리 없이 길목에 들어가지 않게, 봇 측정 5b)
+	if body.has_method(&"is_waiting_at_choke") and body.call(&"is_waiting_at_choke"):
+		body.velocity = move_direction(body, target.global_position) * stats.move_speed
+		return
 	var to_target: Vector2 = target.global_position - body.global_position
 	var distance: float = to_target.length()
 	if distance > stats.wait_distance + wait_band:

@@ -27,10 +27,10 @@ extends CharacterBody2D
 @export var alarm_blink_interval: float = 0.1
 ## 디버그 표시(F3)에서 공격권을 든 몬스터의 발밑 점 반지름 (픽셀)
 @export var debug_token_radius: float = 5.0
-## 네크로맨서에게서 이 거리(픽셀)보다 먼 몸은 판단(대상 찾기·시야·행동)을 far_think_interval 프레임에 한 번만 한다 (ThinkThrottle, 임시값. 계획 3b)
+## 네크로맨서에게서 이 거리(픽셀)보다 먼 몸은 판단(대상 찾기·시야·행동)을 far_think_interval 프레임에 한 번만 한다 (ThinkThrottle, 계획 3b. 640px·4프레임은 사용자 결정 2026-11-15, 봇 측정 5b-2에서 확정)
 @export var far_think_distance: float = 640.0
 @export var far_think_interval: int = 4
-## 길목 안에서 이 속도(픽셀/초)보다 빨리 움직이는 동안은 공격권 시간 제한을 멈춘다. 밀려나는 것도 센다 (계획 4c, 사용자 결정 2026-11-14)
+## 길목 안에서 이 속도(픽셀/초)보다 빨리 움직이는 동안은 통행 자리·공격권 시간 제한을 멈춘다. 밀려나는 것도 센다 (계획 4c, 사용자 결정 2026-11-14. 통행 자리는 봇 측정 5b)
 @export var choke_hold_pause_speed: float = 5.0
 
 ## 맞았을 때 (source는 때린 쪽). 무리가 이것으로 무리 대상을 정한다.
@@ -106,6 +106,8 @@ static var _shared_spacing_tree: SceneTree
 ## 지역의 공격권 (AttackTokenBoard, 그룹 attack_tokens). 처음 공격하려 할 때 찾는다. 없으면 제한 없이 공격한다
 var _token_board: AttackTokenBoard
 var _token_board_searched: bool = false
+## 통행 자리나 공격권을 든 채 지난 물리 프레임에 길목 안에 있었는지 (길목을 나올 때 통행 자리를 반납하려고)
+var _was_in_choke: bool = false
 
 @onready var _collision: CollisionShape2D = $CollisionShape2D
 
@@ -150,7 +152,7 @@ func _physics_process(delta: float) -> void:
 	if _knockback.is_active():
 		velocity = _knockback.get_velocity()
 	move_and_slide()
-	_pause_token_in_choke()
+	_update_choke_holds()
 	_knockback.update(delta)
 	_update_sprite()
 	# 예고 표시(깜빡임, 방향 선)가 프레임마다 바뀐다.
@@ -175,6 +177,8 @@ func _think(delta: float) -> void:
 	# 공격 중(멧돼지의 예고~멈칫)이면 그 공격이 끝날 때(attack_done) 반납한다. 공격이 중간에 끊기면(벽에 막힌 예고) 그다음 프레임에 여기서 반납한다.
 	if not _behavior.keeps_token_on_target_change():
 		_release_token_of_other_target()
+	# 통행 자리도 대상이 바뀌거나 놓치면 반납한다 (공격 중이어도. 통행 자리는 공격에 쓰지 않는다)
+	_release_pass_of_other_target()
 	var target_visible: bool = _target != null and _path_follower.can_see(self, _target.global_position)
 	_ai.update(_target != null, _behavior.is_busy(), target_visible)
 	# 하던 동작(돌진 예고 등)은 대상이 사라져도 이어 간다. 찾기(대상이 벽 뒤)는 지금은 길을 따라 쫓는 것을 그대로 쓴다.
@@ -185,12 +189,15 @@ func _think(delta: float) -> void:
 		_behavior.act(self, _combat_stats(), _target, delta)
 	else:
 		_wander(delta)
-	# 길목 입구 밖에서 기다리는 동안은 대상과의 거리와 상관없이 공격권을 묻는다 (사용자 결정 2026-11-14). 받으면 다음 판단부터 길목에 들어간다.
+	# 길목 입구 밖에서 기다리는 동안은 대상과의 거리와 상관없이 통행 자리만 묻는다 (공격권은 묻지 않는다, 사용자 결정 2026-11-15). 받으면 다음 판단부터 길목에 들어간다.
 	# 대상을 잃고 싸움을 그만두면 대기 자리를 내놓는다 (배회는 길찾기를 거의 쓰지 않아 길찾기에서 끝나지 않는다).
 	if _target == null or not _ai.is_fighting():
 		_path_follower.stop_waiting(self)
 	elif _path_follower.is_waiting_at_choke():
-		request_attack(_target)
+		# 기다리기 시작할 때 든 공격권은 반납한다 (길목 쪽 몸이 공격권 칸을 묶지 않게, 사용자 결정 2026-11-15). 하던 공격(멧돼지의 예고~멈칫)은 끝날 때 반납한다
+		if not _behavior.is_busy():
+			_release_token()
+		request_choke_pass(_target)
 
 
 ## 판단 줄이기에 쓰는 네크로맨서까지 거리. 네크로맨서가 없으면 0 (매 프레임 판단한다).
@@ -260,13 +267,13 @@ func get_move_direction(goal: Vector2) -> Vector2:
 	return _path_follower.get_direction(self, goal, _avoids_chokes())
 
 
-## 길목을 피하는지 (계획 4b): 공격권을 쓰는 몬스터가 대상을 쫓는데 그 대상의 공격권이 없을 때.
-## 대상이 없을 때(배회)는 피하지 않는다 (사용자 결정 2026-11-14, docs/game-design.md "몬스터 무리"의 길목).
+## 길목을 피하는지 (계획 4b, 봇 측정 5b): 공격권을 쓰는 몬스터가 대상을 쫓는데 그 대상의 통행 자리가 없을 때.
+## 대상이 없을 때(배회)는 피하지 않는다 (사용자 결정 2026-11-15, docs/game-design.md "몬스터 무리"의 좁은 길목).
 func _avoids_chokes() -> bool:
 	if data.attack_tokens_per_target <= 0 or _target == null:
 		return false
 	var board: AttackTokenBoard = _find_token_board()
-	return board != null and board.tokens.held_target(self) != _target
+	return board != null and board.passes.held_target(self) != _target
 
 
 ## 행동 조각이 부른다: goal(발밑 좌표)까지 벽이 가로막지 않는지.
@@ -317,6 +324,7 @@ func knock_back(offset: Vector2, duration: float) -> void:
 	var board: AttackTokenBoard = _find_token_board()
 	if board != null and offset.length() >= board.knockback_release_distance:
 		_release_token()
+		_release_pass()
 
 
 func _wander(delta: float) -> void:
@@ -413,6 +421,7 @@ func take_damage(amount: float, source: Node2D = null) -> void:
 
 func _die() -> void:
 	_release_token()
+	_release_pass()
 	# 머리뼈가 나올지는 죽는 이 순간에 정해진다. 시체는 정해진 것만 담는다.
 	var corpse: Corpse = corpse_scene.instantiate()
 	var run: DungeonRun = _dungeon_run()
@@ -517,7 +526,16 @@ func request_attack(target: Node2D) -> bool:
 	var board: AttackTokenBoard = _find_token_board()
 	if board == null or data.attack_tokens_per_target <= 0 or target == null:
 		return true
+	# 길목 입구에서 기다리는 동안은 공격권을 묻지 않는다 (줄에 서지 않아 추가 공격권 추첨에도 들지 않는다). 통행 자리만 _think에서 묻는다
+	# (사용자 결정 2026-11-15, docs/game-design.md "몬스터 무리"의 좁은 길목)
+	if _path_follower.is_waiting_at_choke():
+		return false
 	return board.tokens.request(self, target, data.id, data.attack_tokens_per_target)
+
+
+## 행동 조각이 부른다: 길목 입구 밖 대기 자리에서 기다리는 중인지 (통행 자리 없이 길목을 피하는 중)
+func is_waiting_at_choke() -> bool:
+	return _path_follower.is_waiting_at_choke()
 
 
 ## 행동 조각이 부른다: 공격 한 번이 끝났다. 공격권을 반납한다.
@@ -547,6 +565,33 @@ func _release_token() -> void:
 	var board: AttackTokenBoard = _find_token_board()
 	if board != null:
 		board.tokens.release(self)
+
+
+## 길목 입구에서 기다릴 때 부른다: target 쪽 길목을 지날 통행 자리를 묻는다 (ChokePasses, 봇 측정 5b). 지역에 공격권이 없으면 언제나 true.
+func request_choke_pass(target: Node2D) -> bool:
+	var board: AttackTokenBoard = _find_token_board()
+	if board == null or data.attack_tokens_per_target <= 0 or target == null:
+		return true
+	return board.passes.request(self, target, data.id, data.choke_passes_per_target)
+
+
+## 테스트·디버그용: 통행 자리를 들고 있는지
+func is_holding_choke_pass() -> bool:
+	var board: AttackTokenBoard = _find_token_board()
+	return board != null and board.passes.is_holding(self)
+
+
+## 지금 대상(_target)이 아닌 대상의 통행 자리를 들고 있으면 반납한다 (대상이 없으면 든 통행 자리를 반납한다).
+func _release_pass_of_other_target() -> void:
+	var board: AttackTokenBoard = _find_token_board()
+	if board != null and board.passes.is_holding(self) and board.passes.held_target(self) != _target:
+		board.passes.release(self)
+
+
+func _release_pass() -> void:
+	var board: AttackTokenBoard = _find_token_board()
+	if board != null:
+		board.passes.release(self)
 
 
 ## 지역의 공격권을 찾는다. 몸은 지역 씬과 함께 만들어지고 사라지므로, 한 번 찾은 결과(없음 포함)를 계속 쓴다.
@@ -640,14 +685,36 @@ func _update_sprite() -> void:
 	_sprite.update_motion(moved, data.move_speed)
 
 
-## 공격권을 들고 길목 안에서 움직이는 동안은 그 프레임의 공격권 시간 제한을 멈춘다 (사용자 결정 2026-11-14). 서서 싸우면 다시 흐른다.
-func _pause_token_in_choke() -> void:
+## 통행 자리나 공격권을 들고 길목 안에 있을 때 (봇 측정 5b, 사용자 결정 2026-11-15, docs/game-design.md "몬스터 무리"의 좁은 길목):
+## - 길목을 나오면 통행 자리를 반납한다
+## - 대상에게서 공격권을 묻는 거리 밖이면 든 공격권을 반납한다 (길목을 지나는 동안 대상의 공격권 칸을 비운다). 공격 중(멧돼지의 예고~멈칫)이면 그 공격이 끝날 때 반납한다
+## - 움직이는 동안은 그 프레임의 통행 자리·공격권 시간 제한을 멈춘다. 서서 싸우면 다시 흐른다
+func _update_choke_holds() -> void:
+	var board: AttackTokenBoard = _find_token_board()
+	if board == null or data.attack_tokens_per_target <= 0:
+		return
+	var holds_pass: bool = board.passes.is_holding(self)
+	var holds_token: bool = board.tokens.is_holding(self)
+	if not holds_pass and not holds_token:
+		_was_in_choke = false
+		return
+	var inside: bool = _path_follower.choke_at_body(self) >= 0
+	if not inside:
+		if _was_in_choke and holds_pass:
+			board.passes.release(self)
+		_was_in_choke = false
+		return
+	_was_in_choke = true
+	var token_target: Node2D = board.tokens.held_target(self) as Node2D
+	if token_target != null and not _behavior.is_busy() and global_position.distance_to(token_target.global_position) > _behavior.get_token_ask_distance(_combat_stats()):
+		board.tokens.release(self)
+		holds_token = false
 	if get_real_velocity().length() < choke_hold_pause_speed:
 		return
-	var board: AttackTokenBoard = _find_token_board()
-	if board == null or not board.tokens.is_holding(self) or _path_follower.choke_at_body(self) < 0:
-		return
-	board.tokens.pause_hold(self)
+	if holds_token:
+		board.tokens.pause_hold(self)
+	if holds_pass:
+		board.passes.pause_hold(self)
 
 
 ## 싸울 때 쓰는 능력치: 데이터의 적 능력치에 무리 대장 강화(damage_ratio)를 곱한다.

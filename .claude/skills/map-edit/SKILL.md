@@ -30,6 +30,7 @@ description: 맵(지역 씬)을 만들거나 고칠 때 사용. 맵 배치 PNG �
 - 길목 폭: `bash tools/godot.sh --headless --path . -s tools/map_png/measure_chokes.gd` (길목마다 PNG 칸·실제 충돌·화면 윤곽의 폭과 몸별 기하 통과, 약 2분 30초. `-- --map=1`은 어긋난 길목의 칸 그림)
 - 실제로 걸어 보기: `bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_choke_walk.gd` (몸 종류마다 양쪽으로 물리와 길찾기로 걷기, 판정 있음, `run_all.sh`에는 없음)
 - 벽 모서리에 걸리는지: `bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_stuck_walk.gd -- --hug=60` (굴 사이·벽에서 출발하는 길, 약 5분, 판정 없음, `--clearance=<픽셀>`로 길찾기 여유를 바꿔 비교)
+- 무리 자리 둘레 1.5칸 바닥 규칙(`docs/maps/map_png_rules.md` "무리 자리")을 지키는지와 흩어 놓기 결과: `bash tools/godot.sh --headless --path . -s tools/pack_placement_stats.gd -- --scene=res://regions/<씬>.tscn` (자리마다 "둘레 바닥"이 100%인지, 한가운데로 간 무리원 수. 몇 초, 판정 없음. 자세한 것은 `balance-measure` 스킬 5-2)
 - 맵을 지나가는 시간·피해를 봇으로 다시 재야 하면 `balance-measure` 스킬을 쓴다 (얕은 굴 2배 맵의 기준값이 아직 없다는 메모가 거기 있다).
 
 ## 4. 맵 스크린샷

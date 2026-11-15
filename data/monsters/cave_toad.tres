@@ -1,0 +1,44 @@
+[gd_resource type="Resource" script_class="MonsterData" format=3]
+
+[ext_resource type="Script" uid="uid://dcry712wjd7tf" path="res://monsters/monster_data.gd" id="1_monster"]
+[ext_resource type="Resource" uid="uid://brhml51uwa1vq" path="res://data/items/bone.tres" id="2_bone"]
+[ext_resource type="Script" uid="uid://bcih3jlpk6ss2" path="res://items/drop_entry.gd" id="3_drop"]
+[ext_resource type="Resource" path="res://data/skulls/cave_toad_skull.tres" id="4_skull"]
+[ext_resource type="Resource" path="res://data/behaviors/cave_toad_spit_fan.tres" id="5_spit_fan"]
+
+[sub_resource type="Resource" id="Resource_drop_bone"]
+script = ExtResource("3_drop")
+item = ExtResource("2_bone")
+count = 3
+expected_count = 3.2
+
+[sub_resource type="Resource" id="Resource_drop_skull"]
+script = ExtResource("3_drop")
+item = ExtResource("4_skull")
+chance = 0.3
+
+[resource]
+script = ExtResource("1_monster")
+id = &"cave_toad"
+display_name = "동굴 두꺼비"
+behavior = ExtResource("5_spit_fan")
+max_health = 14.0
+move_speed = 30.0
+combat_spacing = 32.0
+detect_range = 170.0
+attack_range = 150.0
+contact_damage = 3.0
+attack_cooldown = 2.0
+attack_tokens_per_target = 1
+choke_passes_per_target = 1
+token_wait_distance = 170.0
+drops = Array[ExtResource("3_drop")]([SubResource("Resource_drop_bone"), SubResource("Resource_drop_skull")])
+harvest_base_time = 1.2
+summon_bone_cost = 6
+summon_mana_cost = 5.0
+undead_upkeep_mana_per_second = 1.8
+undead_death_durability_loss = 4.0
+undead_placeholder_color = Color(0.9098039, 0.7176471, 0.5882353, 1)
+placeholder_color = Color(0.96862745, 0.4627451, 0.13333334, 1)
+placeholder_shape = 1
+placeholder_ellipse_size = Vector2(9, 6)

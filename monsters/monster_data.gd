@@ -46,9 +46,9 @@ enum PlaceholderShape { CIRCLE, ELLIPSE, DIAMOND }
 ## 무리(MonsterPack)는 무리원 모두가 자기 조건을 넘어야 함께 포기한다.
 ## 쫓는 대상(감지 범위 밖에서 때린 공격자, 보다가 놓친 대상, 무리 대상)과 이 거리보다 멀어지면 포기한다 (픽셀)
 @export var chase_attacker_limit: float = 350.0
-## 쫓는 대상을 이 시간(초) 넘게 보지 못하면(벽 뒤로 숨음) 포기한다. 다시 보면 처음부터 잰다 (임시값)
+## 쫓는 대상을 이 시간(초) 넘게 보지 못하면(벽 뒤로 숨음) 포기한다. 다시 보면 처음부터 잰다 (종마다 값은 사용자 결정 2026-11-15, 봇 측정 5a에서 확정)
 @export var chase_lost_time: float = 5.0
-## 감지 범위 밖의(또는 안 보이는) 대상을 이 시간(초) 넘게 쫓으면 포기한다. 감지 범위 안에서 보이거나 맞으면 처음부터 잰다 (임시값)
+## 감지 범위 밖의(또는 안 보이는) 대상을 이 시간(초) 넘게 쫓으면 포기한다. 감지 범위 안에서 보이거나 맞으면 처음부터 잰다 (종마다 값은 사용자 결정 2026-11-15, 봇 측정 5a에서 확정)
 @export var chase_time_limit: float = 0.0
 
 @export_group("무리")
@@ -59,7 +59,10 @@ enum PlaceholderShape { CIRCLE, ELLIPSE, DIAMOND }
 @export var alarm_signal_time: float = 0.3
 ## 대상 하나를 동시에 공격할 수 있는 이 종의 수 (공격권, AttackTokens. 대상마다 모든 몬스터가 함께 센다). 0이면 공격권 없이 공격한다 (박쥐)
 @export var attack_tokens_per_target: int = 0
-## 공격권이 없을 때 대상 둘레를 맴돌며 기다리는 거리 (픽셀, 임시값)
+## 대상 하나 쪽으로 동시에 좁은 길목을 지나는 이 종의 수 (통행 자리, ChokePasses. 공격권과 따로 센다). 공격권 수가 0이면 쓰지 않는다
+## (봇 측정 5b, 사용자 결정 2026-11-15. 처음 값은 공격권 수와 같은 쥐 2·투석병 1·멧돼지 1)
+@export var choke_passes_per_target: int = 1
+## 공격권이 없을 때 대상 둘레를 맴돌며 기다리는 거리 (픽셀. 쥐 64·멧돼지 96·투석병 170은 사용자 결정 2026-11-15, 봇 측정 4단계에서 확정)
 @export var token_wait_distance: float = 64.0
 
 @export_group("배회")

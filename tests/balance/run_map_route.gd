@@ -4,13 +4,17 @@ extends ScenarioTest
 ## - 걷기: 몬스터에게 걸리지 않은 동안은 길찾기로 다음 굴 가운데까지 걷는다 (언데드는 따라온다)
 ## - 싸우기: 누군가(네크로맨서·언데드)를 노리는 몬스터가 있으면 봇(PlayerBot)이 그 몬스터들만 상대한다. 모두 죽거나 포기하면 다시 걷는다
 ##   봇의 싸움 움직임은 시험 지역과 같다 (몬스터 쪽으로 곧게 다가가거나 물러난다. 길찾기는 하지 않아 벽에 미끄러질 수 있다)
-## - 길에 든 굴의 몬스터만 남기고 나머지는 없앤다. 판마다 맵을 새로 불러오고 난수 시드를 바꾼다
+## - 길에 든 굴의 몬스터만 남기고 나머지는 없앤다. 판마다 맵을 새로 불러오고, 판 번호 시드(BASE_SEED + 판 번호)로 던전 상태(무리 구성·대장·드랍)와 지역 공격권 난수를 맞춘다 (봇 측정 1단계)
 ## 판정(통과/실패)을 내지 않으므로 run_all.sh에는 넣지 않는다.
 ##
 ## 전부 (헤드리스, 빠르게):
 ##   bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_map_route.gd
 ## 일부만: -- --routes=bat --skills=normal --undead=0 --runs=3
 ## 초반 쥐 길 (기본 길에 없음, 계획 8b-6): -- --routes=rat_gang,rat_gang_hunt (지나가기: 거점 → 입구 굴 → 쥐 둥지, 잡으러: 거점 → 쥐에게. 입구 굴의 쥐 패거리만 남김, 판마다 무리 크기·대장 줄)
+## 무리 잡으러 (기본 길에 없음, 봇 측정 3b): -- --routes=rat_nest_hunt,mud_hunt (쥐 둥지의 쥐 큰 무리, 진흙 굴의 섞인 무리만 남김, 판마다 무리 크기·대장 줄)
+##   3b 측정 전부 (결과 tests/balance/results/2026-11-15_pack_route.md): -- --routes=rat_nest_hunt,mud_hunt,boar,boar_hunt
+## 시간 한계: --timeout=<초> (기본 180. 멧돼지 잡으러 길은 살아남은 판 평균 171~227초가 걸려 180초면 잘린다, tests/balance/results/2026-11-15_boar_pack_diagnose.md)
+## 한 판 들여다보기: --trace_runs=1,3 (그 판 번호에서 1초마다 네크로맨서 칸·체력, 쏜 탄·맞힌 탄, 노리는 몬스터의 상태·공격권·벽까지 거리를 [추적] 줄로 찍는다)
 ## 멧돼지 돌진이 앞쪽만 맞히는 규칙(기본 끔)을 켜고 재려면: --charge_front_only=1
 ## 물러나기도 재려면: --retreat=0,1,2 (1: 언데드를 모두 잃거나 체력이 절반 이하면 싸움을 그만두고 합류 굴의 탈출 B로 물러난다, 2: 체력이 절반 이하일 때만). 1이나 2 중 하나만 줘도 둘 다 잰다
 ## 창으로 보기 (실제 속도, 한 판):
@@ -42,18 +46,22 @@ const RETREAT_HEALTH_ONLY: int = 2
 const RETREAT_NAMES: Array[String] = ["끝까지", "물러나기", "물러나기(체력만)"]
 const TILE: float = 32.0
 ## 길: 이름, 출발 굴, 지나갈 굴들, 몬스터를 남길 굴들 (모두 굴 역할 이름, _find_roles).
-## via_monsters가 있으면 굴 대신 남긴 몬스터 중 그 종류가 처음 놓인 자리를, 가까운 것부터 차례로 찾아간다 (일부러 싸우러 갈 때)
+## via_monsters(종류 id 하나 또는 배열)가 있으면 굴 대신 남긴 몬스터 중 그 종류가 처음 놓인 자리를, 가까운 것부터 차례로 찾아간다 (일부러 싸우러 갈 때)
 ## nest_path가 있으면 via의 굴들 앞에 박쥐 둥지를 지나는 길(tests/bat_nest_paths.gd)의 점들을 차례로 걷는다: "default" 입구 → 출구 가장 짧은 길, "sneak" 감지되는 칸을 피하는 길
 const ROUTES: Dictionary = {
 	&"bat": {"name": "박쥐 길 (갈림 굴 → 박쥐 둥지 → 합류 굴)", "start": "fork", "via": ["bat_nest", "junction"], "keep": ["bat_nest"]},
 	&"bat_direct": {"name": "박쥐 길 기본 길 (둥지 입구 → 출구 가장 짧은 길)", "start": "fork", "via": ["junction"], "nest_path": "default", "keep": ["bat_nest"]},
 	&"bat_sneak": {"name": "박쥐 길 몰래 (둥지 서쪽 벽 → 바위 뒤 → 북쪽으로 돌아)", "start": "fork", "via": ["junction"], "nest_path": "sneak", "keep": ["bat_nest"]},
-	&"boar": {"name": "멧돼지 쪽 (합류 굴 → 빛 드는 굴 → 동굴 입구)", "start": "junction", "via": ["light_room", "cave_mouth"], "keep": ["light_room", "cave_mouth"]},
-	&"boar_hunt": {"name": "멧돼지 잡으러 (합류 굴 → 가까운 멧돼지부터 차례로)", "start": "junction", "via": [], "via_monsters": &"boar", "keep": ["light_room", "cave_mouth"]},
+	&"boar": {"name": "멧돼지 쪽 (합류 굴 → 빛 드는 굴 → 동굴 입구)", "start": "junction", "via": ["light_room", "cave_mouth"], "keep": ["light_room", "cave_mouth"], "pack_report": true},
+	&"boar_hunt": {"name": "멧돼지 잡으러 (합류 굴 → 가까운 멧돼지부터 차례로)", "start": "junction", "via": [], "via_monsters": &"boar", "keep": ["light_room", "cave_mouth"], "pack_report": true},
 	## 초반 쥐 길 (계획 8b-6, 사용자 결정 2026-11-15: 입구 굴만 남김). 기본 길에는 넣지 않는다: --routes=rat_gang. pack_report면 판마다 남긴 무리 크기와 대장을 찍는다
 	&"rat_gang": {"name": "초반 쥐 길 (거점 → 입구 굴 → 쥐 둥지, 입구 굴의 쥐 패거리만)", "start": "base", "via": ["entrance", "rat_nest"], "keep": ["entrance"], "pack_report": true},
 	## 지나가는 길은 입구 굴 가운데가 쥐 패거리 자리에서 320px(감지 80px 밖)라 싸움이 없어서, 쥐 패거리를 잡으러 가는 길도 둔다 (사용자 결정 2026-11-15): --routes=rat_gang_hunt
 	&"rat_gang_hunt": {"name": "쥐 패거리 잡으러 (거점 → 입구 굴의 쥐에게 가까운 것부터)", "start": "base", "via": [], "via_monsters": &"rat", "keep": ["entrance"], "pack_report": true},
+	## 무리 잡으러 (봇 측정 3b, 사용자 결정 2026-11-15: 쥐 둥지·진흙 굴 잡으러 길). 그 굴의 몬스터만 남긴다. 기본 길에는 넣지 않는다: --routes=rat_nest_hunt,mud_hunt
+	## 출발 굴(측정 조건): 쥐 둥지는 이어진 입구 굴에서, 진흙 굴은 멧돼지 잡으러 길과 같은 합류 굴에서 (진흙 굴까지 굴 둘). 진흙 굴은 무리의 멧돼지·쥐 자리를 가까운 것부터 모두 찾아간다 (잡으러 길은 찾아갈 자리를 다 돌고 노리는 몬스터가 없으면 끝나므로, 멧돼지 자리만 가면 경보가 풀린 쥐를 남기고 끝난다)
+	&"rat_nest_hunt": {"name": "쥐 둥지 잡으러 (입구 굴 → 쥐 큰 무리의 쥐에게 가까운 것부터)", "start": "entrance", "via": [], "via_monsters": &"rat", "keep": ["rat_nest"], "pack_report": true},
+	&"mud_hunt": {"name": "진흙 굴 잡으러 (합류 굴 → 섞인 무리의 멧돼지·쥐에게 가까운 것부터)", "start": "junction", "via": [], "via_monsters": [&"boar", &"rat"], "keep": ["mud"], "pack_report": true},
 }
 const DEFAULT_RUNS: int = 5
 ## 한 판의 시간 한계 (초)
@@ -78,6 +86,8 @@ var _charge_front_only: bool = false
 var _rat_undead_data: MonsterData
 var _runs: int = DEFAULT_RUNS
 var _timeout: float = DEFAULT_TIMEOUT
+## 진단 (봇 측정 3c): 이 판 번호들에서 TRACE_INTERVAL초마다 봇과 노리는 몬스터의 상태를 찍는다 (--trace_runs=1,3). 비어 있으면 찍지 않는다
+var _trace_runs: Array[int] = []
 var _layout: MapLayout
 var _roles: Dictionary = {}
 
@@ -125,6 +135,8 @@ func _parse_args() -> void:
 				_png = parts[1]
 			"timeout":
 				_timeout = float(parts[1])
+			"trace_runs":
+				_trace_runs.assign(Array(values).map(func(v: String) -> int: return int(v)))
 
 
 ## 길에 쓰는 굴 역할만 찾는다 (scenario_shallow_cave.gd의 굴 역할과 같은 뜻)
@@ -155,6 +167,9 @@ func _find_roles() -> void:
 			_roles.entrance = _layout.room_at(cell)
 	for cell: Vector2i in _layout.cells_of("pack_rat_big"):
 		_roles.rat_nest = _layout.room_at(cell)
+	# 진흙 굴: 섞인 무리 자리가 있는 굴 (봇 측정 3b)
+	for cell: Vector2i in _layout.cells_of("pack_mixed"):
+		_roles.mud = _layout.room_at(cell)
 
 
 func _run_all() -> void:
@@ -178,7 +193,7 @@ func _run_all() -> void:
 
 
 func _pass(route_id: StringName, undead_count: int, skill_id: StringName, run: int, retreat: int) -> Dictionary:
-	await _reload_scene()
+	await _reload_scene(BASE_SEED + run)
 	seed(BASE_SEED + run)
 	var route: Dictionary = ROUTES[route_id]
 	var keep_rooms: Array[int] = []
@@ -221,8 +236,9 @@ func _pass(route_id: StringName, undead_count: int, skill_id: StringName, run: i
 		goals.append(_room_center(_roles[role]))
 	if route.has("via_monsters"):
 		var spots: Array[Vector2] = []
+		var species: Array = route["via_monsters"] if route["via_monsters"] is Array else [route["via_monsters"]]
 		for monster: Monster in kept:
-			if monster.data.id == route["via_monsters"]:
+			if species.has(monster.data.id):
 				spots.append(monster.global_position)
 		var from: Vector2 = necromancer.global_position
 		while not spots.is_empty():
@@ -251,6 +267,8 @@ func _pass(route_id: StringName, undead_count: int, skill_id: StringName, run: i
 	var last_health: float = max_health
 	## 시간 초과한 판을 살펴보려고 TRACE_INTERVAL초마다 남기는 네크로맨서 위치
 	var trace: Array[Vector2] = []
+	## 진단 줄(--trace_runs)이 지난 줄의 탄 수를 담아 두는 곳
+	var traced: Dictionary = {}
 	while true:
 		await physics_frame
 		time += delta
@@ -264,6 +282,8 @@ func _pass(route_id: StringName, undead_count: int, skill_id: StringName, run: i
 			_apply_undead_attack_range()
 		if int(time / TRACE_INTERVAL) > trace.size() - 1:
 			trace.append(necromancer.global_position)
+			if _trace_runs.has(run):
+				_print_trace(run, skill_id, undead_count, time, necromancer, bot, kept, traced)
 		if time >= _timeout:
 			result["timeout"] = true
 			_print_timeout(run, necromancer, bot, escape_point, kept, trace)
@@ -331,8 +351,8 @@ func _give_undead(necromancer: Necromancer, count: int) -> Array[Skull]:
 
 
 ## 얕은 굴을 새로 불러오고, 전역 상태(인벤토리·핫바)를 비운다.
-func _reload_scene() -> void:
-	await reload_fight_scene(_scene)
+func _reload_scene(run_seed: int) -> void:
+	await reload_fight_scene(_scene, run_seed)
 
 
 ## 무리 자리가 만든 무리(MonsterPack, 계획 8a)는 첫 물리 프레임에 무리원을 묶는다. 위에서 지운 무리원이 남아 있으면 그때 사라진 몸을 읽으므로,
@@ -375,10 +395,10 @@ func _row(route_id: StringName, undead_count: int, retreat: int, skill_id: Strin
 		killed += r["killed"]
 		kept += r["kept"]
 		undead_died += r["undead_died"]
-	return "| %s | %s | %s | %s | %d | %.0f%% | %.0f%% | %s | %.1f / %.1f | %.1f / %d | %.1f | %d / %d | %d | %s |" % [
+	return "| %s | %s | %s | %s | %d | %.0f%% | %.0f%% | %s | %.1f / %.1f | %.1f / %.1f | %.1f | %d / %d | %d | %s |" % [
 		ROUTES[route_id]["name"], _condition_name(undead_count), RETREAT_NAMES[retreat], PlayerBot.SKILLS[skill_id]["name"], results.size(),
 		100.0 * died / results.size(), 100.0 * escaped / results.size(), "%.1f초" % _mean(times) if not times.is_empty() else "-", _mean(damages), damages.max(),
-		float(killed) / results.size(), kept / results.size(), float(undead_died) / results.size(), same_frame, undead_lost_runs, timeouts, "%.0f%%" % (100.0 * hits / shots) if shots > 0 else "-"]
+		float(killed) / results.size(), float(kept) / results.size(), float(undead_died) / results.size(), same_frame, undead_lost_runs, timeouts, "%.0f%%" % (100.0 * hits / shots) if shots > 0 else "-"]
 
 
 func _mean(values: Array) -> float:
@@ -425,6 +445,21 @@ func _print_timeout(run: int, necromancer: Necromancer, bot: PlayerBot, escape_p
 	print("시간 초과 판 %d: 물러나는 중 %s, 네크로맨서 칸 %s 체력 %.0f, 탈출 지점까지 %.0f px, 마지막 %d초 동안 움직인 거리 %.0f px, 지난 위치(칸) %s, 노리는 몬스터 %s" % [
 		run, bot.retreating, (necromancer.global_position / TILE).floor(), necromancer.health, necromancer.global_position.distance_to(escape_point), TRACE_TAIL, moved,
 		trace.slice(maxi(trace.size() - 8, 0)).map(func(p: Vector2) -> Vector2: return (p / TILE).floor()), hunters])
+
+
+## 진단 한 줄 (--trace_runs): 네크로맨서 칸·체력, 지난 줄 뒤로 쏜 탄·맞힌 탄, 노리는 몬스터마다 요약과 공격권, 몬스터 → 네크로맨서 직선이 벽에 막혔는지.
+## traced는 지난 줄의 탄 수를 담아 둔다 (판마다 새 사전).
+func _print_trace(run: int, skill_id: StringName, undead_count: int, time: float, necromancer: Necromancer, bot: PlayerBot, kept: Array[Monster], traced: Dictionary) -> void:
+	var hunters: PackedStringArray = []
+	for monster: Variant in kept:
+		if is_instance_valid(monster) and (monster as Monster).health > 0.0 and (monster as Monster).get_target() != null:
+			var hunter: Monster = monster as Monster
+			hunters.append("%s, 공격권 %s, 직선 %s" % [_hunter_summary(hunter, necromancer), hunter.is_holding_token(),
+				"열림" if hunter.has_clear_line_to(necromancer.global_position) else "벽에 막힘"])
+	print("[추적] 판 %d %s 언데드 %d %.0f초: 네크로맨서 칸 %s 체력 %.0f, 쏜 탄 +%d 맞힌 탄 +%d, 노리는 몬스터 %s" % [run, PlayerBot.SKILLS[skill_id]["name"], undead_count, time,
+		(necromancer.global_position / TILE).floor(), necromancer.health, bot.shots - traced.get("shots", 0), bot.hits - traced.get("hits", 0), hunters])
+	traced["shots"] = bot.shots
+	traced["hits"] = bot.hits
 
 
 ## 시간 초과 기록용 몬스터 요약: 종류, 칸, 체력, 대상까지 거리. 돌진하는 몬스터는 상태와 대상 쪽으로 벽까지 거리도.

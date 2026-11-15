@@ -129,22 +129,40 @@ func apply_goblin_args() -> void:
 ## 측정 스크립트가 판 사이에 scene_path 씬을 새로 불러오고 전역 상태(인벤토리·핫바)를 비운다.
 ## 판이 끝난 뒤에도 날아오던 돌이나 남은 몬스터에 네크로맨서가 죽을 수 있다. 그러면 지역이 거점으로 가는 요청이 이 함수의 요청을
 ## 덮어써서 다음 판이 거점에서 시작되므로, 원하는 씬이 될 때까지 다시 부른다.
-func reload_fight_scene(scene_path: String) -> void:
+## run_seed가 0 이상이면 판마다 같은 난수로 시작한다 (봇 측정 계획 1단계): 씬을 불러오기 전에 던전 상태를 그 시드로 새로 시작하고
+## (무리 구성·대장·드랍·네임드가 판 번호로 정해진다), 씬이 준비되면 지역 공격권의 난수(AttackTokenBoard가 randi()로 정함)도 그 시드로 맞춘다.
+func reload_fight_scene(scene_path: String, run_seed: int = -1) -> void:
 	var necromancer: Necromancer = find_necromancer()
 	var died_after_fight: Array[bool] = [false]
 	if necromancer != null:
 		necromancer.died.connect(func() -> void: died_after_fight[0] = true)
 	await physics_frame
 	await physics_frame
-	root.get_node("GameState").call(&"reset_after_death")
+	var game_state: Node = root.get_node("GameState")
+	game_state.call(&"reset_after_death")
 	while true:
 		var old_scene: Node = current_scene
+		# 판이 끝난 뒤 거점에 갔으면 던전 상태가 비워지므로, 불러올 때마다 다시 시작한다.
+		if run_seed >= 0:
+			(game_state.get(&"dungeon") as DungeonRun).start(run_seed)
 		change_scene_to_file(scene_path)
 		while current_scene == old_scene or current_scene == null or not current_scene.is_node_ready():
 			await physics_frame
 		if current_scene.scene_file_path == scene_path:
+			if run_seed >= 0:
+				_seed_attack_tokens(run_seed)
 			return
 		print("판 사이에 씬이 %s로 바뀌어 다시 불러옴 (판이 끝난 뒤 네크로맨서가 죽음: %s)" % [current_scene.scene_file_path, "예" if died_after_fight[0] else "아니오"])
+
+
+## 지역 공격권의 난수(추가 공격권을 누가 받는지)를 seed_value로 맞춘다. 공격권은 내부 난수를 쓰므로 그 값을 읽는다 (측정 쪽에서만)
+func _seed_attack_tokens(seed_value: int) -> void:
+	var board: AttackTokenBoard = get_first_node_in_group(&"attack_tokens") as AttackTokenBoard
+	if board == null:
+		return
+	var rng: RandomNumberGenerator = board.tokens.get("_rng")
+	if rng != null:
+		rng.seed = seed_value
 
 
 ## 한 판을 시작할 때 씬과 살아 있는 몬스터 수가 맞는지 본다. 틀리면 [실패]를 남기고 start_failures를 늘린 뒤 false를 돌려준다.

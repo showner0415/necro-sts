@@ -23,7 +23,7 @@ static func run(scene: Node) -> void:
 		node.free()
 	necromancer.global_position = Vector2.ZERO
 
-	var target: Dictionary = BALANCE.TARGETS[target_id]
+	var target: Dictionary = BALANCE.get_target(target_id)
 	var data: MonsterData = load(target["data"])
 	var spawned: Array[Monster] = []
 	for offset: Vector2 in target["offsets"]:

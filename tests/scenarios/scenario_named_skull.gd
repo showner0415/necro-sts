@@ -4,7 +4,7 @@ extends ScenarioTest
 ## 2. 대장이 아닌 무리원을 잡으면 시체에 네임드 머리뼈가 없다
 ## 3. 네임드 머리뼈를 채집해 핫바에 놓고 G로 소환하면, 머리뼈 체력이 쥐 체력 × 네임드 배율(1.2)이고 언데드 공격력도 쥐 공격력 × 1.2다.
 ##    핫바 칸에 네임드 표시가 있다
-## 확률은 data/packs/leader_settings.tres(임시값)를 불러온 리소스에서 메모리로만 바꾸고 되돌린다 (파일은 바꾸지 않는다). 70% 자체는 단위 테스트가 본다.
+## 확률은 data/packs/leader_settings.tres(네임드 40%)를 불러온 리소스에서 메모리로만 바꾸고 되돌린다 (파일은 바꾸지 않는다). 확률 0·1일 때의 동작은 단위 테스트(test_pack_leader.gd)가 본다.
 
 const SCENE_A: String = "res://tests/dungeon_test_a.tscn"
 const DATA_B: String = "res://data/regions/test_dungeon_b.tres"

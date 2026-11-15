@@ -16,7 +16,7 @@ extends Node
 @export var sight_check_interval: int = 3
 
 @export_group("함께 배회")
-## 무리원이 배회 기준점에서 벗어나도 되는 거리 (픽셀, 임시값 64 = 2칸. 사용자 결정 2026-11-14). 밖이면 기준점 쪽으로 돌아온다
+## 무리원이 배회 기준점에서 벗어나도 되는 거리 (픽셀, 64 = 2칸. 사용자 결정 2026-11-15, 봇 측정 5a에서 확정). 밖이면 기준점 쪽으로 돌아온다
 @export var wander_radius: float = 64.0
 ## 기준점이 방향을 새로 고르는 간격 (초)
 @export var wander_anchor_interval: float = 3.0
