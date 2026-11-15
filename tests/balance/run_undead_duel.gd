@@ -18,7 +18,7 @@ const MONSTER_SCENE: String = "res://monsters/monster.tscn"
 const BONE_PATH: String = "res://data/items/bone.tres"
 const BONES: int = 60
 ## 몬스터 id → 이름. 데이터는 data/monsters/<id>.tres, 머리뼈는 data/skulls/<id>_skull.tres
-const MONSTERS: Dictionary = {&"rat": "쥐", &"boar": "멧돼지", &"bat": "박쥐", &"goblin_slinger": "고블린 투석병"}
+const MONSTERS: Dictionary = {&"rat": "쥐", &"boar": "멧돼지", &"bat": "박쥐", &"goblin_slinger": "고블린 투석병", &"cave_toad": "동굴 두꺼비"}
 const CASE_NAMES: Dictionary = {1: "언데드 1 vs 적 1", 2: "언데드 1 + 네크로맨서 vs 적 1", 3: "언데드 2 vs 적 1"}
 ## 적을 놓는 자리 (네크로맨서 기준). 소환된 언데드는 네크로맨서 옆에 있다.
 const ENEMY_OFFSET: Vector2 = Vector2(70, 0)
@@ -26,7 +26,7 @@ const DEFAULT_RUNS: int = 20
 const TIMEOUT: float = 60.0
 const BASE_SEED: int = 3000
 
-var _monsters: Array[StringName] = [&"rat", &"boar", &"bat", &"goblin_slinger"]
+var _monsters: Array[StringName] = [&"rat", &"boar", &"bat", &"goblin_slinger", &"cave_toad"]
 var _cases: Array[int] = [1, 2, 3]
 var _runs: int = DEFAULT_RUNS
 var _skill: StringName = &"normal"

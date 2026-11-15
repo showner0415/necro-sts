@@ -38,6 +38,9 @@ const TARGETS: Dictionary = {
 	&"boar": {"name": "멧돼지 1마리", "data": "res://data/monsters/boar.tres", "offsets": [Vector2.ZERO]},
 	&"bat_pack": {"name": "박쥐 무리(3)", "data": "res://data/monsters/bat.tres", "offsets": [Vector2(0, -12), Vector2(12, 0), Vector2(0, 12)], "pack": true},
 	&"goblin_pair": {"name": "고블린 투석병(2)", "data": "res://data/monsters/goblin_slinger.tres", "offsets": [Vector2(0, -25), Vector2(10, 25)]},
+	## 동굴 두꺼비 (제안, monster-designer 2026-11-15, 사용자 확인 전). 기본 대상에는 넣지 않는다: --targets=cave_toad,cave_toad_pair
+	&"cave_toad": {"name": "동굴 두꺼비 1마리", "data": "res://data/monsters/cave_toad.tres", "offsets": [Vector2.ZERO]},
+	&"cave_toad_pair": {"name": "동굴 두꺼비(2)", "data": "res://data/monsters/cave_toad.tres", "offsets": [Vector2(0, -25), Vector2(10, 25)]},
 	## 벽으로 둘러싸인 방 (12×9칸, 얕은 굴의 작은 굴 64~115칸과 비슷하다). 기본 대상에는 넣지 않는다: --targets=goblin_room
 	&"goblin_room": {"name": "고블린 투석병(2), 벽 방", "data": "res://data/monsters/goblin_slinger.tres", "offsets": [Vector2(0, -25), Vector2(10, 25)],
 		"room": Vector2(384, 288), "start": Vector2(-120, 0), "spawn": Vector2(110, 0)},
