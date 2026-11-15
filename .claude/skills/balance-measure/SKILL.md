@@ -60,6 +60,10 @@ description: 밸런스·몬스터 AI·언데드 능력치를 숫자로 잴 때 �
 - `bash tools/godot.sh --headless --path . -s tools/bone_expectation.gd` (기본 얕은 굴, 다른 씬은 `-- --scene=res://<씬>.tscn`). 판정 없이 출력만 하고 몇 초 걸린다
 - 종마다 마릿수 × 마리당 뼈 기대값과 합계를 낸다. 무리 자리는 무리원 수의 가운데((최소 + 최대) / 2)로 세고, 상자 뼈는 세지 않는다. 기준은 얕은 굴 120 (`docs/game-design.md` "몬스터 무리"의 드랍 줄)
 
+## 5-1-1. 긴 길목 공격권 (run_choke_tokens)
+
+- `bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_choke_tokens.gd -- --rats=8` (길목 시험 동굴의 돌아갈 길 없는 26칸 길목 너머에서 물린 횟수, 한 판 60초가 약 3초). 여러 판은 `--seeds=10`(판마다 시드 4000 + 판 번호, [요약]에 평균·최소~최대), 공격권을 든 쥐가 어디에 있었는지는 `--diagnose=1`. 결과: tests/balance/results/2026-11-15_choke_tokens.md, 2026-11-15_choke_diagnose.md (봇 측정 5b)
+
 ## 5-2. 무리 흩어 놓기 배치 (pack_placement_stats)
 
 - `bash tools/godot.sh --headless --path . -s tools/pack_placement_stats.gd` (기본 얕은 굴·시드 50개, `-- --seeds=<수> --scene=res://<씬>.tscn`). 판정 없이 출력만 하고 몇 초 걸린다
