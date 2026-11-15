@@ -14,6 +14,7 @@ extends ScenarioTest
 ## 멧돼지·투석병·섞인 무리 (봇 측정 1단계): -- --targets=boar_pack2,boar_pack2_leader,boar_pack3,boar_pack3_leader,goblin_pack2,goblin_pack2_leader,goblin_pack3,goblin_pack3_leader,mixed3,mixed3_leader,mixed4,mixed4_leader
 ## 쥐 큰 무리 (봇 측정 3단계): -- --targets=rat_big6,rat_big6_leader,rat_big8,rat_big8_leader
 ## 추가 공격권 간격 바꿔 재기 (봇 측정 4a, 측정 안에서만): -- --targets=boar_pack2 --rooms=s --timeout=120 --extra_interval=2.0 (멧돼지 무리는 120초로 잰다) (결과 tests/balance/results/2026-11-15_token_extra_interval.md)
+## 공격권 시간 제한·막기·맴도는 거리 바꿔 재기 (봇 측정 4b, 측정 안에서만): -- --targets=boar_pack2 --rooms=s --timeout=120 --hold_time_limit=8 (또는 --retry_block_time=2, --wait_distance=128. 결과 tests/balance/results/2026-11-15_token_hold_block_wait.md)
 ## 벽 방 판 (봇 측정 3단계): -- --targets=boar_pack2,rat_big6 --rooms=s,l (대상마다 작은 방 _room_s·큰 방 _room_l 판으로 바꾼다. 결과 tests/balance/results/2026-11-15_pack_room.md)
 ##   3a 측정 전부 (무리 열여섯 × 두 방, 결과 tests/balance/results/2026-11-15_pack_room.md): -- --targets=boar_pack2,boar_pack2_leader,boar_pack3,boar_pack3_leader,goblin_pack2,goblin_pack2_leader,goblin_pack3,goblin_pack3_leader,mixed3,mixed3_leader,mixed4,mixed4_leader,rat_big6,rat_big6_leader,rat_big8,rat_big8_leader --rooms=s,l
 ## 판마다 시드(BASE_SEED + 판 번호)로 던전 상태와 지역 공격권의 난수도 맞추므로, 같은 대상·판 번호면 다른 대상·실력과 함께 돌려도 결과가 같다 (봇 측정 1단계)
@@ -122,6 +123,11 @@ var _miss_pack: int = 0
 var _rooms: Array[String] = []
 ## 0 이상이면 측정 안에서만 추가 공격권 간격(초)을 이 값으로 바꾼다 (--extra_interval=2.0, 봇 측정 4a). 음수면 지역 기본값
 var _extra_interval: float = -1.0
+## 0 이상이면 측정 안에서만 공격권 시간 제한·시간 제한 뒤 막기(초)를 이 값으로 바꾼다 (--hold_time_limit=8, --retry_block_time=2, 봇 측정 4b). 음수면 지역 기본값
+var _hold_time_limit: float = -1.0
+var _retry_block_time: float = -1.0
+## 0 이상이면 측정 안에서만 놓는 몬스터의 맴도는 거리(token_wait_distance, px)를 이 값으로 바꾼다 (--wait_distance=128, 봇 측정 4b). 음수면 데이터 기본값
+var _wait_distance: float = -1.0
 
 
 func get_start_scene() -> String:
@@ -159,6 +165,12 @@ func _parse_args() -> void:
 				_run_distance = float(parts[1])
 			"extra_interval":
 				_extra_interval = float(parts[1])
+			"hold_time_limit":
+				_hold_time_limit = float(parts[1])
+			"retry_block_time":
+				_retry_block_time = float(parts[1])
+			"wait_distance":
+				_wait_distance = float(parts[1])
 			"rooms":
 				_rooms.assign(Array(values).map(func(v: String) -> String: return "_room_" + v))
 	# --rooms=s,l: 대상마다 방 판으로 바꾼다 (대상 차례대로, 대상 하나의 방 판이 붙어 나온다)
@@ -230,15 +242,25 @@ func _run_all() -> void:
 	finish(start_failures == 0)
 
 
+## 측정 안에서만 이 지역 공격권 값을 인자대로 바꾼다 (--extra_interval·--hold_time_limit·--retry_block_time, 음수면 그대로).
+## 보드의 @export는 _ready에서 AttackTokens로 넘어가므로 tokens 쪽을 바꾼다. .tres·기본값은 그대로. 보드가 없으면 건너뛴다
+func _apply_token_args() -> void:
+	var board: AttackTokenBoard = get_first_node_in_group(&"attack_tokens") as AttackTokenBoard
+	if board == null:
+		return
+	if _extra_interval >= 0.0:
+		board.tokens.extra_interval = _extra_interval
+	if _hold_time_limit >= 0.0:
+		board.tokens.hold_time_limit = _hold_time_limit
+	if _retry_block_time >= 0.0:
+		board.tokens.retry_block_time = _retry_block_time
+
+
 ## 한 판 싸운다. 결과: time(초), damage, died, timeout, shots, hits
 func _fight(target_id: StringName, undead_count: int, skill_id: StringName, run: int) -> Dictionary:
 	await _reload_scene(BASE_SEED + run)
 	seed(BASE_SEED + run)
-	if _extra_interval >= 0.0:
-		# 측정 안에서만 이 지역 공격권의 추가 공격권 간격을 바꾼다 (보드의 @export는 _ready에서 AttackTokens로 넘어가므로 tokens 쪽을 바꾼다. .tres·기본값은 그대로)
-		var board: AttackTokenBoard = get_first_node_in_group(&"attack_tokens") as AttackTokenBoard
-		if board != null:
-			board.tokens.extra_interval = _extra_interval
+	_apply_token_args()
 	var region: Node = current_scene
 	var necromancer: Necromancer = find_necromancer()
 	for node: Node in get_nodes_in_group(&"monsters"):
@@ -257,6 +279,11 @@ func _fight(target_id: StringName, undead_count: int, skill_id: StringName, run:
 		var monster: Monster = (load(MONSTER_SCENE) as PackedScene).instantiate()
 		# 섞인 무리는 무리원마다 데이터가 다르다 ("datas", offsets와 같은 차례)
 		monster.data = load(target["datas"][i]) if target.has("datas") else data
+		if _wait_distance >= 0.0:
+			# 측정 안에서만 맴도는 거리를 바꾼 데이터 복사본을 쓴다 (.tres는 그대로)
+			var copy: MonsterData = monster.data.duplicate()
+			copy.token_wait_distance = _wait_distance
+			monster.data = copy
 		monster.position = target.get("spawn", SPAWN_OFFSET) + offsets[i]
 		necromancer.get_parent().add_child(monster)
 		spawned.append(monster)
