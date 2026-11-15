@@ -11,6 +11,8 @@ extends "res://tests/balance/run_balance.gd"
 ## 시야를 끄고 같은 싸움을 재서 비교: -- --mode=aim_sight --runs=50 --no_vision=1
 ## 무리와 언데드 (계획 8b-3): 쥐 패거리와 쥐 언데드 2가 싸우는 동안 쥐가 누구를 노리는지, 살아 있는 언데드 하나에 공격권을 든 쥐가 몇 마리인지, 첫 언데드가 죽기까지
 ##   bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_diagnose.gd -- --mode=pack_undead --runs=20 (봇 거리 두기를 끄려면 --keep=0)
+## 멧돼지 무리 돌진 (봇 측정 3c): 네크로맨서를 노린 돌진마다 구르기를 시도했는지·굴렀는지·맞았는지, 다른 멧돼지와 겹쳤는지, 추가 공격권 돌진인지 (기본 대상 boar, boar_pack2_room_s, boar_pack3_room_s, 언데드 0)
+##   bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_diagnose.gd -- --mode=pack_charge --runs=20
 ## 시야를 따르기 전의 봇(커밋 f29cc34)으로도 돌도록 봇 내부는 Variant로 읽는다. 그 봇은 늘 모두 본다.
 
 var _mode: String = "charge_sight"
@@ -47,6 +49,10 @@ const AIM_HIT_DISTANCE: float = 24.0
 var _no_vision: bool = false
 ## 무리와 언데드: 잴 대상과 이번 판의 프레임 집계
 const PACK_UNDEAD_TARGETS: Array[StringName] = [&"rat_gang3", &"rat_gang4", &"rat_gang4_leader"]
+## 멧돼지 무리 돌진 (봇 측정 3c): 기본으로 견줄 대상. 멧돼지 1마리와 같은 작은 방의 무리 둘·셋
+const PACK_CHARGE_TARGETS: Array[StringName] = [&"boar", &"boar_pack2_room_s", &"boar_pack3_room_s"]
+## 구르기 키를 누른 뒤 실제로 구르기가 시작됐다고 볼 때 더 봐주는 시간 (초, 입력이 다음 물리 프레임에 처리되는 몫)
+const REAL_ROLL_SLACK: float = 0.05
 var _pack: Dictionary = {}
 var _aim: Dictionary = {}
 var _attacks: Array[Dictionary] = []
@@ -84,6 +90,9 @@ func _on_scene_ready() -> void:
 	elif _mode == "pack_undead":
 		_targets.assign(PACK_UNDEAD_TARGETS)
 		_undead_counts = [2]
+	elif _mode == "pack_charge":
+		_targets.assign(PACK_CHARGE_TARGETS)
+		_undead_counts = [0]
 	else:
 		_targets = [&"goblin_pair"]
 		_undead_counts = [0, 2]
@@ -94,6 +103,8 @@ func _on_scene_ready() -> void:
 		_run_aim_sight()
 	elif _mode == "pack_undead":
 		_run_pack_undead()
+	elif _mode == "pack_charge":
+		_run_pack_charge()
 	else:
 		_run_goblin_time()
 
@@ -125,7 +136,7 @@ func _on_fight_start(necromancer: Necromancer, bot: PlayerBot, spawned: Array[Mo
 		if _no_vision:
 			(current_scene.call(&"get_vision") as Vision).set_active(false)
 		return
-	if _mode != "charge_sight":
+	if not _is_charge_mode():
 		for monster: Monster in spawned:
 			var behavior: ThrowBehavior = monster.get_behavior() as ThrowBehavior
 			if _no_retreat:
@@ -138,8 +149,13 @@ func _on_fight_start(necromancer: Necromancer, bot: PlayerBot, spawned: Array[Mo
 				_goblin["bolt_hits" if source == necromancer else "undead_hits"] += 1)
 
 
+## 멧돼지 돌진을 기록하는 모드 (charge_sight, pack_charge)
+func _is_charge_mode() -> bool:
+	return _mode == "charge_sight" or _mode == "pack_charge"
+
+
 func _on_fight_frame(necromancer: Necromancer, bot: PlayerBot, time: float) -> void:
-	if _mode == "charge_sight":
+	if _is_charge_mode():
 		_track_charges(necromancer, bot, time)
 	elif _mode == "aim_sight":
 		_track_aim_sight(necromancer, bot)
@@ -152,10 +168,12 @@ func _on_fight_frame(necromancer: Necromancer, bot: PlayerBot, time: float) -> v
 func _on_fight_end(result: Dictionary, bot: PlayerBot) -> void:
 	result["lead_checks"] = bot.lead_checks
 	result["lead_clamped"] = bot.lead_clamped
-	if _mode == "charge_sight":
+	if _is_charge_mode():
 		# 돌진에 맞아 죽으면 지역 씬이 사라지므로, 진행 중이던 돌진을 맞은 것으로 끝낸다.
-		for track: Dictionary in _tracks.values():
-			if track["state"] == ChargeBehavior.State.CHARGE and result["died"]:
+		# pack_charge(언데드 0)는 무리의 다른 돌진까지 맞음으로 세지 않게, 이번 돌진에서 무언가를 친 돌진만 맞음으로 센다 (적은 네크로맨서뿐이다).
+		for behavior: Variant in _tracks:
+			var track: Dictionary = _tracks[behavior]
+			if track["state"] == ChargeBehavior.State.CHARGE and result["died"] and (_mode != "pack_charge" or not (behavior as ChargeBehavior)._hit.is_empty()):
 				track["entry"]["damage"] = track["entry"]["health"]
 		result["charges"] = _charges
 		result["frames"] = _frames
@@ -234,6 +252,11 @@ func _track_charges(necromancer: Necromancer, bot: Variant, time: float) -> void
 			_tracks[behavior] = {"state": ChargeBehavior.State.APPROACH}
 		var track: Dictionary = _tracks[behavior]
 		var seen: bool = _bot_sees(bot, monster.global_position)
+		if state == ChargeBehavior.State.WINDUP and track["state"] != state:
+			track["press_time"] = -1.0
+			track["real_roll"] = false
+		if state == ChargeBehavior.State.WINDUP or state == ChargeBehavior.State.CHARGE:
+			_track_real_roll(track, behavior, necromancer, bot, time)
 		if state == ChargeBehavior.State.WINDUP:
 			if track["state"] != state:
 				track["windup_frames"] = 0
@@ -246,6 +269,12 @@ func _track_charges(necromancer: Necromancer, bot: Variant, time: float) -> void
 					track["first_seen"] = time
 		elif state == ChargeBehavior.State.CHARGE:
 			if track["state"] == ChargeBehavior.State.WINDUP:
+				var telegraphs: Dictionary = bot.get(&"_telegraphs")
+				var overlap: bool = false
+				for other: Monster in alive:
+					var other_charge: ChargeBehavior = other.get_behavior() as ChargeBehavior
+					if other != monster and other_charge != null and other_charge.get_state() in [ChargeBehavior.State.WINDUP, ChargeBehavior.State.CHARGE]:
+						overlap = true
 				var entry: Dictionary = {
 					"seen_at_start": seen,
 					"seen_ratio": float(track["seen_frames"]) / maxi(track["windup_frames"], 1),
@@ -254,6 +283,10 @@ func _track_charges(necromancer: Necromancer, bot: Variant, time: float) -> void
 					"rolled": false,
 					"health": necromancer.health,
 					"damage": 0.0,
+					# pack_charge: 봇이 이 예고에 구르기를 시도하기로 했는지, 다른 멧돼지가 예고·돌진 중이었는지, 추가 공격권으로 한 돌진인지
+					"tried": telegraphs.has(behavior) and telegraphs[behavior]["try"],
+					"overlap": overlap,
+					"extra": monster.is_holding_extra_token(),
 				}
 				_charges.append(entry)
 				track["entry"] = entry
@@ -261,8 +294,18 @@ func _track_charges(necromancer: Necromancer, bot: Variant, time: float) -> void
 				track["entry"]["rolled"] = true
 			if track.has("entry"):
 				track["entry"]["damage"] = maxf(track["entry"]["health"] - necromancer.health, 0.0)
+				track["entry"]["real_roll"] = track.get("real_roll", false)
 		track["state"] = state
 
+
+## 이 예고·돌진에 봇이 구르기 키를 누른 뒤 실제로 구르기가 시작됐는지 (pack_charge). 키를 눌러도 이미 구르는 중이거나 스태미나가 모자라면 구르지 않는다
+## (Necromancer.try_roll). 누른 뒤에 시작된 구르기만 센다: 지금 구르기가 지난 시간이 누른 뒤 지난 시간(+ 한두 프레임)보다 짧다.
+func _track_real_roll(track: Dictionary, behavior: ChargeBehavior, necromancer: Necromancer, bot: Variant, time: float) -> void:
+	var telegraphs: Dictionary = bot.get(&"_telegraphs")
+	if track.get("press_time", -1.0) < 0.0 and telegraphs.has(behavior) and telegraphs[behavior]["done"]:
+		track["press_time"] = time
+	if track.get("press_time", -1.0) >= 0.0 and necromancer.is_rolling() and float(necromancer.get(&"_roll_elapsed")) <= time - track["press_time"] + REAL_ROLL_SLACK:
+		track["real_roll"] = true
 
 func _run_charge_sight() -> void:
 	print("| 판 | 실력 | 돌진 | 네크로맨서 노림 | 시작 순간 보임 | 맞음 | 죽음 | 잡은 시간 |")
@@ -293,6 +336,39 @@ func _run_charge_sight() -> void:
 	print("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
 	for row: String in summaries:
 		print(row)
+	finish(start_failures == 0)
+
+
+## 멧돼지 무리 돌진 (봇 측정 3c): 대상 × 실력마다 네크로맨서를 노린 돌진을 모아, 봇이 구르기를 시도했는지·굴렀는지·맞았는지와
+## 다른 멧돼지의 예고·돌진과 겹쳤는지, 추가 공격권으로 한 돌진인지를 센다. 조건은 첫 언데드 수 하나 (기본 0).
+func _run_pack_charge() -> void:
+	print("| 대상 | 실력 | 판 | 죽음 | 네크로맨서를 노린 돌진 (판당) | 구르기 시도 | 시도 중 구르기 키 누름 | 키 누른 것 중 실제로 구름 | 실제로 구른 돌진에 맞음 | 키 눌렀지만 못 구른 돌진에 맞음 | 키 안 누른 돌진에 맞음 | 다른 멧돼지와 겹친 돌진 | 겹친 돌진에 맞음 | 안 겹친 돌진에 맞음 | 추가 공격권 돌진 |")
+	print("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
+	for target_id: StringName in _targets:
+		for skill_id: StringName in _skills:
+			var all: Array[Dictionary] = []
+			var runs: int = 0
+			var deaths: int = 0
+			for run: int in _runs:
+				var result: Dictionary = await _fight(target_id, _undead_counts[0], skill_id, run)
+				if result.has("invalid"):
+					continue
+				runs += 1
+				deaths += 1 if result["died"] else 0
+				var charges: Array[Dictionary] = []
+				charges.assign(result["charges"])
+				all.append_array(charges.filter(func(c: Dictionary) -> bool: return c["on_necromancer"]))
+			var tried: Array[Dictionary] = all.filter(func(c: Dictionary) -> bool: return c["tried"])
+			var pressed: Array[Dictionary] = all.filter(func(c: Dictionary) -> bool: return c["rolled"])
+			var real: Array[Dictionary] = pressed.filter(func(c: Dictionary) -> bool: return c["real_roll"])
+			var failed: Array[Dictionary] = pressed.filter(func(c: Dictionary) -> bool: return not c["real_roll"])
+			var not_pressed: Array[Dictionary] = all.filter(func(c: Dictionary) -> bool: return not c["rolled"])
+			var overlap: Array[Dictionary] = all.filter(func(c: Dictionary) -> bool: return c["overlap"])
+			var single: Array[Dictionary] = all.filter(func(c: Dictionary) -> bool: return not c["overlap"])
+			print("| %s | %s | %d | %s | %d (%.1f) | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |" % [get_target(target_id)["name"], PlayerBot.SKILLS[skill_id]["name"], runs,
+				_share(deaths, runs), all.size(), float(all.size()) / maxi(runs, 1), _share(tried.size(), all.size()), _share(_count(tried, "rolled"), tried.size()),
+				_share(real.size(), pressed.size()), _hit_share(real), _hit_share(failed), _hit_share(not_pressed),
+				_share(overlap.size(), all.size()), _hit_share(overlap), _hit_share(single), _share(_count(all, "extra"), all.size())])
 	finish(start_failures == 0)
 
 

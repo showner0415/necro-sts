@@ -13,6 +13,8 @@ extends ScenarioTest
 ## 초반 쥐 길 (기본 길에 없음, 계획 8b-6): -- --routes=rat_gang,rat_gang_hunt (지나가기: 거점 → 입구 굴 → 쥐 둥지, 잡으러: 거점 → 쥐에게. 입구 굴의 쥐 패거리만 남김, 판마다 무리 크기·대장 줄)
 ## 무리 잡으러 (기본 길에 없음, 봇 측정 3b): -- --routes=rat_nest_hunt,mud_hunt (쥐 둥지의 쥐 큰 무리, 진흙 굴의 섞인 무리만 남김, 판마다 무리 크기·대장 줄)
 ##   3b 측정 전부 (결과 tests/balance/results/2026-11-15_pack_route.md): -- --routes=rat_nest_hunt,mud_hunt,boar,boar_hunt
+## 시간 한계: --timeout=<초> (기본 180. 멧돼지 잡으러 길은 살아남은 판 평균 171~227초가 걸려 180초면 잘린다, tests/balance/results/2026-11-15_boar_pack_diagnose.md)
+## 한 판 들여다보기: --trace_runs=1,3 (그 판 번호에서 1초마다 네크로맨서 칸·체력, 쏜 탄·맞힌 탄, 노리는 몬스터의 상태·공격권·벽까지 거리를 [추적] 줄로 찍는다)
 ## 멧돼지 돌진이 앞쪽만 맞히는 규칙(기본 끔)을 켜고 재려면: --charge_front_only=1
 ## 물러나기도 재려면: --retreat=0,1,2 (1: 언데드를 모두 잃거나 체력이 절반 이하면 싸움을 그만두고 합류 굴의 탈출 B로 물러난다, 2: 체력이 절반 이하일 때만). 1이나 2 중 하나만 줘도 둘 다 잰다
 ## 창으로 보기 (실제 속도, 한 판):
@@ -84,6 +86,8 @@ var _charge_front_only: bool = false
 var _rat_undead_data: MonsterData
 var _runs: int = DEFAULT_RUNS
 var _timeout: float = DEFAULT_TIMEOUT
+## 진단 (봇 측정 3c): 이 판 번호들에서 TRACE_INTERVAL초마다 봇과 노리는 몬스터의 상태를 찍는다 (--trace_runs=1,3). 비어 있으면 찍지 않는다
+var _trace_runs: Array[int] = []
 var _layout: MapLayout
 var _roles: Dictionary = {}
 
@@ -131,6 +135,8 @@ func _parse_args() -> void:
 				_png = parts[1]
 			"timeout":
 				_timeout = float(parts[1])
+			"trace_runs":
+				_trace_runs.assign(Array(values).map(func(v: String) -> int: return int(v)))
 
 
 ## 길에 쓰는 굴 역할만 찾는다 (scenario_shallow_cave.gd의 굴 역할과 같은 뜻)
@@ -261,6 +267,8 @@ func _pass(route_id: StringName, undead_count: int, skill_id: StringName, run: i
 	var last_health: float = max_health
 	## 시간 초과한 판을 살펴보려고 TRACE_INTERVAL초마다 남기는 네크로맨서 위치
 	var trace: Array[Vector2] = []
+	## 진단 줄(--trace_runs)이 지난 줄의 탄 수를 담아 두는 곳
+	var traced: Dictionary = {}
 	while true:
 		await physics_frame
 		time += delta
@@ -274,6 +282,8 @@ func _pass(route_id: StringName, undead_count: int, skill_id: StringName, run: i
 			_apply_undead_attack_range()
 		if int(time / TRACE_INTERVAL) > trace.size() - 1:
 			trace.append(necromancer.global_position)
+			if _trace_runs.has(run):
+				_print_trace(run, skill_id, undead_count, time, necromancer, bot, kept, traced)
 		if time >= _timeout:
 			result["timeout"] = true
 			_print_timeout(run, necromancer, bot, escape_point, kept, trace)
@@ -435,6 +445,21 @@ func _print_timeout(run: int, necromancer: Necromancer, bot: PlayerBot, escape_p
 	print("시간 초과 판 %d: 물러나는 중 %s, 네크로맨서 칸 %s 체력 %.0f, 탈출 지점까지 %.0f px, 마지막 %d초 동안 움직인 거리 %.0f px, 지난 위치(칸) %s, 노리는 몬스터 %s" % [
 		run, bot.retreating, (necromancer.global_position / TILE).floor(), necromancer.health, necromancer.global_position.distance_to(escape_point), TRACE_TAIL, moved,
 		trace.slice(maxi(trace.size() - 8, 0)).map(func(p: Vector2) -> Vector2: return (p / TILE).floor()), hunters])
+
+
+## 진단 한 줄 (--trace_runs): 네크로맨서 칸·체력, 지난 줄 뒤로 쏜 탄·맞힌 탄, 노리는 몬스터마다 요약과 공격권, 몬스터 → 네크로맨서 직선이 벽에 막혔는지.
+## traced는 지난 줄의 탄 수를 담아 둔다 (판마다 새 사전).
+func _print_trace(run: int, skill_id: StringName, undead_count: int, time: float, necromancer: Necromancer, bot: PlayerBot, kept: Array[Monster], traced: Dictionary) -> void:
+	var hunters: PackedStringArray = []
+	for monster: Variant in kept:
+		if is_instance_valid(monster) and (monster as Monster).health > 0.0 and (monster as Monster).get_target() != null:
+			var hunter: Monster = monster as Monster
+			hunters.append("%s, 공격권 %s, 직선 %s" % [_hunter_summary(hunter, necromancer), hunter.is_holding_token(),
+				"열림" if hunter.has_clear_line_to(necromancer.global_position) else "벽에 막힘"])
+	print("[추적] 판 %d %s 언데드 %d %.0f초: 네크로맨서 칸 %s 체력 %.0f, 쏜 탄 +%d 맞힌 탄 +%d, 노리는 몬스터 %s" % [run, PlayerBot.SKILLS[skill_id]["name"], undead_count, time,
+		(necromancer.global_position / TILE).floor(), necromancer.health, bot.shots - traced.get("shots", 0), bot.hits - traced.get("hits", 0), hunters])
+	traced["shots"] = bot.shots
+	traced["hits"] = bot.hits
 
 
 ## 시간 초과 기록용 몬스터 요약: 종류, 칸, 체력, 대상까지 거리. 돌진하는 몬스터는 상태와 대상 쪽으로 벽까지 거리도.
