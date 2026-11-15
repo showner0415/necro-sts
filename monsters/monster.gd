@@ -27,7 +27,7 @@ extends CharacterBody2D
 @export var alarm_blink_interval: float = 0.1
 ## 디버그 표시(F3)에서 공격권을 든 몬스터의 발밑 점 반지름 (픽셀)
 @export var debug_token_radius: float = 5.0
-## 네크로맨서에게서 이 거리(픽셀)보다 먼 몸은 판단(대상 찾기·시야·행동)을 far_think_interval 프레임에 한 번만 한다 (ThinkThrottle, 임시값. 계획 3b)
+## 네크로맨서에게서 이 거리(픽셀)보다 먼 몸은 판단(대상 찾기·시야·행동)을 far_think_interval 프레임에 한 번만 한다 (ThinkThrottle, 계획 3b. 640px·4프레임은 사용자 결정 2026-11-15, 봇 측정 5b-2에서 확정)
 @export var far_think_distance: float = 640.0
 @export var far_think_interval: int = 4
 ## 길목 안에서 이 속도(픽셀/초)보다 빨리 움직이는 동안은 통행 자리·공격권 시간 제한을 멈춘다. 밀려나는 것도 센다 (계획 4c, 사용자 결정 2026-11-14. 통행 자리는 봇 측정 5b)
