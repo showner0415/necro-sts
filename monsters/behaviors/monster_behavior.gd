@@ -10,9 +10,9 @@ extends Resource
 @export_flags_2d_physics var world_collision_mask: int = 1
 
 @export_group("공격권 기다리기")
-## 공격권이 없어 맴돌 때, 맴도는 거리(stats.wait_distance)에서 이만큼 벗어나도 그대로 돈다 (픽셀, 임시값)
+## 공격권이 없어 맴돌 때, 맴도는 거리(stats.wait_distance)에서 이만큼 벗어나도 그대로 돈다 (픽셀. 사용자 결정 2026-11-15, 봇 측정 4단계에서 확정)
 @export var wait_band: float = 8.0
-## 맴돌 때 옆으로 도는 속도와, 너무 가까워 물러나는 속도 (픽셀/초, 임시값. 쥐가 쓰던 값)
+## 맴돌 때 옆으로 도는 속도와, 너무 가까워 물러나는 속도 (픽셀/초, 쥐가 쓰던 값. 사용자 결정 2026-11-15, 봇 측정 4단계에서 확정)
 @export var wait_circle_speed: float = 30.0
 @export var wait_back_off_speed: float = 40.0
 ## 맴돌거나 물러나는 쪽이 이 거리 안에서 벽에 막히면 방향을 튼다 (픽셀)
