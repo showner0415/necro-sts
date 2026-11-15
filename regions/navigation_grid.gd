@@ -29,7 +29,7 @@ extends Node
 @export var wall_tiles: NodePath
 
 @export_group("길목")
-## 공격권 없는 몬스터가 길목을 막고 돌아가는 우회 비율의 한계 (이 값 이하면 돌아가고, 넘으면 입구 밖에서 기다린다. 사용자 결정 2026-11-14)
+## 통행 자리 없는 몬스터가 길목을 막고 돌아가는 우회 비율의 한계 (이 값 이하면 돌아가고, 넘으면 입구 밖에서 기다린다. 사용자 결정 2026-11-14)
 @export var choke_detour_limit: float = 1.5
 ## 가려는 길이 길목 칸을 지나는지 볼 때 점을 찍는 간격 (픽셀, 사용자 결정 2026-11-15)
 @export var choke_sample_step: float = 8.0
@@ -118,7 +118,7 @@ func get_choke_index() -> ChokeIndex:
 	return _choke_index if has_walls() else null
 
 
-## find_path와 같되 choke 길목 칸을 잠깐 막고 찾는다 (공격권 없는 몬스터가 길목을 돌아갈 때).
+## find_path와 같되 choke 길목 칸을 잠깐 막고 찾는다 (통행 자리 없는 몬스터가 길목을 돌아갈 때).
 func find_path_without_choke(from: Vector2, to: Vector2, half_size: Vector2, choke: int) -> PackedVector2Array:
 	if _choke_index == null:
 		return find_path(from, to, half_size)

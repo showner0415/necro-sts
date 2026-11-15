@@ -180,6 +180,10 @@ func must_wait_for_token(body: CharacterBody2D, stats: CombatStats, target: Node
 ## 공격권이 없을 때: 대상에게서 stats.wait_distance(± wait_band)를 두고 옆으로 돌며 기다린다.
 ## 멀면 다가가고(stats.move_speed), 가까우면 물러나고(wait_back_off_speed), 그 사이면 wait_circle_speed로 돈다. 도는 쪽이 벽에 막히면 반대로 돈다.
 func wait_around(body: CharacterBody2D, stats: CombatStats, target: Node2D) -> void:
+	# 길목 입구에서 기다리는 몸은 대상 둘레를 돌지 않고 길(대기 자리)을 따른다 (돌다가 통행 자리 없이 길목에 들어가지 않게, 봇 측정 5b)
+	if body.has_method(&"is_waiting_at_choke") and body.call(&"is_waiting_at_choke"):
+		body.velocity = move_direction(body, target.global_position) * stats.move_speed
+		return
 	var to_target: Vector2 = target.global_position - body.global_position
 	var distance: float = to_target.length()
 	if distance > stats.wait_distance + wait_band:

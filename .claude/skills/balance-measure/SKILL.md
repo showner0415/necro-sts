@@ -62,7 +62,7 @@ description: 밸런스·몬스터 AI·언데드 능력치를 숫자로 잴 때 �
 
 ## 5-1-1. 긴 길목 공격권 (run_choke_tokens)
 
-- `bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_choke_tokens.gd -- --rats=8` (길목 시험 동굴의 돌아갈 길 없는 26칸 길목 너머에서 물린 횟수, 한 판 60초가 약 3초). 여러 판은 `--seeds=10`(판마다 시드 4000 + 판 번호, [요약]에 평균·최소~최대), 공격권을 든 쥐가 어디에 있었는지는 `--diagnose=1`. 결과: tests/balance/results/2026-11-15_choke_tokens.md, 2026-11-15_choke_diagnose.md (봇 측정 5b)
+- `bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_choke_tokens.gd -- --rats=8` (길목 시험 동굴의 돌아갈 길 없는 26칸 길목 너머에서 물린 횟수, 한 판 60초가 약 3초). 여러 판은 `--seeds=10`(판마다 시드 4000 + 판 번호, [요약]에 평균·최소~최대), 공격권을 든 쥐가 어디에 있었는지는 `--diagnose=1`. 결과: tests/balance/results/2026-11-15_choke_tokens.md, 2026-11-15_choke_diagnose.md, 2026-11-15_choke_pass.md (봇 측정 5b). 길목 통행 자리(2026-11-15) 뒤로는 길목을 지나는 쥐가 공격권 대신 통행 자리를 들어, "길목 안 공격권 없는 쥐"는 길목을 지나는 쥐 수에 가깝다
 
 ## 5-2. 무리 흩어 놓기 배치 (pack_placement_stats)
 

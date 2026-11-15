@@ -14,6 +14,8 @@ extends Node
 @export var knockback_release_distance: float = 48.0
 
 var tokens: AttackTokens
+## 길목 통행 자리 (봇 측정 5b). 시간 제한은 공격권과 같은 hold_time_limit이다 (사용자 결정 2026-11-15)
+var passes: ChokePasses
 
 
 func _init() -> void:
@@ -24,7 +26,9 @@ func _ready() -> void:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = randi()
 	tokens = AttackTokens.new(extra_interval, hold_time_limit, rng, retry_block_time)
+	passes = ChokePasses.new(hold_time_limit)
 
 
 func _physics_process(delta: float) -> void:
 	tokens.update(delta)
+	passes.update(delta)

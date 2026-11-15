@@ -59,6 +59,9 @@ enum PlaceholderShape { CIRCLE, ELLIPSE, DIAMOND }
 @export var alarm_signal_time: float = 0.3
 ## 대상 하나를 동시에 공격할 수 있는 이 종의 수 (공격권, AttackTokens. 대상마다 모든 몬스터가 함께 센다). 0이면 공격권 없이 공격한다 (박쥐)
 @export var attack_tokens_per_target: int = 0
+## 대상 하나 쪽으로 동시에 좁은 길목을 지나는 이 종의 수 (통행 자리, ChokePasses. 공격권과 따로 센다). 공격권 수가 0이면 쓰지 않는다
+## (봇 측정 5b, 사용자 결정 2026-11-15. 처음 값은 공격권 수와 같은 쥐 2·투석병 1·멧돼지 1)
+@export var choke_passes_per_target: int = 1
 ## 공격권이 없을 때 대상 둘레를 맴돌며 기다리는 거리 (픽셀. 쥐 64·멧돼지 96·투석병 170은 사용자 결정 2026-11-15, 봇 측정 4단계에서 확정)
 @export var token_wait_distance: float = 64.0
 

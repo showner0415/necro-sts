@@ -10,7 +10,8 @@ extends ScenarioTest
 ## 진단 (봇 측정 5b): --diagnose=1이면 판마다 [진단] 줄을 더 찍는다 (여러 판이면 [요약]에 평균도).
 ##   - 공격권을 든 쥐가 어디에 있었는지: 길목 입구 쪽(길목 왼쪽)·길목 안·길목 너머(길목 오른쪽 끝보다 오른쪽) 프레임 평균 마리 수
 ##   - 공격권을 새로 받은 때 그 쥐가 어디 있었는지 (보통·추가 공격권을 따로 센다)
-##   - 길목 너머에 닿은 쥐 수와 처음 닿은 시각, 길목 너머에 있던 쥐의 프레임 평균 마리 수
+##   - 길목 너머에 닿은 쥐 수와 처음 닿은 시각, 길목 너머에 있던 쥐의 프레임 평균 마리 수, 통행 자리(ChokePasses)를 든 쥐의 프레임 평균 마리 수
+## 길목 통행 자리(봇 측정 5b) 뒤로는 길목을 지나는 쥐가 공격권 대신 통행 자리를 들어서, [측정]의 "길목 안 공격권 없는 쥐"는 길목을 지나는 쥐 수에 가깝다
 ## 길목은 그 씬에서 돌아갈 길이 없는 길목(우회 비율이 모두 0 이하)이고, 없으면 칸이 가장 많은 길목이다.
 
 const CHOKE_SCENE: String = "res://tests/choke_test_cave.tscn"
@@ -103,6 +104,7 @@ func _measure(count: int, seconds: float) -> Dictionary:
 	var reached: Dictionary = {}
 	var first_reach: float = -1.0
 	var beyond_frames: int = 0
+	var pass_frames: int = 0
 	for frame: int in frames:
 		await wait_frames(1)
 		var tokenless: int = 0
@@ -122,6 +124,8 @@ func _measure(count: int, seconds: float) -> Dictionary:
 						extra_grants[zone] += 1
 					else:
 						normal_grants[zone] += 1
+			if board.passes.is_holding(rat):
+				pass_frames += 1
 			if zone == &"길목 너머":
 				beyond_frames += 1
 				if not reached.has(rat):
@@ -139,7 +143,7 @@ func _measure(count: int, seconds: float) -> Dictionary:
 		"speed": data.move_speed, "contact": data.contact_damage, "damage": damage, "bites": roundi(damage / data.contact_damage),
 		"tokenless_avg": float(tokenless_sum) / frames, "tokenless_max": tokenless_max, "lost_inside": lost_inside,
 		"holder_avg": holder_avg, "normal_grants": normal_grants, "extra_grants": extra_grants,
-		"reached": reached.size(), "first_reach": first_reach, "beyond_avg": float(beyond_frames) / frames,
+		"reached": reached.size(), "first_reach": first_reach, "beyond_avg": float(beyond_frames) / frames, "pass_avg": float(pass_frames) / frames,
 	}
 
 
@@ -147,10 +151,10 @@ func _print_diagnosis(label: String, result: Dictionary) -> void:
 	var holder_avg: Dictionary = result["holder_avg"]
 	var normal: Dictionary = result["normal_grants"]
 	var extra: Dictionary = result["extra_grants"]
-	print("[진단] %s: 공격권을 든 쥐 (프레임 평균) 입구 쪽 %.2f · 길목 안 %.2f · 너머 %.2f. 새로 받은 공격권 보통 입구 쪽 %d · 길목 안 %d · 너머 %d, 추가 입구 쪽 %d · 길목 안 %d · 너머 %d. 너머에 닿은 쥐 %d마리 (처음 %.1f초), 너머에 있던 쥐 평균 %.2f마리" % [
+	print("[진단] %s: 공격권을 든 쥐 (프레임 평균) 입구 쪽 %.2f · 길목 안 %.2f · 너머 %.2f. 새로 받은 공격권 보통 입구 쪽 %d · 길목 안 %d · 너머 %d, 추가 입구 쪽 %d · 길목 안 %d · 너머 %d. 너머에 닿은 쥐 %d마리 (처음 %.1f초), 너머에 있던 쥐 평균 %.2f마리, 통행 자리를 든 쥐 평균 %.2f마리" % [
 		label, holder_avg[&"입구 쪽"], holder_avg[&"길목 안"], holder_avg[&"길목 너머"],
 		normal[&"입구 쪽"], normal[&"길목 안"], normal[&"길목 너머"], extra[&"입구 쪽"], extra[&"길목 안"], extra[&"길목 너머"],
-		result["reached"], result["first_reach"], result["beyond_avg"]])
+		result["reached"], result["first_reach"], result["beyond_avg"], result["pass_avg"]])
 
 
 func _print_summary(count: int, results: Array[Dictionary], diagnose: bool) -> void:
@@ -179,6 +183,7 @@ func _print_summary(count: int, results: Array[Dictionary], diagnose: bool) -> v
 	var first_sum: float = 0.0
 	var first_runs: int = 0
 	var beyond_sum: float = 0.0
+	var pass_sum: float = 0.0
 	for result: Dictionary in results:
 		for zone: StringName in ZONES:
 			holder[zone] += result["holder_avg"][zone]
@@ -186,14 +191,15 @@ func _print_summary(count: int, results: Array[Dictionary], diagnose: bool) -> v
 			extra[zone] += result["extra_grants"][zone]
 		reached_sum += result["reached"]
 		beyond_sum += result["beyond_avg"]
+		pass_sum += result["pass_avg"]
 		if result["first_reach"] >= 0.0:
 			first_sum += result["first_reach"]
 			first_runs += 1
-	print("[요약] 진단 (판 평균): 공격권을 든 쥐 입구 쪽 %.2f · 길목 안 %.2f · 너머 %.2f. 새로 받은 공격권 보통 입구 쪽 %.1f · 길목 안 %.1f · 너머 %.1f, 추가 입구 쪽 %.1f · 길목 안 %.1f · 너머 %.1f. 너머에 닿은 쥐 %.1f마리 (처음 %.1f초), 너머에 있던 쥐 평균 %.2f마리" % [
+	print("[요약] 진단 (판 평균): 공격권을 든 쥐 입구 쪽 %.2f · 길목 안 %.2f · 너머 %.2f. 새로 받은 공격권 보통 입구 쪽 %.1f · 길목 안 %.1f · 너머 %.1f, 추가 입구 쪽 %.1f · 길목 안 %.1f · 너머 %.1f. 너머에 닿은 쥐 %.1f마리 (처음 %.1f초), 너머에 있던 쥐 평균 %.2f마리, 통행 자리를 든 쥐 평균 %.2f마리" % [
 		holder[&"입구 쪽"] / runs, holder[&"길목 안"] / runs, holder[&"길목 너머"] / runs,
 		normal[&"입구 쪽"] / runs, normal[&"길목 안"] / runs, normal[&"길목 너머"] / runs,
 		extra[&"입구 쪽"] / runs, extra[&"길목 안"] / runs, extra[&"길목 너머"] / runs,
-		float(reached_sum) / runs, first_sum / maxi(first_runs, 1), beyond_sum / runs])
+		float(reached_sum) / runs, first_sum / maxi(first_runs, 1), beyond_sum / runs, pass_sum / runs])
 
 
 ## 쥐가 있는 곳: 길목 안이면 "길목 안", 길목 오른쪽 끝보다 오른쪽이면 "길목 너머", 아니면 "입구 쪽"

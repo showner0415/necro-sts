@@ -6,7 +6,7 @@ extends RefCounted
 ## - 벽이 가로막으면 NavigationGrid가 찾은 길(칸 가운데를 잇는 점들)을 따라간다.
 ##   다음 점들 중 벽 없이 곧장 갈 수 있는 가장 먼 점으로 가서 모퉁이를 짧게 돈다
 ## - 목표가 움직이므로 길은 정해진 간격(NavigationGrid.repath_interval)마다, 또는 길 끝에 닿으면 다시 찾는다
-## - 길목 피하기(get_direction의 avoid_chokes): 공격권 없는 몬스터는 길목을 지나지 않고 돌아가거나 입구 밖 대기 자리에서 기다린다 (계획 4b)
+## - 길목 피하기(get_direction의 avoid_chokes): 통행 자리 없는 몬스터는 길목을 지나지 않고 돌아가거나 입구 밖 대기 자리에서 기다린다 (계획 4b, 봇 측정 5b)
 ## 벽과의 거리는 몸의 가운데(발밑이 아니라 충돌 모양의 가운데)로 잰다.
 
 ## 몸의 가로·세로 반 크기
@@ -22,7 +22,7 @@ var _planned_frame: int = -1
 var _planned_avoiding: bool = false
 ## 길목 입구 밖에서 기다리는 대기 자리 (발밑 좌표, 기다리지 않으면 INF)
 var _waiting_spot: Vector2 = Vector2.INF
-## 피하지 않던 중에 들어간 길목 번호 (그 안에서는 공격권을 잃어도 빠져나간다. 길목 밖이면 -1)
+## 피하지 않던 중에 들어간 길목 번호 (그 안에서는 통행 자리를 잃어도 빠져나간다. 길목 밖이면 -1)
 var _free_choke: int = -1
 
 
@@ -32,7 +32,7 @@ func _init(half_size: Vector2, center_offset: Vector2) -> void:
 
 
 ## body가 goal(발밑 좌표)로 가려면 지금 움직일 방향 (길이 1, 이미 닿았으면 0)
-## avoid_chokes면 가려는 길이 지나는 길목(NavigationGrid의 구운 길목)을 피한다 (공격권 없는 몬스터, 계획 4b):
+## avoid_chokes면 가려는 길이 지나는 길목(NavigationGrid의 구운 길목)을 피한다 (통행 자리 없는 몬스터, 계획 4b·봇 측정 5b):
 ## (피하지 않던 중에 들어간 길목 안이면 빠져나가고, 피하던 중에 가장자리를 밟았으면 계속 피한다)
 ## 우회 비율이 한계 이하면 길목을 막고 돌아가고, 아니면 가까운 입구의 대기 자리로 가서 멈춘다.
 func get_direction(body: Node2D, goal: Vector2, avoid_chokes: bool = false) -> Vector2:
@@ -43,7 +43,7 @@ func get_direction(body: Node2D, goal: Vector2, avoid_chokes: bool = false) -> V
 	var from: Vector2 = body.global_position + _center_offset
 	var to: Vector2 = goal + _center_offset
 	var chokes: ChokeIndex = grid.get_choke_index() if avoid_chokes else null
-	# 피하지 않던 중에(공격권을 들고) 들어간 길목 안이면, 공격권을 잃어도 피하지 않고 빠져나간다.
+	# 피하지 않던 중에(통행 자리를 들고) 들어간 길목 안이면, 통행 자리를 잃어도 피하지 않고 빠져나간다.
 	# 피하던 중에 가장자리를 밟은 것(모퉁이에서 지나침, 밀려남)은 계속 피한다.
 	var index: ChokeIndex = grid.get_choke_index()
 	var inside: int = index.choke_at(from) if index != null else -1
@@ -126,7 +126,7 @@ func choke_at_body(body: Node2D) -> int:
 	var index: ChokeIndex = grid.get_choke_index() if grid != null else null
 	return index.choke_at(body.global_position + _center_offset) if index != null else -1
 
-## 길목 입구 밖 대기 자리에서 기다리는 중인지 (공격권 없이 길목을 피하는 중)
+## 길목 입구 밖 대기 자리에서 기다리는 중인지 (통행 자리 없이 길목을 피하는 중)
 func is_waiting_at_choke() -> bool:
 	return _waiting_spot != Vector2.INF
 
