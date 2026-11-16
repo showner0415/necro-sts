@@ -1,7 +1,7 @@
 extends RefCounted
-## 스크린샷 준비 (고해상도 UI 확인, --scene=res://regions/base.tscn): storage_open.gd처럼 창고를 열고, 조준을 고정해 카메라가 실제 마우스를 따라 움직이지 않게 한다.
-## --hd_ui를 붙인 것과 안 붙인 것을 같은 화면으로 견줄 때 쓴다.
-## bash tools/godot.sh --path . -s tools/screenshot.gd -- --seconds=2 --setup=res://tools/screenshot_setups/hd_ui_storage.gd [--hd_ui] --out=<경로>
+## 스크린샷 준비 (--scene=res://regions/base.tscn): storage_open.gd처럼 창고를 열고, 조준을 고정해 카메라가 실제 마우스를 따라 움직이지 않게 한다.
+## HUD·창의 글자와 3D 화면을 함께 볼 때 쓴다 (찍을 때마다 같은 화면).
+## bash tools/godot.sh --path . -s tools/screenshot.gd -- --seconds=2 --setup=res://tools/screenshot_setups/hd_ui_storage.gd --out=<경로>
 
 const STORAGE_OPEN_PATH: String = "res://tools/screenshot_setups/storage_open.gd"
 ## 몸 가운데에서 조준점까지 (오른쪽)

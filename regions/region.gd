@@ -49,9 +49,6 @@ var _open_machine: RepairMachine
 
 
 func _ready() -> void:
-	if RegionView3D.use_hd_ui:
-		# 고해상도 UI 시제품: 루트 창이 UI를 실제 해상도로 그린다 (3D 화면은 GameScreen이 내부 해상도로 그린다).
-		get_window().content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
 	_apply_dungeon_state()
 	_inventory = GameState.inventory
 	_necromancer.inventory = _inventory

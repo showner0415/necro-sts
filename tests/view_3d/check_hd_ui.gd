@@ -1,12 +1,11 @@
 extends View3DCheck
-## 고해상도 UI(--hd_ui, docs/plans/2026-11-14_hd_ui_layer_plan.md)에서 3D 화면과 조준이 지금과 같은지 본다. 창을 띄운다. run_all.sh에는 넣지 않는다.
-## bash tools/godot.sh --fixed-fps 60 --path . -s tests/view_3d/check_hd_ui.gd -- --hd_ui
+## 고해상도 UI 층(docs/plans/2026-11-14_hd_ui_layer_plan.md의 B 변형)에서 3D 화면과 조준이 내부 해상도 그대로인지 본다. 창을 띄운다. run_all.sh에는 넣지 않는다.
+## bash tools/godot.sh --fixed-fps 60 --path . -s tests/view_3d/check_hd_ui.gd
 ## - 루트 창이 canvas_items이고, 카메라가 GameScreen의 SubViewport에 있다
 ## - 카메라가 그리는 화면의 크기가 화면(내부 해상도) 크기와 같다
-## - 화면 점의 조준 월드 좌표가 내부 해상도로 직접 계산한 카메라 광선과 같다 (viewport 모드와 같은 계산)
-## - 창 그림의 3D 화면이 SubViewport 그림을 정수 배율 그대로 늘린 것이다 (도트가 그대로)
+## - 화면 점의 조준 월드 좌표가 내부 해상도로 직접 계산한 카메라 광선과 같다 (예전 viewport 모드와 같은 계산)
+## - 창 그림의 3D 화면이 GameScreen 그림을 정수 배율 그대로 늘린 것이다 (도트가 그대로)
 ## - 개발용 F4 키로 팔레트 후처리를 켜고 끈다 (PalettePass가 SubViewport 안에 있어도)
-## --hd_ui 없이 돌리면 구조·도트 그대로·F4는 건너뛰고, 크기와 조준만 본다 (직접 계산이 지금 구조에서도 맞는지).
 
 const SETTLE_FRAMES: int = 30
 const KEY_FRAMES: int = 3
@@ -27,13 +26,11 @@ func _on_scene_ready() -> void:
 	_view = open_layer()
 	_view.aim_override = necromancer.get_body_center() + Vector2.RIGHT * AIM_DISTANCE
 	await wait_frames(SETTLE_FRAMES)
-	if RegionView3D.use_hd_ui:
-		_check_structure()
+	_check_structure()
 	_check_screen_size()
 	_check_aim()
-	if RegionView3D.use_hd_ui:
-		await _check_pixels()
-		await _check_palette_key()
+	await _check_pixels()
+	await _check_palette_key()
 	finish(true)
 
 
@@ -84,8 +81,10 @@ func _expected_aim(point: Vector2, size: Vector2) -> Vector2:
 
 
 func _check_pixels() -> void:
-	var window_image: Image = await capture()
-	var screen_image: Image = _view.get_camera().get_viewport().get_texture().get_image()
+	await RenderingServer.frame_post_draw
+	# capture()는 GameScreen 그림을 주므로, 창 그림은 루트에서 직접 읽는다.
+	var window_image: Image = root.get_texture().get_image()
+	var screen_image: Image = _view.get_screen_texture().get_image()
 	var scale: int = window_image.get_width() / screen_image.get_width()
 	var checked: int = 0
 	var different: int = 0

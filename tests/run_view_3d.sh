@@ -40,7 +40,7 @@ check "앞벽 뒤 예고" check_vision_3d.gd -- --marks
 check "걷는 동안 화면" check_camera_motion.gd
 check "벽 가림" check_wall_occlusion.gd
 check "벽 픽셀 흔들림" check_wall_flicker.gd -- --target=layer --mode=poses
-check "고해상도 UI" check_hd_ui.gd -- --hd_ui
+check "고해상도 UI" check_hd_ui.gd
 
 echo "==="
 if [ ${#failed[@]} -eq 0 ]; then
