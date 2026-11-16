@@ -1,18 +1,16 @@
 extends ScenarioTest
 ## 시나리오: 마나 자연 회복과 기본 공격의 마나 비용.
 ## 1. 처음에는 마나가 가득 차 있고 HUD 마나 바도 같다
-## 2. 기본 공격(데이터상 비용 0)은 쏴도 마나가 줄지 않는다
-## 3. 비용이 있는 공격(업그레이드된 공격을 흉내 냄)은 한 발마다 비용만큼 줄어든다
-## 4. 마나가 비용보다 적으면 쏘지 않는다
+## 2. 기본 공격은 한 발마다 데이터의 마나 비용(0보다 큼)만큼 줄어든다
+## 3~4. 마나가 비용보다 적으면 후딜레이가 지난 뒤에도 쏘지 않는다
 ## 5. 자연 회복으로 1초에 초당 회복량만큼 차고, HUD 마나 바도 따라간다. 바 옆에 초당 변화량이 "+"로 보인다
 ## 6. 마나가 가득 차고 언데드가 없으면 초당 변화량 숫자를 숨긴다
 ## 7. 쥐 언데드 1마리면 회복이 유지비보다 커서 "+" (딱 맞으면 숨김), 2마리면 유지비가 더 커서 마나가 줄고 "-"
 
-## 3~4단계에서 공격 데이터 복사본에 넣을 비용 (실제 데이터 파일은 바꾸지 않는다)
-const TEST_MANA_COST: float = 3.0
-## 4단계에서 남겨 둘 마나 (TEST_MANA_COST보다 작아야 한다)
+## 마나 부족 단계에서 남겨 둘 마나 (기본 공격 비용보다 작아야 한다)
 const LOW_MANA: float = 1.0
-const FIRE_FRAMES: int = 30
+## 마나 부족 단계에서 누르고 있는 시간. 앞 단계의 후딜레이(0.8초 = 48프레임)가 지난 뒤에도 한참 눌러 봐야 마나 때문에 막혔는지 안다
+const FIRE_FRAMES: int = 90
 const SHOT_TIMEOUT_FRAMES: int = 60
 const REGEN_FRAMES: int = 60
 const PHYSICS_FPS: float = 60.0
@@ -26,9 +24,9 @@ const RAT_PATH: String = "res://data/monsters/rat.tres"
 const RAT_SKULL_PATH: String = "res://data/skulls/rat_skull.tres"
 const BONE_PATH: String = "res://data/items/bone.tres"
 
-enum Step { FREE_ATTACK, PAID_ATTACK, NOT_ENOUGH, REGEN, UPKEEP }
+enum Step { PAID_ATTACK, NOT_ENOUGH, REGEN, UPKEEP }
 
-var _step: Step = Step.FREE_ATTACK
+var _step: Step = Step.PAID_ATTACK
 var _necromancer: Necromancer
 var _mana_bar: ProgressBar
 var _hud: Hud
@@ -61,6 +59,8 @@ func _on_scene_ready() -> void:
 		return
 
 	print("        기본 공격 데이터: %s, 피해 %.1f, 마나 비용 %.1f" % [_necromancer.attack.id, _necromancer.attack.damage, _necromancer.attack.mana_cost])
+	# 비용 확인 중에는 회복이 섞이지 않게 잠시 끈다.
+	mana.regen_per_second = 0.0
 	_shots_before = _shots
 	_mana_before = mana.current
 	_aim()
@@ -70,8 +70,6 @@ func _on_scene_ready() -> void:
 func _tick() -> void:
 	_aim()
 	match _step:
-		Step.FREE_ATTACK:
-			_free_attack()
 		Step.PAID_ATTACK:
 			_paid_attack()
 		Step.NOT_ENOUGH:
@@ -98,42 +96,23 @@ func _aim() -> void:
 	aim_mouse_at(_necromancer.global_position + AIM_OFFSET)
 
 
-func _free_attack() -> void:
-	if step_frames < FIRE_FRAMES:
-		return
-	press_mouse(false)
-	var fired: int = _shots - _shots_before
-	var evidence: String = "%d프레임 동안 %d발, 마나 %.1f → %.1f" % [FIRE_FRAMES, fired, _mana_before, _necromancer.mana.current]
-	if _necromancer.attack.mana_cost != 0.0:
-		fail_step("기본 공격 비용 0", "데이터의 마나 비용이 %.1f임" % _necromancer.attack.mana_cost)
-	elif fired > 0 and _necromancer.mana.current == _mana_before:
-		pass_step("기본 공격 비용 0", evidence)
-	else:
-		fail_step("기본 공격 비용 0", evidence)
-		return
-	# 비용 확인 중에는 회복이 섞이지 않게 잠시 끈다.
-	_necromancer.mana.regen_per_second = 0.0
-	_necromancer.attack = _necromancer.attack.duplicate()
-	_necromancer.attack.mana_cost = TEST_MANA_COST
-	_shots_before = _shots
-	_mana_before = _necromancer.mana.current
-	press_mouse(true)
-	_go(Step.PAID_ATTACK)
-
-
 func _paid_attack() -> void:
+	var cost: float = _necromancer.attack.mana_cost
+	if cost <= 0.0 or LOW_MANA >= cost:
+		fail_step("기본 공격 비용", "데이터의 마나 비용이 %.1f임 (0보다 크고 남겨 둘 마나 %.1f보다 커야 함)" % [cost, LOW_MANA])
+		return
 	var fired: int = _shots - _shots_before
 	if fired == 0:
 		if step_frames > SHOT_TIMEOUT_FRAMES:
-			fail_step("공격 비용", "%d프레임 안에 한 발도 나가지 않음" % SHOT_TIMEOUT_FRAMES)
+			fail_step("기본 공격 비용", "%d프레임 안에 한 발도 나가지 않음" % SHOT_TIMEOUT_FRAMES)
 		return
 	press_mouse(false)
 	var spent: float = _mana_before - _necromancer.mana.current
-	var evidence: String = "비용 %.1f인 공격 %d발, 마나 %.1f → %.1f (줄어든 양 %.1f)" % [TEST_MANA_COST, fired, _mana_before, _necromancer.mana.current, spent]
-	if is_equal_approx(spent, TEST_MANA_COST * fired):
-		pass_step("공격 비용", evidence)
+	var evidence: String = "비용 %.1f인 기본 공격 %d발, 마나 %.1f → %.1f (줄어든 양 %.1f)" % [cost, fired, _mana_before, _necromancer.mana.current, spent]
+	if is_equal_approx(spent, cost * fired):
+		pass_step("기본 공격 비용", evidence)
 	else:
-		fail_step("공격 비용", evidence)
+		fail_step("기본 공격 비용", evidence)
 		return
 	_necromancer.mana.try_spend(_necromancer.mana.current - LOW_MANA)
 	_shots_before = _shots
@@ -147,7 +126,7 @@ func _not_enough() -> void:
 		return
 	press_mouse(false)
 	var fired: int = _shots - _shots_before
-	var evidence: String = "마나 %.1f에서 비용 %.1f인 공격을 %d프레임 누름: %d발, 마나 %.1f → %.1f" % [_mana_before, TEST_MANA_COST, FIRE_FRAMES, fired, _mana_before, _necromancer.mana.current]
+	var evidence: String = "마나 %.1f에서 비용 %.1f인 기본 공격을 %d프레임 누름: %d발, 마나 %.1f → %.1f" % [_mana_before, _necromancer.attack.mana_cost, FIRE_FRAMES, fired, _mana_before, _necromancer.mana.current]
 	if fired == 0 and _necromancer.mana.current == _mana_before:
 		pass_step("마나 부족", evidence)
 	else:
