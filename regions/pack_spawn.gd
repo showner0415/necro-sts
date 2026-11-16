@@ -78,8 +78,11 @@ func _build(actors: Node, entries: Array) -> void:
 		var monster: Monster = (load(MONSTER_SCENE) as PackedScene).instantiate()
 		monster.data = entry["data"]
 		monster.name = "%s_%d" % [name, entry["index"]]
+		# 자리를 정한 뒤에 넣는다. (0,0)에 넣고 옮기면 2D 물리가 옮긴 만큼 넓힌 상자로 벽 모양 수만 개와 쌍을 만들어,
+		# 큰 맵에서 다음 물리 프레임이 수십 초 멈췄다 (docs/plans/2026-11-16_region_load_plan.md).
+		var at: Vector2 = entry["position"]
+		monster.position = (actors as Node2D).to_local(at) if actors is Node2D else at
 		actors.add_child(monster)
-		monster.global_position = entry["position"]
 		if entry["health"] > 0.0:
 			monster.health = entry["health"]
 		monster.is_leader = entry.get("leader", false)

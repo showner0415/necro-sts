@@ -112,8 +112,12 @@ func _spawn(skull: Skull) -> void:
 	undead.master_attack_radius = _necromancer.attack.projectile_range
 	undead.damage_received.connect(roster.damage)
 	_undead_nodes[skull] = undead
-	_necromancer.get_parent().add_child(undead)
-	undead.global_position = _necromancer.global_position + Vector2.from_angle(randf() * TAU) * spawn_distance
+	# 자리를 정한 뒤에 넣는다. (0,0)에 넣고 옮기면 2D 물리가 옮긴 만큼 넓힌 상자로 벽 모양과 쌍을 만들어,
+	# 원점에서 먼 곳에서 소환하면 물리 프레임이 1초 가까이 멈췄다 (docs/plans/2026-11-16_region_load_plan.md 2단계).
+	var parent: Node = _necromancer.get_parent()
+	var at: Vector2 = _necromancer.global_position + Vector2.from_angle(randf() * TAU) * spawn_distance
+	undead.position = (parent as Node2D).to_local(at) if parent is Node2D else at
+	parent.add_child(undead)
 
 
 func _despawn(skull: Skull, _died: bool) -> void:
