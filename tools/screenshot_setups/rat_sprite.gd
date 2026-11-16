@@ -2,7 +2,7 @@ extends RefCounted
 ## 스크린샷 준비: 쥐 그림 확인. 네크로맨서 바로 오른쪽에 쥐 한 마리(남서쪽을 봄), 위에 8방향 쥐 한 줄(동부터 화면 시계 방향)을 세운다.
 ## 쥐마다 발밑(노드 위치)에 1px 점을 찍는다. 기준점이 맞으면 점이 발 바로 아래에 있고, 한 줄의 쥐가 같은 높이에 선다 (방향마다 들썩이지 않음).
 ## 다른 몬스터는 치우고, 세운 쥐는 움직이지 않는다 (process 꺼짐).
-## bash tools/godot.sh --path . -s tools/screenshot.gd -- --seconds=1 --scene=res://regions/test_region.tscn --setup=res://tools/screenshot_setups/rat_sprite.gd --out=<경로>
+## bash tools/godot.sh --path . -s tools/screenshot.gd -- --seconds=1 --scene=res://regions/test_arena.tscn --setup=res://tools/screenshot_setups/rat_sprite.gd --out=<경로>
 
 const MONSTER_SCENE: String = "res://monsters/monster.tscn"
 const RAT_PATH: String = "res://data/monsters/rat.tres"

@@ -6,7 +6,7 @@ extends View3DCheck
 ## - 바닥 한 점의 화면 이동: 걷는 방향과 반대로 되돌아간 프레임 수
 ## - 시야 방향: 프레임 사이에 바뀐 가장 큰 각도 (마우스를 안 움직여도 흔들리면 시야 가장자리가 일렁인다)
 
-const SCENE: String = "res://regions/test_region.tscn"
+const SCENE: String = "res://regions/test_arena.tscn"
 const SETTLE_FRAMES: int = 90
 const WALK_FRAMES: int = 90
 const DIRECTIONS: int = 8

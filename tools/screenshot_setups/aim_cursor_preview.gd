@@ -4,7 +4,7 @@ extends RefCounted
 ## 네크로맨서 오른쪽으로 바닥 체크무늬 두 색 위에 하나씩, 가장 가까운 몬스터(있으면) 위에 하나 둔다.
 ## 거점(밝은 바닥)·시험 지역(어두운 바닥) 둘 다 이 스크립트로 찍는다.
 ## bash tools/godot.sh --path . -s tools/screenshot.gd -- --seconds=1 --setup=res://tools/screenshot_setups/aim_cursor_preview.gd --out=<경로>
-## bash tools/godot.sh --path . -s tools/screenshot.gd -- --seconds=1 --scene=res://regions/test_region.tscn --setup=res://tools/screenshot_setups/aim_cursor_preview.gd --out=<경로>
+## bash tools/godot.sh --path . -s tools/screenshot.gd -- --seconds=1 --scene=res://regions/test_arena.tscn --setup=res://tools/screenshot_setups/aim_cursor_preview.gd --out=<경로>
 
 const TEXTURE_PATH: String = "res://assets/ui/aim_cursor/aim_cursor_x1.png"
 ## 네크로맨서 기준 조준점 자리 (월드 좌표). 바닥 칸이 32px라 32 떨어진 두 자리는 다른 색 칸에 놓인다.

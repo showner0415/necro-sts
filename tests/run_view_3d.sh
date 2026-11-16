@@ -33,7 +33,7 @@ check "지형: 얕은 굴" check_terrain_3d.gd -- --scene=res://regions/shallow_
 check "지형: 거점" check_terrain_3d.gd -- --scene=res://regions/base.tscn
 check "지형: 시험 통로" check_terrain_3d.gd -- --scene=res://regions/test_corridor.tscn
 check "몸과 앞벽" check_bodies_3d.gd
-check "표시: 시험 지역" check_marks_3d.gd -- --scene=res://regions/test_region.tscn
+check "표시: 테스트 싸움터" check_marks_3d.gd -- --scene=res://regions/test_arena.tscn
 check "표시: 거점" check_marks_3d.gd -- --scene=res://regions/base.tscn
 check "시야" check_vision_3d.gd
 check "앞벽 뒤 예고" check_vision_3d.gd -- --marks

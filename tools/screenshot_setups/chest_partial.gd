@@ -1,7 +1,7 @@
 extends RefCounted
 ## 스크린샷 준비 (시험 지역): 몬스터 없는 상자(ChestSafe) 앞에서 상자를 열고, 내용물을 --reveal=<초>(기본 3.2)만큼 드러낸 상태로 만든다.
 ## 앞 칸 몇 개는 드러나고, 하나는 진행 바가 차는 중이고, 나머지는 "?"로 보인다. 내용물은 무작위(난수)다.
-## bash tools/godot.sh --path . -s tools/screenshot.gd -- --scene=res://regions/test_region.tscn --setup=res://tools/screenshot_setups/chest_partial.gd --seconds=0.5 --out=<경로>
+## bash tools/godot.sh --path . -s tools/screenshot.gd -- --scene=res://regions/test_arena.tscn --setup=res://tools/screenshot_setups/chest_partial.gd --seconds=0.5 --out=<경로>
 
 const DEFAULT_REVEAL: float = 3.2
 const STAND_OFFSET: Vector2 = Vector2(0, 16)

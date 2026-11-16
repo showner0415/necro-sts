@@ -13,8 +13,8 @@ const WAIT_FRAMES: int = 3
 const BASE_SCENE: String = "res://regions/base.tscn"
 const SETTLE_FRAMES: int = 6
 const SCENE_TIMEOUT_FRAMES: int = 120
-const REGION_DATA_PATH: String = "res://data/regions/test_region.tres"
-const REGION_SCENE: String = "res://regions/test_region.tscn"
+const REGION_DATA_PATH: String = "res://data/regions/test_arena.tres"
+const REGION_SCENE: String = "res://regions/test_arena.tscn"
 const RAT_SKULL_PATH: String = "res://data/skulls/rat_skull.tres"
 const BONE_PATH: String = "res://data/items/bone.tres"
 ## 지역 상자 앞에 서는 자리 (F 판정 반지름 24 안)

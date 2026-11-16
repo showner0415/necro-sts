@@ -1,7 +1,7 @@
 extends RefCounted
 ## 스크린샷 준비: 네크로맨서 옆에 쥐의 시체(채집 중, 화면 아래에 채집 게이지)와, 조금 떨어진 곳에 빈 시체를 둔다.
 ## 찍을 때 게이지가 다 차지 않도록 채집 기본 시간을 길게 바꾼 복사본 데이터를 쓴다 (실제 데이터 파일은 그대로).
-## bash tools/godot.sh --path . -s tools/screenshot.gd -- --seconds=2 --scene=res://regions/test_region.tscn --setup=res://tools/screenshot_setups/harvest.gd --out=<경로>
+## bash tools/godot.sh --path . -s tools/screenshot.gd -- --seconds=2 --scene=res://regions/test_arena.tscn --setup=res://tools/screenshot_setups/harvest.gd --out=<경로>
 
 const RAT_PATH: String = "res://data/monsters/rat.tres"
 const CORPSE_SCENE_PATH: String = "res://monsters/corpse.tscn"

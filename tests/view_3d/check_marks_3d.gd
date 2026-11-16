@@ -1,10 +1,10 @@
 extends View3DCheck
 ## 바닥 표시·탄·돌·도넛·상자·키 안내 검사 (3D 층). 창을 띄운다. run_all.sh에는 넣지 않는다.
-## bash tools/godot.sh --fixed-fps 60 --path . -s tests/view_3d/check_marks_3d.gd -- --scene=res://regions/test_region.tscn
+## bash tools/godot.sh --fixed-fps 60 --path . -s tests/view_3d/check_marks_3d.gd -- --scene=res://regions/test_arena.tscn
 ## 씬에 있는 것만 본다 (거점: 출구·창고 상자, 시험 지역: 탈출 지점·지역 상자·전투 표시).
 ## 화면 좌표를 계산해 그 자리의 색이 2D 색과 같은지 본다. 표시가 몇 픽셀 안에서 어긋나는 것은 허용한다 (SEARCH).
 
-const DEFAULT_SCENE: String = "res://regions/test_region.tscn"
+const DEFAULT_SCENE: String = "res://regions/test_arena.tscn"
 const SETTLE_FRAMES: int = 10
 ## 색을 찾는 범위 (화면 픽셀, 사방)
 const SEARCH: int = 1

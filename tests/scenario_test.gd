@@ -18,7 +18,7 @@ extends SceneTree
 
 const RANDOM_SEED: int = 1
 ## 몬스터가 있는 시험 지역. 게임은 거점에서 시작하므로, 지역이 필요한 시나리오는 get_start_scene()에서 이것을 돌려준다.
-const TEST_REGION_SCENE: String = "res://regions/test_region.tscn"
+const TEST_REGION_SCENE: String = "res://regions/test_arena.tscn"
 ## 시작 씬을 불러오기까지 기다리는 최대 물리 프레임 수
 const SCENE_LOAD_TIMEOUT_FRAMES: int = 300
 

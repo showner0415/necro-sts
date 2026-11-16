@@ -2,7 +2,7 @@ extends RefCounted
 ## 스크린샷 준비: 네크로맨서 씬을 줄마다 8개씩 띄워 8방향(동부터 화면 시계 방향)의 정지 그림과 걷기 프레임을 보여 준다.
 ## 줄: 정지 그림 / 걷기 프레임 FRAMES[0] / 걷기 프레임 FRAMES[1]. 모두 발밑(노드 위치)이 줄마다 같은 높이라, 기준점이 맞으면 발끝이 가지런하다.
 ## 발밑마다 1px 점을 찍는다. 복사본은 움직이지 않고(process 꺼짐), 몬스터가 노리지 않게 necromancer 그룹에서 뺀다. 몬스터는 모두 치운다.
-## bash tools/godot.sh --path . -s tools/screenshot.gd -- --seconds=1 --scene=res://regions/test_region.tscn --setup=res://tools/screenshot_setups/necromancer_walk.gd --out=<경로>
+## bash tools/godot.sh --path . -s tools/screenshot.gd -- --seconds=1 --scene=res://regions/test_arena.tscn --setup=res://tools/screenshot_setups/necromancer_walk.gd --out=<경로>
 
 const NECROMANCER_SCENE: String = "res://necromancer/necromancer.tscn"
 const COUNT: int = 8

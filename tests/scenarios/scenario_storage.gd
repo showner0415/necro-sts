@@ -18,8 +18,8 @@ const SETTLE_FRAMES: int = 6
 ## 맨 아래까지 스크롤하려고 굴리는 휠 횟수 (넉넉하게)
 const WHEEL_TICKS: int = 60
 const BASE_SCENE: String = "res://regions/base.tscn"
-const REGION_DATA_PATH: String = "res://data/regions/test_region.tres"
-const REGION_SCENE: String = "res://regions/test_region.tscn"
+const REGION_DATA_PATH: String = "res://data/regions/test_arena.tres"
+const REGION_SCENE: String = "res://regions/test_arena.tscn"
 const RAT_SKULL_PATH: String = "res://data/skulls/rat_skull.tres"
 const BONE_PATH: String = "res://data/items/bone.tres"
 const SCENE_TIMEOUT_FRAMES: int = 120

@@ -20,7 +20,7 @@ model: inherit
   - 기존 몬스터의 데이터, 같이 쓰는 행동 조각 데이터(`data/behaviors/`의 기존 파일), 기존 행동 조각 코드, `monsters/monster.gd` 같은 공용 코드는 고치지 않는다. 값이 다르면 이 몬스터의 조각 데이터를 새 파일로 만든다.
   - 공용 코드를 고쳐야만 되는 구상이면 멈추고, 무엇을 왜 고쳐야 하는지와 그 없이 되는 다른 안을 돌려준다.
   - 고르기 조각(3의 2)이 아직 없으면 처음 만드는 몬스터가 새 파일로 만든다. 한 번 생긴 뒤에는 여러 몬스터가 같이 쓰는 공용 코드다: 고치지 않고 쓰며, 고쳐야 하면 멈추고 무엇이 모자란지 돌려준다.
-- 지역 씬·맵 PNG에 놓지 않는다. 시험 지역(`regions/test_region.tscn`)도 고치지 않는다 (시나리오가 그 배치에 기댄다). 놓을 곳은 물을 것에 적는다.
+- 지역 씬·맵 PNG에 놓지 않는다. 테스트 싸움터(`regions/test_arena.tscn`, 시나리오가 그 배치에 기댄다)와 연습장(`regions/test_region.tscn`)도 고치지 않는다. 놓을 곳은 물을 것에 적는다.
 - **확정** 에셋은 건드리지 않는다 (`assets/ASSETS.md`의 상태, 쥐 그림).
 - 커밋, push, 브랜치 만들기, 되돌리기는 하지 않는다. 바꾼 것은 작업 트리에 둔다.
 - 코드는 CLAUDE.md대로 쓴다 (타입 명시, Godot 4 문법, 수치는 `@export`나 `.tres`, 색은 팔레트 `assets/palette/endesga-32.hex`).
@@ -101,7 +101,7 @@ id는 영문 소문자와 밑줄이다 (예: cave_spider). 기존 파일의 꼴�
 - 새 조각을 만들면:
   - `monsters/behaviors/<조각>_behavior.gd`. 숫자는 모두 `@export`. 플레이어가 읽을 예고가 있으면 `is_telegraphing()` 등을 맞게 돌려준다 (측정 봇이 그것으로 피한다).
   - 단위 테스트 `tests/unit/test_<조각>_behavior.gd` (기존 조각의 테스트를 본으로. 없으면 규칙 검사가 실패한다).
-  - 시나리오 `tests/scenarios/scenario_<id>.gd` (`tests/scenarios/scenario_goblin.gd`나 `tests/scenarios/scenario_boar.gd`를 본으로. 시험 지역의 다른 몬스터를 치우고 이 몬스터를 직접 놓는다). 맨 위 `##` 주석에 무엇을 확인하는지 적는다.
+  - 시나리오 `tests/scenarios/scenario_<id>.gd` (`tests/scenarios/scenario_goblin.gd`나 `tests/scenarios/scenario_boar.gd`를 본으로. 테스트 싸움터의 다른 몬스터를 치우고 이 몬스터를 직접 놓는다). 맨 위 `##` 주석에 무엇을 확인하는지 적는다.
   - 새 그룹·오토로드는 만들지 않는다.
 - 기존 조각만 쓴 몬스터는 시나리오를 만들지 않고, 만들지 물을 것에 적는다.
 - 만든 뒤 `bash tools/godot.sh --headless --path . --import`로 오류가 없는지 본다.

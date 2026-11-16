@@ -2,7 +2,7 @@ extends RefCounted
 ## 스크린샷 준비: 기본 공격 탄 크기 후보를 실제 게임 화면 크기에서 쥐(위)·박쥐(아래) 사이에 놓고 비교한다.
 ## 후보마다 한 줄씩 세로로 쥐 → 탄 → 박쥐를 둔다. 왼쪽부터 CANDIDATE_RADII 순서.
 ## 몬스터와 박쥐 무리는 움직이지 않게 process를 끄고, 나머지 몬스터는 치운다. 탄도 날아가지 않게 멈춘다.
-## bash tools/godot.sh --path . -s tools/screenshot.gd -- --seconds=1 --scene=res://regions/test_region.tscn --setup=res://tools/screenshot_setups/bolt_size_candidates.gd --out=<경로>
+## bash tools/godot.sh --path . -s tools/screenshot.gd -- --seconds=1 --scene=res://regions/test_arena.tscn --setup=res://tools/screenshot_setups/bolt_size_candidates.gd --out=<경로>
 
 ## 비교할 탄 반지름 (보이는 크기 = 맞는 범위)
 const CANDIDATE_RADII: Array[float] = [2.0, 3.0, 5.0]

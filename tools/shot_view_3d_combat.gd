@@ -3,7 +3,7 @@ extends View3DCheck
 ## bash tools/godot.sh --fixed-fps 60 --path . -s tools/shot_view_3d_combat.gd -- --out=<a.png>
 ## 2배로 키운 그림(<a>_x2.png)도 같이 저장한다. 시야는 끄고 찍는다 (시야 단계 전이라 빛이 없다).
 
-const SCENE: String = "res://regions/test_region.tscn"
+const SCENE: String = "res://regions/test_arena.tscn"
 const BOAR_OFFSET: Vector2 = Vector2(-120, 40)
 const GOBLIN_OFFSET: Vector2 = Vector2(120, -50)
 const TIMEOUT_FRAMES: int = 900

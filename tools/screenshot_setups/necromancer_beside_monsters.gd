@@ -1,7 +1,7 @@
 extends RefCounted
 ## 스크린샷 준비: 실제 게임 화면 크기에서 네크로맨서가 쥐(왼쪽)와 멧돼지(오른쪽) 사이에 선 장면. 크기 비교용.
 ## 두 몬스터는 움직이지 않게 process를 끄고, 나머지 몬스터는 치운다.
-## bash tools/godot.sh --path . -s tools/screenshot.gd -- --seconds=1 --scene=res://regions/test_region.tscn --setup=res://tools/screenshot_setups/necromancer_beside_monsters.gd --out=<경로>
+## bash tools/godot.sh --path . -s tools/screenshot.gd -- --seconds=1 --scene=res://regions/test_arena.tscn --setup=res://tools/screenshot_setups/necromancer_beside_monsters.gd --out=<경로>
 
 const RAT_OFFSET: Vector2 = Vector2(-28, 0)
 const BOAR_OFFSET: Vector2 = Vector2(40, 0)

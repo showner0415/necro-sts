@@ -119,7 +119,7 @@ res://
 - **스크린샷 검증**: `bash tools/godot.sh --path . -s tools/screenshot.gd -- --seconds=2 --out=<scratchpad 경로>/shot.png` (창이 잠깐 뜬다. `--headless`를 붙이지 않는다)
   - 화면에 보이는 것이 바뀌는 작업(씬 구성, 임시 도형·에셋, UI, 카메라, 해상도·화면 설정)을 한 뒤에 실행한다.
   - 특정 상태(소환 중 등)를 찍으려면 `--setup=res://tools/screenshot_setups/<파일>.gd`를 붙인다. 그 스크립트의 `static func run(scene: Node)`가 씬이 준비된 직후 불린다.
-  - 메인 씬은 거점(`regions/base.tscn`)이다. 다른 씬(시험 지역 등)을 찍으려면 `--scene=res://regions/test_region.tscn`처럼 붙인다.
+  - 메인 씬은 거점(`regions/base.tscn`)이다. 다른 씬(테스트 싸움터 등)을 찍으려면 `--scene=res://regions/test_arena.tscn`처럼 붙인다.
   - 시나리오도 기본은 거점에서 시작하고, 몬스터가 필요한 시나리오는 `get_start_scene()`에서 `TEST_REGION_SCENE`을 돌려준다. 테스트 스크립트에서 `Region` 같은 타입 이름을 쓰면 오토로드보다 먼저 컴파일되어 실패하므로 `call(&"함수")`로 부른다.
   - 헤드리스 실행에서는 창이 64×64라 UI 좌표 공간이 640×640이 된다(`aspect=expand`). 시나리오에서 UI 좌표가 360보다 커도 이상한 것이 아니다.
   - 저장한 PNG를 직접 열어 보고, 무엇이 보였는지 보고한다. 기대한 것이 안 보이면 확인했다고 하지 않는다.
@@ -163,5 +163,5 @@ res://
 - UI 그림은 GPT로 그린다 (Codex CLI로 ChatGPT 구독 한도 안에서 받는다). UI 화면을 그림으로 만들거나 바꾸면 `ui-designer` 에이전트에 "UI 요청" 블록(`.claude/agents/ui-designer.md`의 1)을 채워 맡긴다. 고해상도 UI 층(`docs/plans/2026-11-14_hd_ui_layer_plan.md`)과 스타일(`docs/ui-style.md`)이 준비되기 전에는 에이전트가 "스타일" 할 일만 한다.
 - UI 그림은 픽셀 아트 규칙(픽셀 아트, 픽셀 밀도, 640×360)의 예외다. 대신 팔레트 색감과 어두운 분위기는 게임 화면에 맞추고, UI 장식에 네크로맨서·해골 모티프는 넣지 않는다 (아이템 아이콘은 예외, `docs/art-direction.md`의 "스타일").
 - 상태가 **확정**인 에셋은 사용자에게 묻지 않고 덮어쓰지 않는다.
-- 쥐 그림(`assets/monsters/rat/`)은 확정이다. 사용자가 바꾼다고 말하기 전까지 수정·재생성·보정하지 않는다. 확인 스크린샷: `--scene=res://regions/test_region.tscn --setup=res://tools/screenshot_setups/rat_sprite.gd`
+- 쥐 그림(`assets/monsters/rat/`)은 확정이다. 사용자가 바꾼다고 말하기 전까지 수정·재생성·보정하지 않는다. 확인 스크린샷: `--scene=res://regions/test_arena.tscn --setup=res://tools/screenshot_setups/rat_sprite.gd`
 - 네크로맨서 애니메이션(`tools/asset_gen/necromancer_anim.gd`가 만드는 프레임 PNG와 `.tres`)은 손으로 고치지 않는다. PixelLab ZIP에서 꺼내는 방법과 확인 스크린샷은 `assets/ASSETS.md`의 걷기 애니메이션 줄에 있다.

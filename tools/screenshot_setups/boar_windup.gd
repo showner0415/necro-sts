@@ -2,7 +2,7 @@ extends RefCounted
 ## 스크린샷 준비: 적 멧돼지와 언데드 멧돼지가 동시에 돌진 예고 중인 장면.
 ## 적 멧돼지의 방향 선(빨강)은 네크로맨서를, 언데드 멧돼지의 방향 선(청록)은 그 옆의 쥐를 가리킨다.
 ## 예고는 0.7초라서 짧게 기다렸다 찍는다:
-## bash tools/godot.sh --path . -s tools/screenshot.gd -- --seconds=0.4 --scene=res://regions/test_region.tscn --setup=res://tools/screenshot_setups/boar_windup.gd --out=<경로>
+## bash tools/godot.sh --path . -s tools/screenshot.gd -- --seconds=0.4 --scene=res://regions/test_arena.tscn --setup=res://tools/screenshot_setups/boar_windup.gd --out=<경로>
 
 const BOAR_SKULL_PATH: String = "res://data/skulls/boar_skull.tres"
 const BONE_PATH: String = "res://data/items/bone.tres"

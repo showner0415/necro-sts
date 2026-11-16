@@ -16,8 +16,8 @@ extends ScenarioTest
 const WAIT_FRAMES: int = 3
 ## 순간이동한 뒤 영역 판정과 안내 표시가 따라오기까지 기다리는 프레임
 const SETTLE_FRAMES: int = 6
-const REGION_DATA_PATH: String = "res://data/regions/test_region.tres"
-const REGION_SCENE: String = "res://regions/test_region.tscn"
+const REGION_DATA_PATH: String = "res://data/regions/test_arena.tres"
+const REGION_SCENE: String = "res://regions/test_arena.tscn"
 const RAT_SKULL_PATH: String = "res://data/skulls/rat_skull.tres"
 const BONE_PATH: String = "res://data/items/bone.tres"
 const SCENE_TIMEOUT_FRAMES: int = 120
