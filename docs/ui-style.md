@@ -37,8 +37,8 @@ GPT는 같은 요청에도 매번 다르게 그린다. 그래서 세 겹으로 �
 
 다시 만드는 명령 (저장소 폴더에서. 픽셀을 손으로 고치지 않는다):
 - 나누기: `bash tools/godot.sh --headless --path . -s tools/ui_gen/prepare_ui_image.gd -- --in=art_src/ui/style/icon_set_3.png --split=art_src/ui/style/icon_set_3_pieces/icon_set_3`
-- 아이콘 최종 파일: `... prepare_ui_image.gd -- --in=art_src/ui/style/icon_set_3_pieces/icon_set_3_<번호>.png --fit=144x144 --canvas=144x144 --out=<고해상도 UI 그림 폴더>/<이름>.png`. 폴더는 계획 4단계에서 정한다.
-- 창 틀 1배: `... prepare_ui_image.gd -- --in=art_src/ui/style/frame_1.png --crop=17,20,1220,1215 --scale=0.3186 --out=<고해상도 UI 그림 폴더>/<이름>.png` (389×387).
+- 아이콘 최종 파일: `... prepare_ui_image.gd -- --in=art_src/ui/style/icon_set_3_pieces/icon_set_3_<번호>.png --fit=144x144 --canvas=144x144 --out=assets/ui_hd/<이름>.png`.
+- 창 틀 1배: `... prepare_ui_image.gd -- --in=art_src/ui/style/frame_1.png --crop=17,20,1220,1215 --scale=0.3186 --out=assets/ui_hd/<이름>.png` (389×387).
   - 자를 상자와 원본 여백 134,134,133,129는 `bash tools/godot.sh --headless --path . -s tools/ui_gen/check_ui_image.gd -- --kind=frame --center-from-theme art_src/ui/style/frame_1.png`이 낸 값이다.
   - 배율 = 36 ÷ 띠 두께 113 (네 변 띠 두께 110·113·113·115의 가운데 둘 평균). 1배 여백 = 원본 여백 × 배율을 반올림.
 - 색 검사의 기준: 아이콘은 `check_ui_image.gd`에 `--ref=art_src/ui/style/icon_set_3_pieces/icon_set_3_<번호>.png`를 준다 (투명 배경이라 상자 없이).
@@ -69,6 +69,8 @@ GPT는 같은 요청에도 매번 다르게 그린다. 그래서 세 겹으로 �
 - 투명 배경 PNG로 받는다. 직접 받을 때는 고르지 말고 받은 것을 전부 inbox에 넣는다.
 - 요청문은 영어로 쓴다.
 - 버린 후보는 지우지 않는다 (`art_src/ui/<화면 id>/` 아래 rejected 폴더). 살릴 수 있다.
+- 요청문과 받은 원본은 `art_src/ui/<화면 id>/`에 git으로 저장한다. GPT는 같은 요청에도 다른 그림을 내므로, 이것이 "생성 스크립트로 다시 만든다" 규칙을 대신한다. 픽셀은 손으로 고치지 않고 `tools/ui_gen/prepare_ui_image.gd`로만 다듬는다 (사용자 결정, 2026-11-16).
+- 게임에 넣는 그림(다듬은 결과)은 `assets/ui_hd/`에 둔다. 이 폴더만 팔레트 검사(`tools/check_palette.gd`, `tests/unit/test_palette_colors.gd`)에서 빠진다. 도트 UI(`assets/ui/`)는 그대로 검사한다 (사용자 결정, 2026-11-16).
 
 ## 시안
 

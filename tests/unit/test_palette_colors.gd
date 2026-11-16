@@ -13,8 +13,9 @@ const SEARCH_ROOT: String = "res://"
 ## Windows에서는 점으로 시작하는 폴더도 목록에 나오므로 적어 둔다.
 const SKIP_DIRS: PackedStringArray = [".godot", ".git", ".claude", "art_src", "addons"]
 ## 검사하지 않는 폴더 (경로가 똑같을 때만): 비교판 작업 폴더. 안마다 쓴 setup과 코드 안의 worktree 사본이 있다 (tools/compare_variants.sh).
+## 그리고 고해상도 UI 그림 폴더(GPT 그림과 그 리소스. tools/check_palette.gd와 같은 예외, 사용자 결정 2026-11-16).
 ## .gdignore가 있는 폴더를 모두 넘기지 않고 경로로 적는다 (게임 폴더에 .gdignore가 잘못 생겨도 그 폴더는 검사하게).
-const SKIP_PATHS: PackedStringArray = ["res://compare"]
+const SKIP_PATHS: PackedStringArray = ["res://compare", "res://assets/ui_hd"]
 const EXTENSIONS: PackedStringArray = ["gd", "tscn", "tres"]
 
 var _palette: Dictionary[String, bool] = {}
