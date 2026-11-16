@@ -389,6 +389,12 @@ func _bind() -> void:
 		var monster: Monster = get_node_or_null(path) as Monster
 		if monster != null:
 			_monsters.append(monster)
+	# 첫 물리 프레임 전에 지워진 무리원은 뺀다 (검사·측정이 set_members 뒤에 몬스터를 지울 때).
+	var kept: Array[Monster] = []
+	for monster: Variant in _monsters:
+		if is_instance_valid(monster) and not (monster as Monster).is_queued_for_deletion():
+			kept.append(monster as Monster)
+	_monsters = kept
 	if _monsters.is_empty():
 		return
 	_one_target = _monsters[0].data.pack_one_target
