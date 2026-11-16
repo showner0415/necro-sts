@@ -1,6 +1,6 @@
 # UI 스타일 (GPT 그림)
 
-상태: 비어 있음 (2026-11-14)
+상태: 정함 (2026-11-16. 기준 세트와 요청문 틀 판 1을 사용자가 확정)
 
 UI 그림은 GPT로 그린다. `ui-designer` 에이전트가 Codex CLI로 후보를 뽑고(ChatGPT 구독 한도, `tools/ui_gen/codex_image.sh`), 걸러서 붙인다 (사용자 결정, 2026-11-15). Codex의 글 모델은 GPT-6.1 Sol, effort는 medium으로 고정한다 (사용자 결정, 2026-11-15. 스크립트 기본값). Codex가 없으면 사용자가 ChatGPT에서 직접 그려 넣는다.
 GPT는 같은 요청에도 매번 다르게 그린다. 그래서 세 겹으로 일관성을 지킨다: 뽑을 때(요청문 틀과 기준 세트), 고를 때(스크립트 검사와 기준 세트 대조), 다음번(요청 기록으로 틀을 고침).
@@ -9,27 +9,58 @@ GPT는 같은 요청에도 매번 다르게 그린다. 그래서 세 겹으로 �
 ## 틀과 버튼
 
 창 틀만 그림(9-slice)으로 하고, 칸·버튼은 Godot 테마로 한다 (사용자 결정, 2026-11-15). 모든 창이 틀 그림 하나를 같이 쓴다. 각진 돌 느낌은 틀 그림으로 살리고, 검수할 그림은 틀 하나로 줄인다.
+- 창 틀 그림은 `art_src/ui/style/frame_1.png`를 띠 36px(게임 12px)이 되게 줄여 쓴다 (사용자 결정, 2026-11-16).
+- 가운데는 그림에서 쓰지 않는다 (`draw_center = false`). 창 판은 테마가 181425로 그린다 (사용자 결정, 2026-11-16). frame_1의 가운데에는 배경을 지운 반투명 고리 자국이 있어서, 가운데를 그리면 보인다.
+- 변은 반복한다: 변 조각을 정수 번 반복하되 딱 맞게 조금 늘린다 (사용자 결정, 2026-11-16. 비교판 `art_src/ui/inbox/ref_set/compare/frames_topedge_modes.png`에서 본 방식, `tools/ui_gen/prepare_ui_image.gd`의 `tile`). 추천은 이음매가 없는 늘림이었다. 반복은 이음매에 작은 금이 보인다.
+  - Godot에서는 `AXIS_STRETCH_MODE_TILE_FIT`이 가장 가깝다 (제안. 붙일 때 스크린샷을 비교판과 견준다).
 
 ## 기준 세트
 
 사용자가 확정한 부품 종류마다의 기준 그림이다. 모든 요청에 같은 종류의 기준 그림을 함께 넣고, 모든 후보를 이것과 견준다.
+확정 (사용자 결정, 2026-11-16. `docs/plans/2026-11-14_hd_ui_layer_plan.md`의 "정한 것" 기준 세트 줄). Codex로 받은 후보와 비교판은 `art_src/ui/inbox/ref_set/` (git 밖, 받은 컴퓨터에만 있음), 후보마다의 판정은 아래 "요청 기록".
 
 | 부품 종류 | 기준 그림 | 그림 크기 | 차지하는 면적 | 외곽선 | 빛 방향 | 게임에 보이는 크기 |
 |---|---|---|---|---|---|---|
-| <예: 아이콘> | <`art_src/ui/style/<파일>.png`> | <px> | <투명 여백 px> | <굵기> | <예: 왼쪽 위> | <px> |
+| 아이콘 | `art_src/ui/style/icon_set_3_pieces/icon_set_3_1.png`~`_6.png` (원본 `icon_set_3.png`, 요청문 `icon_set.txt`) | 파일 144×144 (보이는 크기의 2배) | 투명 테두리를 자르고 긴 변을 144에 맞춤 (여백 0). 원본 물건의 긴 변이 144px 이상이어야 한다 | 없음 (면 음영만) | 왼쪽 위 | 72×72, 96×96 칸의 가운데 |
+| 창 틀 (9-slice) | `art_src/ui/style/frame_1.png` (요청문 `frame.txt`) | 띠 36px로 줄인 1배 그림 389×387, 9-slice 여백 (왼,위,오,아래) 43,43,42,41 | 원본 띠 두께는 폭의 약 10분의 1 (113px) | 바깥 가장자리에 흐린 청록 빛줄 (0099db에 가깝게) | 왼쪽 위 | 띠 36px (게임 12px), 모서리 약 43px. 가운데는 테마 판, 변은 반복 |
 
-## 요청문 틀 (판 0)
+아이콘 여섯 (icon_set_3을 나눈 순서. 형태와 색이 서로 다른 실제 아이템):
+
+| 번호 | 물건 | 데이터 |
+|---|---|---|
+| 1 | 뼈 | `data/items/bone.tres` |
+| 2 | 쥐의 머리뼈 | `data/skulls/rat_skull.tres` |
+| 3 | 멧돼지의 머리뼈 | `data/skulls/boar_skull.tres` |
+| 4 | 박쥐의 머리뼈 | `data/skulls/bat_skull.tres` |
+| 5 | 고블린 투석병의 머리뼈 | `data/skulls/goblin_slinger_skull.tres` |
+| 6 | 마나 물약 | 아직 없음. 설계 "마나" 절의 마나 회복 아이템. 뼈색이 아닌 아이콘의 색 기준으로 넣음 (사용자 결정, 2026-11-16) |
+
+다시 만드는 명령 (저장소 폴더에서. 픽셀을 손으로 고치지 않는다):
+- 나누기: `bash tools/godot.sh --headless --path . -s tools/ui_gen/prepare_ui_image.gd -- --in=art_src/ui/style/icon_set_3.png --split=art_src/ui/style/icon_set_3_pieces/icon_set_3`
+- 아이콘 최종 파일: `... prepare_ui_image.gd -- --in=art_src/ui/style/icon_set_3_pieces/icon_set_3_<번호>.png --fit=144x144 --canvas=144x144 --out=<고해상도 UI 그림 폴더>/<이름>.png`. 폴더는 계획 4단계에서 정한다.
+- 창 틀 1배: `... prepare_ui_image.gd -- --in=art_src/ui/style/frame_1.png --crop=17,20,1220,1215 --scale=0.3186 --out=<고해상도 UI 그림 폴더>/<이름>.png` (389×387).
+  - 자를 상자와 원본 여백 134,134,133,129는 `bash tools/godot.sh --headless --path . -s tools/ui_gen/check_ui_image.gd -- --kind=frame --center-from-theme art_src/ui/style/frame_1.png`이 낸 값이다.
+  - 배율 = 36 ÷ 띠 두께 113 (네 변 띠 두께 110·113·113·115의 가운데 둘 평균). 1배 여백 = 원본 여백 × 배율을 반올림.
+- 색 검사의 기준: 아이콘은 `check_ui_image.gd`에 `--ref=art_src/ui/style/icon_set_3_pieces/icon_set_3_<번호>.png`를 준다 (투명 배경이라 상자 없이).
+
+## 요청문 틀 (판 1)
 
 모든 요청문은 이 틀에서 시작한다. 틀은 짧게 유지한다. 길면 GPT가 뒤쪽을 무시한다.
 바꾸면 판 번호를 올리고 아래 "틀을 고친 내력"에 한 줄 적는다.
+요청문은 아래 순서로 한 줄씩 잇는다: 고정 스타일 문장 → 아이콘 덧붙임의 첫 줄 → 색 문장 → 아이콘 덧붙임의 나머지 → 늘 붙이는 말.
 
-- 고정 스타일 문장: <모든 요청의 첫머리. 색, 재질, 선 굵기, 장식의 양, 빛 방향>
+- 고정 스타일 문장: `Low-poly stylized game UI art for a dark cave game. Flat-shaded faceted shapes with crisp angular bevels, matte, no gloss, no noise. Light from the upper left. Muted earthy colors.`
 - 부품 종류마다의 덧붙임:
-  - 아이콘: <규격 문장>
-  - 버튼: <규격 문장. 상태 네 개를 같은 크기로 나란히>
-  - 칸: <규격 문장>
-- 바뀌는 자리: <물건 이름>, <형태 설명>
-- 늘 붙이는 말: 투명 배경 PNG, 글자 없음
+  - 아이콘 첫 줄: `Item icon: a single <물건 이름>, <형태 설명>. Three-quarter view, centered, filling about 85% of a square image.`
+  - 아이콘 색 문장 (뼈·머리뼈): `Bones and skulls are warm bone color close to #ead4aa, shaded toward #e4a672, with dark brown #733e39 only in the deepest creases.` 뼈가 아닌 물건은 이 문장 대신 그 물건의 주요 색 문장을 쓴다 (예: 기준 세트의 마나 물약 `The potion glass is grayish and its liquid is blue close to #0099db.`).
+  - 아이콘 나머지: `Must read clearly at 72x72 pixels on a near-black slot: simple bold silhouette, a few large facets, no fine detail.` / `Reference images: icons from the same set. Match their style, view angle, lighting, facet size and colors exactly, but not their shapes.`
+  - 창 틀: 모든 창이 하나를 같이 쓰므로 다시 그릴 때만 쓴다. `art_src/ui/style/frame.txt`의 2~5줄이다.
+  - 버튼·칸: 테마로 그리므로 요청하지 않는다.
+- 바뀌는 자리: <물건 이름>, <형태 설명>, 그리고 뼈가 아니면 색 문장.
+- 늘 붙이는 말: `Fully transparent background (alpha channel): no slot, frame, panel, glow, drop shadow or ground.` / `No letters, numbers, runes, writing, logos or color swatches anywhere.`
+- 함께 넣을 그림: 기준 세트 아이콘 가운데 형태가 가까운 2장 (`art_src/ui/style/icon_set_3_pieces/`). 아래 "요청 기록"에서 같은 종류로 "씀"을 받은 그림이 생기면 그 가운데 최근 것도 넣는다.
+- 판 1 시험 (2026-11-16, 기준 세트 확정 전): 동굴 두꺼비 머리뼈를 2장 받았다. 함께 넣은 그림은 그때 에이전트가 추천한 icon_set_2의 조각 3·5였다. 두 장 모두 스크립트 검사를 통과했다 (요청 기록).
+  - "85%"는 지켜지지 않았다 (폭의 97%까지 참). 투명 테두리를 자르고 맞추므로 문제는 없다.
 
 ## 지킬 것
 
@@ -88,11 +119,24 @@ GPT는 같은 요청에도 매번 다르게 그린다. 그래서 세 겹으로 �
 | 2026-11-15 | style | 시안 (인벤토리 창) | style_a2_1.png (A2 비교판 2번) | 판정 없음 | | | 시안 style_a2.txt (틀 전) |
 | 2026-11-15 | style | 시안 (인벤토리 창) | style_a2_2.png (A2 비교판 3번) | 고름 | 사용자가 2·3·4번 중 3번을 고름 (말로 준 이유 없음). 돌 색 밝기는 "그 사이" | 사용자 | 시안 style_a2.txt (틀 전) |
 | 2026-11-15 | style | 시안 (인벤토리 창) | style_a2_3.png (A2 비교판 4번) | 판정 없음 | | | 시안 style_a2.txt (틀 전) |
+| 2026-11-16 | ref_set | 아이콘 묶음 (6개, 3×2 한 장) | icon_set_1.png | 버림 (제안) | 뼈 둘레에 흐린 반투명 번짐 (물건에서 떨어진 반투명 픽셀이 불투명의 30.4%). 나머지 다섯은 깨끗함 | 스크립트 (숫자, 경고) · 에이전트 | 기준 세트 icon_set.txt (틀 전) |
+| 2026-11-16 | ref_set | 아이콘 묶음 (6개, 3×2 한 장) | icon_set_2.png | 고름 (제안, 사용자 확인 전) | 번짐 0, 시안 칸 안 아이콘과 색 거리 8.9~27.2, 72px 칸에서 여섯이 서로 구별됨 | 에이전트 | 기준 세트 icon_set.txt (틀 전) |
+| 2026-11-16 | ref_set | 아이콘 묶음 (6개, 3×2 한 장) | icon_set_3.png | 버림 (제안) | 멧돼지 머리뼈가 구멍·면이 많아 72px에서 묶음 2보다 복잡함. 나머지는 묶음 2와 비슷 | 에이전트 | 기준 세트 icon_set.txt (틀 전) |
+| 2026-11-16 | ref_set | 창 틀 (9-slice) | frame_1.png | 고름 (제안, 사용자 확인 전) | 모서리가 불룩해 고른 시안(A2 3번)에 가장 가깝고, 돌 밝기 0.246이 두 시안(0.236·0.264) 사이. 가운데 판의 반투명 자국(36%)은 가운데를 테마로 그리면 쓰이지 않음 | 에이전트 | 기준 세트 frame.txt (틀 전) |
+| 2026-11-16 | ref_set | 창 틀 (9-slice) | frame_2.png | 버림 (제안) | 모서리를 비스듬히 깎아 고르지 않은 A2 2번 쪽. 가운데 판 반투명 자국 16% | 에이전트 | 기준 세트 frame.txt (틀 전) |
+| 2026-11-16 | ref_set | 창 틀 (9-slice) | frame_open_1.png | 버림 (제안, 다음 후보) | 가운데가 깨끗이 뚫리고 띠가 고름. 모서리가 비스듬히 깎여 A2 2번 쪽 | 에이전트 | 기준 세트 frame_open.txt (틀 전) |
+| 2026-11-16 | ref_set | 창 틀 (9-slice) | frame_open_2.png | 버림 (제안) | 네모 모서리라 액자처럼 보이고 시안의 불룩한 모서리와 다름. 돌이 두 시안보다 어두움 (밝기 0.216) | 에이전트 | 기준 세트 frame_open.txt (틀 전) |
+| 2026-11-16 | ref_set | 아이콘 (요청문 틀 시험, 동굴 두꺼비 머리뼈) | icon_cave_toad_skull_1.png | 시험 (판정 없음) | 스크립트 통과 (번짐 0, 색 거리 16.4). 묶음 2와 같은 뼈색·면 크기·빛으로 보임 | 에이전트 | 틀 판 1 안 (icon_cave_toad_skull.txt) |
+| 2026-11-16 | ref_set | 아이콘 (요청문 틀 시험, 동굴 두꺼비 머리뼈) | icon_cave_toad_skull_2.png | 시험 (판정 없음) | 스크립트 통과 (번짐 0, 색 거리 12.7). 1과 거의 같음 | 에이전트 | 틀 판 1 안 (icon_cave_toad_skull.txt) |
+| 2026-11-16 | ref_set | 아이콘 묶음 (6개, 3×2 한 장) | icon_set_3.png (아이콘 비교판 4번 줄) | 살림 · 씀 (기준 세트) | "묶음4" → 확인 질문에 "맞아, 4번 줄 (icon_set_3)". 마나 물약은 "넣기 (추천)" | 사용자 | 기준 세트 icon_set.txt (틀 전) |
+| 2026-11-16 | ref_set | 아이콘 묶음 (6개, 3×2 한 장) | icon_set_2.png | 고르지 않음 | 사용자가 icon_set_3을 고름 (icon_set_2에 대해 말한 이유 없음) | 사용자 | 기준 세트 icon_set.txt (틀 전) |
+| 2026-11-16 | ref_set | 창 틀 (9-slice) | frame_1.png (틀 비교판 1번) | 씀 (기준 세트) | "1번 frame_1 (추천)". 9-slice 변은 "반복" (추천은 늘림이었음) | 사용자 | 기준 세트 frame.txt (틀 전) |
 
 ## 틀을 고친 내력
 
 | 판 | 날짜 | 바꾼 것 | 까닭 (기록의 어느 판정에서) |
 |---|---|---|---|
+| 1 | 2026-11-16 | 처음 채움: 고정 스타일 문장, 아이콘 덧붙임(첫 줄·색 문장·나머지), 늘 붙이는 말, 창 틀은 `frame.txt` 2~5줄. 버튼·칸 덧붙임은 뺌 (테마로 그림) | 기준 세트 확정 때 사용자가 판 1 안을 "제안대로 (추천)"로 고름. 시험 2장(동굴 두꺼비 머리뼈)이 스크립트 통과 |
 
 ## 붙인 화면
 

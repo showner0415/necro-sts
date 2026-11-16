@@ -1,0 +1,9 @@
+Low-poly stylized game UI art for a dark cave game. Flat-shaded faceted shapes with crisp angular bevels, matte, no gloss, no noise. Light from the upper left. Muted earthy colors.
+A single empty square window frame for a 9-slice game UI panel, seen straight from the front, filling the whole image.
+The frame is a band of faceted carved stone of even thickness, about one tenth of the image width, with a thin dim teal glow line (close to #0099db) along its outer edge. Stone color: muted dark reddish brown around #663c3e shading to #3e2731, a little darker and less orange than the reference image. Brown only, never purple, slate or blue.
+For 9-slice stretching: only the four corners may differ in shape. The four edges between the corners are straight, with an even, repeating stone pattern of constant thickness: no bumps, notches or unique features.
+The inside of the frame is one flat, evenly colored near-black panel (#181425) with no slots, plates, title bar, buttons, dividers or decoration.
+Plain stone only: no skulls, bones, gems or other ornaments.
+Reference image: follow the stone style of its window frame, but not its layout, slots, close button or background.
+Fully transparent background outside the frame (alpha channel), no shadow.
+No letters, numbers, runes, writing, logos or color swatches anywhere.
