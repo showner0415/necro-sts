@@ -11,6 +11,7 @@ description: 화면을 찍거나 눈으로 확인할 때 사용. 스크린샷 se
 
 ## 1. 스크린샷 setup과 보기 방식
 
+- `tools/screenshot.gd`는 창 그림(HUD·창 포함, 창 크기 기본 1280×720)을 저장한다. `--game_only`를 붙이면 3D 게임 화면(GameScreen, 640×360, UI 없음)만 저장한다 (3D 층이 없는 `--view_2d`에서는 종료 코드 2). 3D 화면만 견줄 때(전후 비교, compare-variants의 `shoot` 인자)는 `--game_only`를 쓴다.
 - setup은 `tools/screenshot_setups/`에 있다. 파일마다 맨 위 주석에 무엇을 찍는지와 명령 예가 있다. 목록: `grep -m1 '^##' tools/screenshot_setups/*.gd`
 - 지역 데이터의 `view_3d`가 켜진 지역은 창에서 3D로 그린다. 사용자 인자에 `--view_2d`를 더하면 평면 디버그 보기다 (시야 없이 전부 보임, 규칙과 화면이 어긋날 때 비교용).
 - 3D 층 화면 (조준 고정): `--setup=res://tools/screenshot_setups/view_3d_on.gd`, 쥐 굴 바위 앞: `--scene=res://regions/shallow_cave.tscn --setup=res://tools/screenshot_setups/view_3d_preview.gd`
@@ -30,13 +31,13 @@ description: 화면을 찍거나 눈으로 확인할 때 사용. 스크린샷 se
   - 고해상도 UI: `check_hd_ui.gd` (루트 canvas_items·카메라가 GameScreen 안, 카메라 화면 크기, 조준 좌표, 창 그림의 3D 화면이 도트 그대로, F4 팔레트)
 - 3D 화면을 보는 검사는 GameScreen 그림(내부 해상도, UI 없음)을 읽는다 (`RegionView3D.get_screen_texture()`). 루트 창 그림은 실제 해상도(예: 1280×720)다
 - HUD·창 글자와 3D 화면을 함께 찍기: setup `hd_ui_storage.gd`(창고를 열고 조준 고정)
-- 전투 장면 촬영 (예고·돌·탄·도넛, 판정 없음): `bash tools/godot.sh --fixed-fps 60 --path . -s tools/shot_view_3d_combat.gd -- --out=<a.png>`
+- 전투 장면 촬영 (예고·돌·탄·도넛, 판정 없음): `bash tools/godot.sh --fixed-fps 60 --path . -s tools/shot_view_3d_combat.gd -- --out=<a.png>` (창 그림, HUD 포함. `--game_only`면 640×360과 2배 그림)
 
 ## 3. 시야
 
 - 개발 빌드에서 F2로 켜고 끈다 (배포판에서는 동작하지 않음).
 - 스크린샷: `--scene=res://regions/shallow_cave.tscn --setup=res://tools/screenshot_setups/vision_preview.gd` (쥐 둥지 바위 앞, 동쪽을 봄. 쥐 넷: 정면·바위 뒤·부채꼴 밖·몸 바로 뒤)
-- 움직이는 모습 연속 스크린샷: `bash tools/godot.sh --path . -s tools/record_vision_sequence.gd -- --out=<scratchpad 경로>/seq` (제자리 돌기·걷기·바위 옆 지나가기, 장면마다 12장을 모은 한 장과 낱장)
+- 움직이는 모습 연속 스크린샷: `bash tools/godot.sh --path . -s tools/record_vision_sequence.gd -- --out=<scratchpad 경로>/seq` (제자리 돌기·걷기·바위 옆 지나가기, 장면마다 12장을 모은 한 장과 낱장. 낱장은 창 그림, `--game_only`면 640×360)
 - 언데드 시야와 빛 겹침 스크린샷: `--scene=res://regions/shallow_cave.tscn --setup=res://tools/screenshot_setups/vision_undead_overlap.gd` (쥐 언데드 둘: 플레이어와 같은 쪽을 봄(겹침) / 다른 쪽을 봄)
 - 프레임 시간: `tests/view_3d/check_vision_3d.gd`의 [측정] 줄 (트인 곳·벽이 촘촘한 곳, 언데드 0·8마리)
 - 언데드 시야 값은 `SightData`(`data/sight/`)에 둔다. 몬스터 데이터의 `undead_sight`가 비어 있으면 `undead_default.tres`를 쓴다.
