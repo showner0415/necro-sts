@@ -29,7 +29,7 @@
   - 기본으로 켜는 것(project.godot의 늘리기 방식을 canvas_items로, `--hd_ui` 플래그 정리)은 스크린샷 도구·3D 화면 검사를 고치는 3단계와 함께 한다. 그때까지는 `--hd_ui`로만 켠다 (사용자 결정, 2026-11-16. 3단계를 3·3b로 나눠, 기본 켜기는 3단계에서 하고 스크린샷 도구는 3b단계로 넘김. 나누는 초안을 사용자가 승인함, 2026-11-16). 그때 `docs/art-direction.md` "확정된 규칙"의 "늘리기 방식 `viewport`" 줄도 고친다.
 - UI 배치 좌표는 640×360 기준 그대로 둔다. 위 "UI 기준 해상도 1920×1080"은 그림의 기준이고, 그림은 1/3 크기로 놓는다 (사용자 결정, 2026-11-16).
 - 3D 화면 검사(`bash tests/run_view_3d.sh`)를 막는 원래 오류(`monsters/monster_pack.gd:394`, 지워진 몬스터를 무리가 읽음)는 이 브랜치에서 따로 커밋으로 고친다 (사용자 결정, 2026-11-16).
-- 몸 곁 안내 글자("[F] 창고")와 스태미나 도넛을 어디에 그릴지는 4단계(글꼴·테마) 때 비교판으로 본다. 그때까지는 GameScreen 안에서 640 도트로 그린다 (사용자 결정, 2026-11-16).
+- 몸 곁 안내 글자("[F] 창고")와 스태미나 도넛(ScreenAnchors 층)은 루트 창에 실제 해상도로 그린다. 자리는 지금처럼 3D 화면의 몸 곁이다 (사용자 결정, 2026-11-16. 비교판 `compare/2026-11-16_prompt-donut-place/`의 2번을 고름: GameScreen 안 640 도트 / 둘 다 루트 / 글자만 루트를 거점 상자 앞에서 견줌. 비교판은 저장소에 남기지 않음. 처음에는 "4단계 때 비교판으로 본다. 그때까지는 GameScreen 안에서 640 도트"였다).
 - 스크린샷 도구(`tools/screenshot.gd`, `tools/record_vision_sequence.gd`, `tools/shot_view_3d_combat.gd`)는 기본으로 창 그림(UI 포함, 창 해상도)을 저장하고, 인자를 주면 게임 화면(GameScreen, 내부 해상도, UI 없음)만 저장한다 (사용자 결정, 2026-11-16. 3단계에서 찍은 거점 그림을 보고 고름).
   - 인자는 `--game_only`다. 3D 층이 없는 화면(`--view_2d`)에서 `--game_only`를 주면 찍지 않고 종료 코드 2로 끝낸다. 전투 장면 촬영의 2배 그림(`_x2`)은 `--game_only`일 때만 만든다. 3D 화면만 견줄 때(전후 비교, compare-variants의 `shoot` 인자)는 `--game_only`를 쓴다 (사용자 결정, 2026-11-16. 3b단계에서 제안한 셋을 그대로 고름).
 - 평면 보기(`--view_2d`)는 그대로 둔다: 3D 층이 없어 2D 세계를 루트에 실제 해상도로 그린다 (사용자 결정, 2026-11-16. 디버그 보기이고 맵 전체 그림에도 쓴다. 정지 화면에서 도트가 깨지지 않음을 보고 고름).
@@ -164,14 +164,14 @@ B 변형은 3D 층이 붙는 모든 지역에 이미 같이 적용된다 (지역
 
 ### 4단계: 글꼴, 테마, 그림 규칙
 
-상태: 진행 중 (2026-11-16. 그림 규칙, 한글 글꼴 Pretendard 넣기와 공용 테마를 함. 글자 크기는 그대로 두기로 함. 안내 글자·도넛 자리가 남음)
+상태: 진행 중 (2026-11-16. 그림 규칙, 한글 글꼴·공용 테마를 함. 글자 크기는 그대로. 안내 글자·도넛은 루트로 정함, 코드로 옮기기가 남음)
 
 할 일:
 - 한글 글꼴을 넣고 공용 테마를 만든다 (끝남, 2026-11-16). 지금 UI의 글자 크기를 새 기준 해상도에 맞춘다 (하지 않기로 함, 위 "정한 것", 2026-11-16).
 - 고해상도 UI 그림 폴더(`assets/ui_hd/`)를 `tools/check_palette.gd`와 `tests/unit/test_palette_colors.gd`가 빼게 한다. (끝남, 2026-11-16)
 - UI 그림 규칙(요청문과 원본을 `art_src/ui/<화면 id>/`에 저장, 픽셀을 손으로 고치지 않음)을 적는다. 처음에는 CLAUDE.md "에셋" 절에 한 줄 넣으려 했으나 CLAUDE.md가 크기 한도(25000바이트)에 닿아 `docs/ui-style.md`의 "지킬 것"에 적었다. (끝남, 2026-11-16)
 - 받은 그림을 넣는 폴더 `art_src/ui/inbox/`는 이미 있다 (`.gitignore`, `art_src/ui/inbox/.gdignore`). (끝남)
-- 몸 곁 안내 글자와 스태미나 도넛을 그릴 자리를 비교판으로 보고 고르게 한다 (GameScreen 안 / 루트 / 글자만 루트. 위 "정한 것", 2026-11-16).
+- 몸 곁 안내 글자와 스태미나 도넛을 그릴 자리를 비교판으로 보고 고르게 한다 (GameScreen 안 / 루트 / 글자만 루트). 고름: 둘 다 루트 (위 "정한 것", 2026-11-16). 코드로 옮기기는 남음.
 
 통과 기준:
 - 스크립트로 재는 것: `bash tests/run_all.sh` → `전체 결과: 통과`, `bash tests/check_rules.sh` → `규칙 검사 결과: 통과`
@@ -185,6 +185,7 @@ B 변형은 3D 층이 붙는 모든 지역에 이미 같이 적용된다 (지역
 - 그림 규칙 (2026-11-16): `tools/check_palette.gd`에 `SKIP_PATHS = ["res://assets/ui_hd"]` (인자로 직접 줘도 "검사하지 않음"), `tests/unit/test_palette_colors.gd`의 `SKIP_PATHS`에 같은 폴더. 팔레트 밖 그림 사본으로 확인: `assets/ui_hd/`에 넣은 것은 넘어가고, 같은 그림을 `assets/ui/`에 넣은 것은 `[팔레트 밖] … 7640색`으로 걸림 (사본은 지움). 원본 규칙은 `docs/ui-style.md`의 "지킬 것"에 적음. `assets/ui_hd/`는 빈 폴더라 git에 없다 (첫 그림을 붙일 때 생긴다).
 - 한글 글꼴 비교 (2026-11-16): Pretendard v1.3.9(orioncactus/pretendard 릴리스), Noto Sans KR 가변 글꼴(google/fonts), 갈무리 v2.40.4(quiple/galmuri 릴리스)를 받아(모두 OFL 1.1) compare-variants로 견줌. 비교판·확대판은 git 밖 `compare/2026-11-16_ui-font/`에 있었고 저장소에 남기지 않는다 (사용자 결정, clean 뒤 없음). 본 것: Pretendard가 가장 또렷하고 HUD가 창과 겹치지 않음. Noto는 가변 기본이 Thin이라 Regular 안을 더함, 줄 높이가 커서 HUD 셋째 줄이 창에 가려짐. 갈무리는 2배 창에서 16·8 크기가 흐림. 글꼴은 루트 CanvasLayer 아래 맨 위 Control에 테마를 걸어 바꿨다 (CanvasLayer에서 테마가 끊김). GameScreen 안의 "[F] 창고" 안내는 바뀌지 않는다.
 - 글꼴 넣기와 공용 테마 (2026-11-16): `assets/fonts/pretendard/Pretendard-Regular.otf`와 `LICENSE.txt`(v1.3.9, 고치지 않음), `assets/ASSETS.md` 한 줄(확정), `ui/theme/ui_theme.tres`(default_font만), project.godot `gui/theme/custom`. 거점 창고 화면이 비교판 2번과 글자 모양이 같다 (`compare_images`로 다른 픽셀 2881개, HUD 왼쪽 열의 글자 가장자리 흐림 정도. 비교판은 글꼴을 실행 중에 읽었고 지금은 임포트한 글꼴이라서로 봄). 3D 화면 안의 "[F] 창고"도 Pretendard가 되었고, 640 도트에서 지금 글꼴보다 가늘고 흐려 덜 읽힌다 (안내 글자 자리 비교 때 함께 본다). 비교 폴더는 clean으로 지웠다. 새로 받은 컴퓨터(글꼴 임포트 결과가 없는 `.godot`)에서는 첫 `--import`가 프로젝트 테마를 글꼴 임포트보다 먼저 읽어 `ERROR:` 5줄을 낸다 (두 번째부터는 없음, 임시 worktree로 재현). `tests/run_all.sh`의 임포트 단계를 "오류 줄이 나오면 알리고 한 번 더 임포트해 두 번째로 판정"으로 고쳤고, 새 worktree에서 `bash tests/run_all.sh` → 알림 뒤 `전체 결과: 통과`. 사용자가 게임을 켜서 보고 "잘 읽힌다" (2026-11-16).
+- 안내 글자·도넛 자리 비교 (2026-11-16): compare-variants로 세 안(GameScreen 안 / 둘 다 루트 / 글자만 루트)을 거점 상자 앞에서 찍음 (값 안, setup이 ScreenAnchors를 옮김). 세 안 모두 자리가 같았다. 1은 글자가 회색으로 바래 흐리고 도넛은 도트, 2는 글자·도넛 모두 매끈(도넛이 도트 몸 옆에서 질감이 다름), 3은 글자 또렷·도넛 도트. 사용자가 2번을 고름. 비교 폴더 `compare/2026-11-16_prompt-donut-place/`는 코드로 옮긴 뒤 clean한다 (저장소에 남기지 않음).
 
 ### 5단계: UI 스타일 정하기와 첫 화면
 
@@ -218,7 +219,8 @@ B 변형은 3D 층이 붙는 모든 지역에 이미 같이 적용된다 (지역
 | 2026-11-16 | 3b | 스크린샷 도구 셋(screenshot·연속 스크린샷·전투 장면)이 창 그림 기본, --game_only로 게임 화면만 | e38e7d0 |
 | 2026-11-16 | 4 | 그림 규칙: assets/ui_hd/만 팔레트 검사 예외, 원본은 art_src/ui/<화면 id>/에 git으로 (ui-style "지킬 것") | ea07952 |
 | 2026-11-16 | 4 | 한글 글꼴 비교판(지금·Pretendard·Noto Thin·갈무리·Noto Regular), Pretendard로 고름 | 65ce1a3 |
-| 2026-11-16 | 4 | Pretendard Regular를 assets/fonts에 넣고 공용 테마(ui/theme/ui_theme.tres)를 project.godot에 걺 | - |
+| 2026-11-16 | 4 | Pretendard Regular를 assets/fonts에 넣고 공용 테마(ui/theme/ui_theme.tres)를 project.godot에 걺 | 393fb93 |
+| 2026-11-16 | 4 | 안내 글자·도넛 자리 비교판, 둘 다 루트로 고름 | - |
 
 ## 보류
 
