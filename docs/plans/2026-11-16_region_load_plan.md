@@ -45,7 +45,7 @@
 통과 기준:
 - 스크립트로 재는 것: `bash tools/godot.sh --path . -s tools/measure_region_load.gd` → "처음 10프레임"의 첫 값이 수백 ms 이하, 물리 충돌 쌍이 수백 개 이하
 - 새 테스트가 고치기 전에는 실패하고 고친 뒤 통과한다
-- 사용자가 보는 것: 거점에서 얕은 굴로 나갈 때 멈춤이 없어졌는지
+- 사용자가 보는 것: 거점에서 얕은 굴로 나갈 때 멈춤이 없어졌는지 → 사용자 확인: 멈춤 없어짐 (2026-11-16)
 
 결과 (2026-11-16):
 - `regions/pack_spawn.gd` `_build`: `monster.position = actors.to_local(자리)`를 `add_child` 전에 둔다 (actors가 Node2D가 아니면 자리 그대로).
