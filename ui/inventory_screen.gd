@@ -14,6 +14,9 @@ signal open_changed(is_open: bool)
 signal message(text: String)
 
 @export var slot_scene: PackedScene
+## 칸마다 거는 테마 타입 변형 (공용 테마 ui/theme/ui_theme.tres의 칸 스타일). 비워 두면 칸 장면 그대로 그린다.
+## 칸 장면은 인벤토리·창고·상자 화면이 같이 쓰므로, 칸 모양은 화면마다 여기서 고른다.
+@export var slot_theme_type: StringName = &""
 ## 이 입력으로 여닫는다. 비워 두면 키로 여닫지 않는다 (창고는 상자에서 연다).
 @export var toggle_action: StringName = &"inventory"
 ## true면 열려 있을 때 Esc(ui_cancel)로 닫는다.
@@ -118,6 +121,8 @@ func _build_slots() -> void:
 		var slot: InventorySlot = slot_scene.instantiate()
 		slot.index = i
 		slot.container = _container
+		if not slot_theme_type.is_empty():
+			slot.theme_type_variation = slot_theme_type
 		_grid.add_child(slot)
 		slot.hovered.connect(_on_slot_hovered)
 		slot.unhovered.connect(_on_slot_unhovered)

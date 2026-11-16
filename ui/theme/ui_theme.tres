@@ -1,6 +1,42 @@
-[gd_resource type="Theme" load_steps=2 format=3]
+[gd_resource type="Theme" load_steps=8 format=3]
 
 [ext_resource type="FontFile" path="res://assets/fonts/pretendard/Pretendard-Regular.otf" id="1_font"]
+[ext_resource type="Texture2D" path="res://assets/ui_hd/window_frame.png" id="2_frame"]
+[ext_resource type="Script" path="res://ui/theme/scaled_frame_style_box.gd" id="3_scaled_frame"]
+
+[sub_resource type="CanvasTexture" id="CanvasTexture_frame"]
+diffuse_texture = ExtResource("2_frame")
+texture_filter = 2
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_frame"]
+texture = SubResource("CanvasTexture_frame")
+texture_margin_left = 43.0
+texture_margin_top = 43.0
+texture_margin_right = 42.0
+texture_margin_bottom = 41.0
+axis_stretch_horizontal = 2
+axis_stretch_vertical = 2
+draw_center = false
+
+[sub_resource type="StyleBox" id="StyleBox_window"]
+script = ExtResource("3_scaled_frame")
+frame = SubResource("StyleBoxTexture_frame")
+content_margin_left = 14.0
+content_margin_top = 14.0
+content_margin_right = 14.0
+content_margin_bottom = 14.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_slot"]
+bg_color = Color(0.09411765, 0.078431375, 0.14509805, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.24313726, 0.15294118, 0.19215687, 1)
 
 [resource]
 default_font = ExtResource("1_font")
+ItemSlot/base_type = &"Panel"
+ItemSlot/styles/panel = SubResource("StyleBoxFlat_slot")
+WindowPanel/base_type = &"PanelContainer"
+WindowPanel/styles/panel = SubResource("StyleBox_window")
