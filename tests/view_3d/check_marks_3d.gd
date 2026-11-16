@@ -3,6 +3,7 @@ extends View3DCheck
 ## bash tools/godot.sh --fixed-fps 60 --path . -s tests/view_3d/check_marks_3d.gd -- --scene=res://regions/test_arena.tscn
 ## 씬에 있는 것만 본다 (거점: 출구·창고 상자, 시험 지역: 탈출 지점·지역 상자·전투 표시).
 ## 화면 좌표를 계산해 그 자리의 색이 2D 색과 같은지 본다. 표시가 몇 픽셀 안에서 어긋나는 것은 허용한다 (SEARCH).
+## 도넛은 루트 창에 실제 해상도로 그리므로 3D 화면 그림이 아니라 창 그림에서 찾는다 (자리는 window_point로 바꿈).
 
 const DEFAULT_SCENE: String = "res://regions/test_arena.tscn"
 const SETTLE_FRAMES: int = 10
@@ -139,15 +140,19 @@ func _check_ring() -> void:
 	if not ring.visible:
 		fail_step("도넛", "스태미나를 썼는데 숨어 있음")
 		return
-	var image: Image = await capture()
+	# 도넛은 3D 화면(GameScreen) 밖, 루트 창에 실제 해상도로 그린다 (사용자 결정, 2026-11-16). 그래서 창 그림에서 찾는다.
+	if ring.get_viewport() != root:
+		fail_step("도넛", "루트 창이 아닌 %s에 있음" % ring.get_viewport())
+		return
+	var image: Image = await capture_window()
 	var center: Vector2 = ring.global_position
 	var expected_center: Vector2 = _view.world_to_screen(_necromancer.global_position, 0.0).round() + Vector2(13, -6)
 	if center.distance_to(expected_center) > 0.5:
 		fail_step("도넛", "자리 %s, 기대 %s" % [center, expected_center])
 		return
-	if not _expect(image, "도넛", center + Vector2.from_angle(RING_SAMPLE_ANGLE) * ring.radius, ring.fill_color):
+	if not _expect(image, "도넛", window_point(center + Vector2.from_angle(RING_SAMPLE_ANGLE) * ring.radius), ring.fill_color):
 		return
-	pass_step("도넛", "네크로맨서 오른쪽 %s에 채움 색" % center)
+	pass_step("도넛", "네크로맨서 오른쪽 %s에 채움 색 (루트 창, 창 그림 %s)" % [center, image.get_size()])
 
 
 func _ring() -> StaminaRing:

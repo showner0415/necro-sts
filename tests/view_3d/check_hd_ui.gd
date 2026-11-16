@@ -6,6 +6,7 @@ extends View3DCheck
 ## - 화면 점의 조준 월드 좌표가 내부 해상도로 직접 계산한 카메라 광선과 같다 (예전 viewport 모드와 같은 계산)
 ## - 창 그림의 3D 화면이 GameScreen 그림을 정수 배율 그대로 늘린 것이다 (도트가 그대로)
 ## - 개발용 F4 키로 팔레트 후처리를 켜고 끈다 (PalettePass가 SubViewport 안에 있어도)
+## - 몸 곁 도넛·안내(ScreenAnchors)가 루트 창에 있고, 층이 GameScreen 위·HUD 아래다 (사용자 결정, 2026-11-16)
 
 const SETTLE_FRAMES: int = 30
 const KEY_FRAMES: int = 3
@@ -27,6 +28,7 @@ func _on_scene_ready() -> void:
 	_view.aim_override = necromancer.get_body_center() + Vector2.RIGHT * AIM_DISTANCE
 	await wait_frames(SETTLE_FRAMES)
 	_check_structure()
+	_check_anchors()
 	_check_screen_size()
 	_check_aim()
 	await _check_pixels()
@@ -42,6 +44,26 @@ func _check_structure() -> void:
 		pass_step("구조", evidence)
 	else:
 		fail_step("구조", evidence)
+
+
+func _check_anchors() -> void:
+	var anchors: ScreenAnchors = null
+	var game_screen: GameScreen = null
+	for child: Node in _view.get_children():
+		if child is ScreenAnchors:
+			anchors = child as ScreenAnchors
+		elif child is GameScreen:
+			game_screen = child as GameScreen
+	var hud: CanvasLayer = current_scene.get_node("HUD") as CanvasLayer
+	if anchors == null or game_screen == null:
+		fail_step("도넛·안내 층", "RegionView3D 바로 아래에서 ScreenAnchors %s, GameScreen %s" % [anchors, game_screen])
+		return
+	var ok: bool = anchors.get_viewport() == root and game_screen.layer < anchors.layer and anchors.layer < hud.layer
+	var evidence: String = "ScreenAnchors 뷰포트 %s, 층 GameScreen %d < ScreenAnchors %d < HUD %d" % [anchors.get_viewport().get_class(), game_screen.layer, anchors.layer, hud.layer]
+	if ok:
+		pass_step("도넛·안내 층", evidence)
+	else:
+		fail_step("도넛·안내 층", evidence)
 
 
 func _check_screen_size() -> void:
@@ -81,10 +103,17 @@ func _expected_aim(point: Vector2, size: Vector2) -> Vector2:
 
 
 func _check_pixels() -> void:
+	# 몸 곁 도넛·안내는 루트 창에만 있어 3D 화면 그림과 다르다. 견주는 동안 숨긴다 (HUD는 open_layer가 숨김).
+	var anchors: Array[Node] = _view.get_children().filter(func(child: Node) -> bool: return child is ScreenAnchors)
+	for layer: Node in anchors:
+		(layer as CanvasLayer).visible = false
+	await RenderingServer.frame_post_draw
 	await RenderingServer.frame_post_draw
 	# capture()는 GameScreen 그림을 주므로, 창 그림은 루트에서 직접 읽는다.
 	var window_image: Image = root.get_texture().get_image()
 	var screen_image: Image = _view.get_screen_texture().get_image()
+	for layer: Node in anchors:
+		(layer as CanvasLayer).visible = true
 	var scale: int = window_image.get_width() / screen_image.get_width()
 	var checked: int = 0
 	var different: int = 0

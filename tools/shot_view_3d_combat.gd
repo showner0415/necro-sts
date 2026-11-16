@@ -1,7 +1,7 @@
 extends View3DCheck
 ## 실제 전투를 돌려 멧돼지 돌진 예고·고블린 돌·탄·스태미나 도넛이 한 화면에 보이는 순간을 3D로 찍는다 (눈으로 보려고 찍는 것이라 판정은 없다).
 ## bash tools/godot.sh --fixed-fps 60 --path . -s tools/shot_view_3d_combat.gd -- --out=<a.png> [--game_only]
-## 기본은 창 그림(HUD 포함, 창 크기 기본 1280×720)이다. --game_only를 주면 3D 게임 화면(GameScreen, 640×360, HUD 없음)만 찍고,
+## 기본은 창 그림(HUD 포함, 창 크기 기본 1280×720)이다. --game_only를 주면 3D 게임 화면(GameScreen, 640×360, HUD·스태미나 도넛 없음)만 찍고,
 ## 2배로 키운 그림(<a>_x2.png)도 같이 저장한다. 시야는 끄고 찍는다 (시야 단계 전이라 빛이 없다).
 
 const SCENE: String = "res://regions/test_arena.tscn"

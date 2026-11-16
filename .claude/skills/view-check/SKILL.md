@@ -11,7 +11,7 @@ description: 화면을 찍거나 눈으로 확인할 때 사용. 스크린샷 se
 
 ## 1. 스크린샷 setup과 보기 방식
 
-- `tools/screenshot.gd`는 창 그림(HUD·창 포함, 창 크기 기본 1280×720)을 저장한다. `--game_only`를 붙이면 3D 게임 화면(GameScreen, 640×360, UI 없음)만 저장한다 (3D 층이 없는 `--view_2d`에서는 종료 코드 2). 3D 화면만 견줄 때(전후 비교, compare-variants의 `shoot` 인자)는 `--game_only`를 쓴다.
+- `tools/screenshot.gd`는 창 그림(HUD·창 포함, 창 크기 기본 1280×720)을 저장한다. `--game_only`를 붙이면 3D 게임 화면(GameScreen, 640×360, UI와 몸 곁 도넛·안내 없음)만 저장한다 (3D 층이 없는 `--view_2d`에서는 종료 코드 2). 3D 화면만 견줄 때(전후 비교, compare-variants의 `shoot` 인자)는 `--game_only`를 쓴다.
 - setup은 `tools/screenshot_setups/`에 있다. 파일마다 맨 위 주석에 무엇을 찍는지와 명령 예가 있다. 목록: `grep -m1 '^##' tools/screenshot_setups/*.gd`
 - 지역 데이터의 `view_3d`가 켜진 지역은 창에서 3D로 그린다. 사용자 인자에 `--view_2d`를 더하면 평면 디버그 보기다 (시야 없이 전부 보임, 규칙과 화면이 어긋날 때 비교용).
 - 3D 층 화면 (조준 고정): `--setup=res://tools/screenshot_setups/view_3d_on.gd`, 쥐 굴 바위 앞: `--scene=res://regions/shallow_cave.tscn --setup=res://tools/screenshot_setups/view_3d_preview.gd`
@@ -28,10 +28,10 @@ description: 화면을 찍거나 눈으로 확인할 때 사용. 스크린샷 se
   - 그린 화면의 벽 가림: `check_wall_occlusion.gd` (화면 회전 0/45도, 앞벽 끔/켬, 둘레 안 점을 잘라내기 자리별로 나눠 출력)
   - 걷는 동안 몸·바닥 흔들림: `check_camera_motion.gd`
   - 벽 픽셀 흔들림: `check_wall_flicker.gd` (`--target=layer|terrain --mode=static|poses`, 찍은 순간의 카메라·발밑 위치를 출력)
-  - 고해상도 UI: `check_hd_ui.gd` (루트 canvas_items·카메라가 GameScreen 안, 카메라 화면 크기, 조준 좌표, 창 그림의 3D 화면이 도트 그대로, F4 팔레트)
-- 3D 화면을 보는 검사는 GameScreen 그림(내부 해상도, UI 없음)을 읽는다 (`RegionView3D.get_screen_texture()`). 루트 창 그림은 실제 해상도(예: 1280×720)다
+  - 고해상도 UI: `check_hd_ui.gd` (루트 canvas_items·카메라가 GameScreen 안, 카메라 화면 크기, 조준 좌표, 창 그림의 3D 화면이 도트 그대로, F4 팔레트, 몸 곁 도넛·안내 층이 루트 창에 있고 GameScreen < ScreenAnchors < HUD)
+- 3D 화면을 보는 검사는 GameScreen 그림(내부 해상도, UI 없음)을 읽는다 (`RegionView3D.get_screen_texture()`). 루트 창 그림은 실제 해상도(예: 1280×720)다. 몸 곁 도넛·안내는 루트 창에 있어, 도넛 판정은 창 그림(`View3DCheck.capture_window()`, 자리는 `window_point()`로 바꿈)에서 찾는다
 - HUD·창 글자와 3D 화면을 함께 찍기: setup `hd_ui_storage.gd`(창고를 열고 조준 고정)
-- 전투 장면 촬영 (예고·돌·탄·도넛, 판정 없음): `bash tools/godot.sh --fixed-fps 60 --path . -s tools/shot_view_3d_combat.gd -- --out=<a.png>` (창 그림, HUD 포함. `--game_only`면 640×360과 2배 그림)
+- 전투 장면 촬영 (예고·돌·탄·도넛, 판정 없음): `bash tools/godot.sh --fixed-fps 60 --path . -s tools/shot_view_3d_combat.gd -- --out=<a.png>` (창 그림, HUD·도넛 포함. `--game_only`면 640×360과 2배 그림, 도넛은 루트 창에 있어 빠진다)
 
 ## 3. 시야
 

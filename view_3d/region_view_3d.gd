@@ -7,7 +7,7 @@ extends Node3D
 ## - 팔레트: PalettePass가 3D 화면의 색을 팔레트로 맞춘다
 ## - 시야: SightLights가 플레이어·언데드 빛으로 지형을 밝힌다. 무엇이 보이는지는 2D 판정(Vision)이 정한다
 ## - 바닥 표시: GroundMarks가 2D 그리기 코드를 캔버스에 그려 바닥에 입힌다
-## - 도넛·키 안내: ScreenAnchors가 화면 픽셀 그대로 몸 곁에 놓는다
+## - 도넛·키 안내: ScreenAnchors가 몸 곁에 놓는다. 3D 화면(GameScreen) 밖, 루트 창에 실제 해상도로 그린다 (사용자 결정, 2026-11-16)
 ## - 지형: 임시 벽·바닥과 같은 칸과 색으로 구역별 메시를 만든다 (TerrainCells, TerrainMesher). 그림자는 같은 메시를 그림자 전용으로 한 번 더 쓴다 (앞벽을 잘라도 그림자는 그대로)
 ## - 몸: BodyLayer가 2D 노드를 읽어 카메라를 정면으로 보는 사각형으로 그린다
 ## - 앞벽: FrontWalls가 플레이어·조준점 앞은 잘라내고, 보이는 몸 앞은 반투명하게 한다
@@ -75,7 +75,7 @@ func setup(necromancer: Necromancer, vision: Vision) -> void:
 
 
 func _ready() -> void:
-	# 카메라와 3D 화면 위의 층(도넛·안내, 팔레트)은 GameScreen의 SubViewport에 넣는다.
+	# 카메라와 팔레트 후처리는 GameScreen의 SubViewport(640×360)에 넣는다. 도넛·안내(ScreenAnchors)는 루트 창에 둔다.
 	var game_screen: GameScreen = GameScreen.new()
 	add_child(game_screen)
 	var screen: SubViewport = game_screen.get_screen_viewport()
@@ -96,7 +96,8 @@ func _ready() -> void:
 	add_child(_marks)
 	_anchors = ScreenAnchors.new()
 	_anchors.setup(self)
-	screen.add_child(_anchors)
+	# 루트 창의 UI 좌표도 640×360 기준이라 world_to_screen(SubViewport 좌표)을 그대로 쓴다. 층은 GameScreen 위, HUD 아래다.
+	add_child(_anchors)
 	_anchors.adopt(_necromancer.get_node(STAMINA_RING_PATH), _necromancer)
 	_front_walls = FrontWalls.new()
 	_front_walls.setup(self, _bodies, _necromancer, terrain_material)

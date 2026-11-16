@@ -9,7 +9,7 @@ extends SceneTree
 ## --scene:   메인 씬 대신 띄울 씬 (res:// 경로, 예: res://regions/base.tscn)
 ## --setup:   찍기 전에 화면 상태를 만들 스크립트 (res:// 경로). static func run(scene: Node) -> void 를 가진다.
 ##            씬이 준비된 직후 한 번 불린다. 예: tools/screenshot_setups/
-## --game_only: 창 그림 대신 3D 게임 화면(GameScreen, 내부 해상도 640×360, HUD·창 없음)만 저장한다.
+## --game_only: 창 그림 대신 3D 게임 화면(GameScreen, 내부 해상도 640×360, HUD·창과 몸 곁 도넛·안내 글자 없음)만 저장한다.
 ##            3D 층이 없는 씬(--view_2d, 3D를 끈 지역)에서는 찍지 않고 종료 코드 2로 끝낸다.
 ## 기본으로 저장되는 이미지는 창 그림이다: HUD·창(UI)까지 들고, 크기는 창 크기(기본 1280×720)다.
 ## (루트 창은 UI를 실제 해상도로, 3D 화면은 640×360을 정수 배율로 늘려 그린다. docs/art-direction.md의 "화면 설정")

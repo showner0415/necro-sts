@@ -29,6 +29,17 @@ func capture() -> Image:
 	return (current_scene.call(&"get_view_3d") as RegionView3D).get_screen_texture().get_image()
 
 
+## 루트 창 그림 (실제 해상도, UI와 몸 곁 도넛·안내 포함). 그 안의 자리는 window_point()로 바꿔 찾는다.
+func capture_window() -> Image:
+	await RenderingServer.frame_post_draw
+	return root.get_texture().get_image()
+
+
+## 화면(640×360 기준 UI 좌표) 자리를 창 그림의 픽셀 자리로 바꾼다
+func window_point(screen_point: Vector2) -> Vector2:
+	return root.get_final_transform() * screen_point
+
+
 func colors_close(a: Color, b: Color) -> bool:
 	return absf(a.r - b.r) <= COLOR_TOLERANCE and absf(a.g - b.g) <= COLOR_TOLERANCE and absf(a.b - b.b) <= COLOR_TOLERANCE
 
