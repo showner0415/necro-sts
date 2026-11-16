@@ -1,6 +1,7 @@
 extends ScenarioTest
 ## 시나리오: 거점 수리 기계. 거점에서 시작한다.
 ## 1. 기계 근처에서 "[F] 수리 기계" 안내 → F로 인벤토리(가운데 왼쪽)와 수리 창(오른쪽)이 나란히 열린다
+## 1-1. 두 창이 모두 화면 안에 있다
 ## 2. 빈 칸이면 안내 문구, 수리 버튼은 회색
 ## 3. 뼈는 칸에 끌어 놓아도 들어가지 않는다
 ## 4. 머리뼈를 끌어 놓으면 칸이 그 머리뼈를 가리킨다 (인벤토리·핫바에 그대로), 필요한 뼈와 가진 뼈를 보여준다
@@ -133,6 +134,10 @@ func _run() -> void:
 	var evidence: String = "안내 '%s', 인벤토리 열림 %s (x %.0f~%.0f), 수리 창 열림 %s (x %.0f~%.0f), 화면 가운데 x %.0f, 소환 중 %s" % [
 		prompt, _inventory_screen.is_open(), inventory_rect.position.x, inventory_rect.end.x, _repair_screen.is_open(), repair_rect.position.x, repair_rect.end.x, center_x, _necromancer.summoner.roster.is_summoned(summoned)]
 	if not _check("F로 수리 기계 열기", prompt == "[F] 수리 기계" and _inventory_screen.is_open() and _repair_screen.is_open() and inventory_rect.end.x <= center_x and repair_rect.position.x >= center_x and _necromancer.summoner.roster.is_summoned(summoned), evidence):
+		return
+	# 1-1. 두 창이 모두 화면 안에 있다 (예전에는 인벤토리 창 왼쪽이 화면 밖으로 나갔다)
+	var screen_rect: Rect2 = root.get_visible_rect()
+	if not _check("두 창이 화면 안", screen_rect.encloses(inventory_rect) and screen_rect.encloses(repair_rect), "화면 %s, 인벤토리 %s, 수리 창 %s" % [screen_rect, inventory_rect, repair_rect]):
 		return
 
 	# 2. 빈 칸
