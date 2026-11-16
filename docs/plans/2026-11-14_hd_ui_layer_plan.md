@@ -41,6 +41,8 @@
 - UI 한글 글꼴은 Pretendard Regular(v1.3.9)다 (사용자 결정, 2026-11-16. 비교판의 2번을 고름: 지금 글꼴·Pretendard·Noto Sans KR Thin·갈무리·Noto Sans KR Regular를 거점 창고 화면에서 견줌. 굵기는 비교판에서 본 Regular로 정함, 더 굵은 굵기는 견주지 않음). 비교판은 저장소에 남기지 않는다 (사용자 결정, 2026-11-16): git 밖 `compare/2026-11-16_ui-font/`에 있다가 글꼴을 넣은 뒤 clean으로 지운다. 본 것은 아래 4단계 결과에 글로 남긴다.
 - 공용 테마는 project.godot의 `gui/theme/custom`에 걸어 모든 UI에 닿게 한다 (사용자 결정, 2026-11-16. 나중에 창 틀·칸·버튼도 이 테마에 담는다. 3D 화면 안의 "[F] 창고" 안내 글자도 이 글꼴로 바뀐다).
 - 파일 자리: 글꼴과 라이선스는 `assets/fonts/pretendard/`, 테마는 `ui/theme/` 아래 .tres 하나 (사용자 결정, 2026-11-16).
+- 처음 받은 컴퓨터(글꼴 임포트 결과가 없는 `.godot`)의 첫 임포트 오류는 `tests/run_all.sh`가 한 번 더 임포트해 두 번째 결과로 판정하는 것으로 다룬다. 두 번째에도 나는 오류는 실패로 센다 (사용자 결정, 2026-11-16. `tools/compare_variants.sh`의 import_project와 같은 방식).
+- 4단계의 "지금 UI의 글자 크기를 새 기준 해상도에 맞춘다"는 하지 않는다: 글자 크기는 지금 그대로 둔다 (사용자 결정, 2026-11-16. UI 좌표가 640 기준이라 글자도 창 배율대로 함께 커지고, 글꼴 비교판도 지금 크기로 보고 고름).
 
 ## 문제와 위험
 
@@ -162,10 +164,10 @@ B 변형은 3D 층이 붙는 모든 지역에 이미 같이 적용된다 (지역
 
 ### 4단계: 글꼴, 테마, 그림 규칙
 
-상태: 진행 중 (2026-11-16. 그림 규칙을 하고 한글 글꼴을 Pretendard로 고름. 글꼴 넣기·테마·안내 글자 자리가 남음)
+상태: 진행 중 (2026-11-16. 그림 규칙, 한글 글꼴 Pretendard 넣기와 공용 테마를 함. 글자 크기는 그대로 두기로 함. 안내 글자·도넛 자리가 남음)
 
 할 일:
-- 한글 글꼴을 넣고 공용 테마를 만든다. 지금 UI의 글자 크기를 새 기준 해상도에 맞춘다.
+- 한글 글꼴을 넣고 공용 테마를 만든다 (끝남, 2026-11-16). 지금 UI의 글자 크기를 새 기준 해상도에 맞춘다 (하지 않기로 함, 위 "정한 것", 2026-11-16).
 - 고해상도 UI 그림 폴더(`assets/ui_hd/`)를 `tools/check_palette.gd`와 `tests/unit/test_palette_colors.gd`가 빼게 한다. (끝남, 2026-11-16)
 - UI 그림 규칙(요청문과 원본을 `art_src/ui/<화면 id>/`에 저장, 픽셀을 손으로 고치지 않음)을 적는다. 처음에는 CLAUDE.md "에셋" 절에 한 줄 넣으려 했으나 CLAUDE.md가 크기 한도(25000바이트)에 닿아 `docs/ui-style.md`의 "지킬 것"에 적었다. (끝남, 2026-11-16)
 - 받은 그림을 넣는 폴더 `art_src/ui/inbox/`는 이미 있다 (`.gitignore`, `art_src/ui/inbox/.gdignore`). (끝남)
@@ -182,6 +184,7 @@ B 변형은 3D 층이 붙는 모든 지역에 이미 같이 적용된다 (지역
 결과:
 - 그림 규칙 (2026-11-16): `tools/check_palette.gd`에 `SKIP_PATHS = ["res://assets/ui_hd"]` (인자로 직접 줘도 "검사하지 않음"), `tests/unit/test_palette_colors.gd`의 `SKIP_PATHS`에 같은 폴더. 팔레트 밖 그림 사본으로 확인: `assets/ui_hd/`에 넣은 것은 넘어가고, 같은 그림을 `assets/ui/`에 넣은 것은 `[팔레트 밖] … 7640색`으로 걸림 (사본은 지움). 원본 규칙은 `docs/ui-style.md`의 "지킬 것"에 적음. `assets/ui_hd/`는 빈 폴더라 git에 없다 (첫 그림을 붙일 때 생긴다).
 - 한글 글꼴 비교 (2026-11-16): Pretendard v1.3.9(orioncactus/pretendard 릴리스), Noto Sans KR 가변 글꼴(google/fonts), 갈무리 v2.40.4(quiple/galmuri 릴리스)를 받아(모두 OFL 1.1) compare-variants로 견줌. 비교판·확대판은 git 밖 `compare/2026-11-16_ui-font/`에 있었고 저장소에 남기지 않는다 (사용자 결정, clean 뒤 없음). 본 것: Pretendard가 가장 또렷하고 HUD가 창과 겹치지 않음. Noto는 가변 기본이 Thin이라 Regular 안을 더함, 줄 높이가 커서 HUD 셋째 줄이 창에 가려짐. 갈무리는 2배 창에서 16·8 크기가 흐림. 글꼴은 루트 CanvasLayer 아래 맨 위 Control에 테마를 걸어 바꿨다 (CanvasLayer에서 테마가 끊김). GameScreen 안의 "[F] 창고" 안내는 바뀌지 않는다.
+- 글꼴 넣기와 공용 테마 (2026-11-16): `assets/fonts/pretendard/Pretendard-Regular.otf`와 `LICENSE.txt`(v1.3.9, 고치지 않음), `assets/ASSETS.md` 한 줄(확정), `ui/theme/ui_theme.tres`(default_font만), project.godot `gui/theme/custom`. 거점 창고 화면이 비교판 2번과 글자 모양이 같다 (`compare_images`로 다른 픽셀 2881개, HUD 왼쪽 열의 글자 가장자리 흐림 정도. 비교판은 글꼴을 실행 중에 읽었고 지금은 임포트한 글꼴이라서로 봄). 3D 화면 안의 "[F] 창고"도 Pretendard가 되었고, 640 도트에서 지금 글꼴보다 가늘고 흐려 덜 읽힌다 (안내 글자 자리 비교 때 함께 본다). 비교 폴더는 clean으로 지웠다. 새로 받은 컴퓨터(글꼴 임포트 결과가 없는 `.godot`)에서는 첫 `--import`가 프로젝트 테마를 글꼴 임포트보다 먼저 읽어 `ERROR:` 5줄을 낸다 (두 번째부터는 없음, 임시 worktree로 재현). `tests/run_all.sh`의 임포트 단계를 "오류 줄이 나오면 알리고 한 번 더 임포트해 두 번째로 판정"으로 고쳤고, 새 worktree에서 `bash tests/run_all.sh` → 알림 뒤 `전체 결과: 통과`. 사용자가 게임을 켜서 보고 "잘 읽힌다" (2026-11-16).
 
 ### 5단계: UI 스타일 정하기와 첫 화면
 
@@ -214,7 +217,8 @@ B 변형은 3D 층이 붙는 모든 지역에 이미 같이 적용된다 (지역
 | 2026-11-16 | 3 | 고해상도 UI를 기본으로 켬 (project.godot canvas_items, --hd_ui 없앰, art-direction 화면 설정), 3D 검사가 GameScreen 그림을 읽음, 3단계를 3·3b로 나눔 | ffcd162 |
 | 2026-11-16 | 3b | 스크린샷 도구 셋(screenshot·연속 스크린샷·전투 장면)이 창 그림 기본, --game_only로 게임 화면만 | e38e7d0 |
 | 2026-11-16 | 4 | 그림 규칙: assets/ui_hd/만 팔레트 검사 예외, 원본은 art_src/ui/<화면 id>/에 git으로 (ui-style "지킬 것") | ea07952 |
-| 2026-11-16 | 4 | 한글 글꼴 비교판(지금·Pretendard·Noto Thin·갈무리·Noto Regular), Pretendard로 고름 | - |
+| 2026-11-16 | 4 | 한글 글꼴 비교판(지금·Pretendard·Noto Thin·갈무리·Noto Regular), Pretendard로 고름 | 65ce1a3 |
+| 2026-11-16 | 4 | Pretendard Regular를 assets/fonts에 넣고 공용 테마(ui/theme/ui_theme.tres)를 project.godot에 걺 | - |
 
 ## 보류
 

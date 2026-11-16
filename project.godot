@@ -29,6 +29,10 @@ window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 window/stretch/scale_mode="integer"
 
+[gui]
+
+theme/custom="res://ui/theme/ui_theme.tres"
+
 [input]
 
 interact={
