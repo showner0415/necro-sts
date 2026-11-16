@@ -1,6 +1,6 @@
 # 고해상도 UI 층 (2026-11-14)
 
-상태: 진행 중 (2단계, 5단계는 기준 세트까지 함) (2026-11-16)
+상태: 진행 중 (3단계, 5단계는 기준 세트까지 함) (2026-11-16)
 브랜치: `hd-ui` (origin/main에서 땀, 사용자 결정 2026-11-16. 합치는 때는 아직 안 정함)
 
 ## 목표
@@ -36,10 +36,10 @@
 | # | 문제 | 내용 | 대응 |
 |---|---|---|---|
 | 1 | 지금은 모든 것이 640×360에 그려진다 | `project.godot`의 늘리기 방식이 `viewport`라 UI(CanvasLayer)도 640×360으로 그려져 늘어난다 | 1단계에서 방식을 골라 시제품으로 확인한다 |
-| 2 | UI가 지역 씬 안에 있다 | HUD·인벤토리 등이 지역 씬마다 들어 있고(`regions/base.tscn` 등), 얕은 굴은 `tools/map_from_png.gd`가 만든다. 지역은 `regions/region.gd`의 `change_scene_to_file`로 바뀐다 | 1단계에서 UI를 지역 씬에 둔 채 고해상도로 그릴 수 있는지 먼저 본다 (아래 제안 A) |
-| 3 | 조준이 마우스 좌표에 기댄다 | `view_3d/region_view_3d.gd`가 `get_viewport().get_mouse_position()`과 카메라 광선으로 조준점을 구한다. 게임 화면의 뷰포트가 바뀌면 좌표가 어긋날 수 있다 | 2단계 통과 기준에 조준 시나리오를 넣는다. 조작감은 사용자가 직접 확인한다 |
-| 4 | 시나리오가 UI 좌표를 640 기준으로 흉내 낸다 | `tests/scenario_test.gd`의 `ui_to_window()`와 "헤드리스 창 64×64 → UI 좌표 640×640" 규칙(CLAUDE.md)이 바뀐다 | 3단계에서 좌표 변환을 한 곳에서 고치고 모든 시나리오를 돌린다 |
-| 5 | 스크린샷이 루트 화면만 찍는다 | `tools/screenshot.gd`가 `root.get_texture()`를 저장한다. 구조에 따라 UI나 게임 화면이 빠지거나 크기가 바뀐다 | 3단계에서 고치고, 3D 화면 검사(`bash tests/run_view_3d.sh`)를 다시 돌린다 |
+| 2 | UI가 지역 씬 안에 있다 | HUD·인벤토리 등이 지역 씬마다 들어 있고(`regions/base.tscn` 등), 얕은 굴은 `tools/map_from_png.gd`가 만든다. 지역은 `regions/region.gd`의 `change_scene_to_file`로 바뀐다 | B 변형에서는 문제가 아니다: UI는 지역 씬의 루트 CanvasLayer 그대로이고, 3D 화면만 `RegionView3D`가 만드는 GameScreen으로 옮긴다 (2026-11-16) |
+| 3 | 조준이 마우스 좌표에 기댄다 | `view_3d/region_view_3d.gd`가 `get_viewport().get_mouse_position()`과 카메라 광선으로 조준점을 구한다. 게임 화면의 뷰포트가 바뀌면 좌표가 어긋날 수 있다 | `tests/view_3d/check_hd_ui.gd`가 카메라 화면 크기와 조준 좌표를 잰다 (2단계). 조작감은 사용자가 직접 확인한다 |
+| 4 | 시나리오가 UI 좌표를 640 기준으로 흉내 낸다 | `tests/scenario_test.gd`의 `ui_to_window()`와 "헤드리스 창 64×64 → UI 좌표 640×640" 규칙(CLAUDE.md)이 바뀐다 | B 변형은 UI 좌표를 640×360 그대로 두므로 바뀌지 않을 것으로 본다. 3단계에서 기본으로 켠 뒤 모든 시나리오로 확인한다 |
+| 5 | 스크린샷이 루트 화면만 찍는다 | `tools/screenshot.gd`가 `root.get_texture()`를 저장한다. 구조에 따라 UI나 게임 화면이 빠지거나 크기가 바뀐다 | B 변형에서는 루트 그림이 창 해상도(UI 포함)가 된다. 3D 화면 픽셀을 읽는 검사는 GameScreen 그림을 읽게 3단계에서 고친다 |
 | 6 | GPT 그림은 팔레트 검사에 걸린다 | `run_all.sh`가 `assets/` 전체를 Endesga 32로 검사한다. GPT 그림은 색이 수천 개다 | 4단계에서 고해상도 UI 그림 폴더를 정하고 그 폴더만 검사에서 뺀다 (사용자 결정 필요) |
 | 7 | 에셋 재생성 규칙과 맞지 않는다 | CLAUDE.md는 "생성 파라미터로 다시 만든다"인데 GPT는 같은 요청에도 다른 그림을 낸다 | 4단계에서 UI 그림만 "요청문과 받은 원본을 `art_src/ui/`에 저장한다"로 바꾼다 (사용자 결정 필요) |
 
@@ -77,38 +77,48 @@
 - 잰 것: `scenario_ui_click.gd`는 헤드리스·창 모드, 플래그 있을 때와 없을 때 모두 통과. 화면 점 → 조준 월드 좌표가 두 모드에서 같음. 창고를 연 거점 스크린샷 비교에서 다른 픽셀 9043개(약 1%)가 모두 UI 글자·테두리 자리이고 3D 화면은 같음 (setup `tools/screenshot_setups/hd_ui_storage.gd`).
 - 알고 있는 문제: `bash tests/run_view_3d.sh`가 `monsters/monster_pack.gd:394`의 원래 있던 SCRIPT ERROR(지워진 몬스터를 무리가 읽음)로 실패한다. 바꾸기 전 커밋에서도 같다.
 
-### 2단계: 게임 화면 옮기기와 조준
+### 2단계: 화면 검사 오류, 조준·키 검사, 모든 지역 확인
 
-상태: 할 일
+상태: 끝남 (2026-11-16. 사용자가 `--hd_ui`로 해 보고 "괜찮다, 전과 같다")
+
+B 변형은 3D 층이 붙는 모든 지역에 이미 같이 적용된다 (지역 씬이 아니라 `RegionView3D`가 GameScreen을 만든다). 그래서 처음 계획의 "얕은 굴은 `tools/map_from_png.gd`를 고쳐 다시 변환한다"는 필요 없다.
 
 할 일:
-- 1단계에서 고른 방식을 모든 지역(거점, 시험 지역, 시험 통로, 얕은 굴)에 적용한다. 얕은 굴은 `tools/map_from_png.gd`를 고쳐 다시 변환한다 (씬을 손으로 고치지 않는다).
-- 조준 좌표가 새 구조에서 맞게 한다.
+- 3D 화면 검사를 막는 원래 오류(`monsters/monster_pack.gd`의 `_bind`가 지워진 무리원을 읽음)를 고치고 단위 테스트를 더한다. 이 수정은 따로 커밋한다 (위 "정한 것").
+- 이 계획서의 2~3단계와 "문제와 위험"을 B 변형에 맞게 고쳐 적는다.
+- 1단계의 조준 비교를 `tests/view_3d/check_hd_ui.gd`로 옮기고 `tests/run_view_3d.sh`에 넣는다 (구조, 카메라 화면 크기, 조준, 도트 그대로, F4 팔레트).
+- 지역 4곳(거점, 테스트 싸움터, 시험 통로, 얕은 굴)을 `--hd_ui`와 플래그 없이 찍어 견준다.
 
 통과 기준:
-- 스크립트로 재는 것: `bash tests/run_all.sh` → `전체 결과: 통과`
-- 사용자가 보는 것: 직접 걸어 다니며 조준·공격·구르기가 지금과 같은지 (조작감)
+- 스크립트로 재는 것: `bash tests/run_all.sh` → `전체 결과: 통과`, `bash tests/run_view_3d.sh` → `화면 검사 결과: 통과` (`check_hd_ui.gd` 포함), 지역 4곳의 3D 화면이 플래그 없는 것과 같다
+- 사용자가 보는 것: `bash tools/godot.sh --path . -- --hd_ui`로 걸어 다니며 조준·공격·구르기·지역 오가기, 조준점 커서 크기가 지금과 같은지 (조작감)
 
 사람이 정할 것:
-- [ ] (1단계 뒤에 채운다)
+- (없음)
 
 결과:
+- 화면 검사 오류: `MonsterPack._bind`가 첫 물리 프레임 전에 지워진 무리원을 빼고 묶는다. `tests/unit/test_monster_pack.gd`로 고치기 전 오류(`monster_pack.gd:394`)를 재현하고 고친 뒤 사라진 것을 봤다.
+- `tests/view_3d/check_hd_ui.gd` (`--hd_ui`): 구조 통과, 카메라 화면 640×360, 화면 점 5개의 조준 차이 0.0001픽셀, 창 그림(1280×720)의 3D 화면이 SubViewport 그림을 2배로 늘린 것과 25680개 표본에서 모두 같음, F4로 팔레트 켜고 끔. 조준은 "플래그 없을 때의 값" 대신 두 방식 모두에서 내부 해상도로 직접 계산한 광선과 견준다 (장면이 바뀌어도 깨지지 않게).
+- 지역 4곳 (`view_3d_on.gd`로 조준 고정, 플래그 없는 그림을 `tools/ui_gen/prepare_ui_image.gd --scale-nearest=2`로 늘려 `tools/compare_images.gd`): 거점·얕은 굴은 다른 곳이 왼쪽 HUD 열뿐, 시험 통로는 그 밖에 내부 1픽셀이 색 1/255 차이, 테스트 싸움터는 돌아다니는 쥐가 옮긴 자리뿐이었다.
+- `bash tests/run_all.sh` → `전체 결과: 통과` (단위 571), `bash tests/run_view_3d.sh` → `화면 검사 결과: 통과` (12개)
 
-### 3단계: 시나리오 좌표와 도구
+### 3단계: 기본으로 켜기와 도구
 
 상태: 할 일
 
 할 일:
-- `tests/scenario_test.gd`의 UI 좌표 변환, `tools/screenshot.gd`, `tools/compare_variants.sh`가 찍는 화면을 새 구조에 맞춘다.
-- CLAUDE.md의 헤드리스 UI 좌표 줄을 새 값으로 고친다.
-- 고해상도 UI를 기본으로 켠다: project.godot 늘리기 방식을 canvas_items로, `--hd_ui` 플래그와 `regions/region.gd`의 실행 중 바꾸기를 정리, `docs/art-direction.md`의 화면 설정 줄을 고친다 (위 "정한 것", 2026-11-16).
+- 고해상도 UI를 기본으로 켠다: project.godot 늘리기 방식을 canvas_items로, `--hd_ui` 플래그(`view_3d/region_view_3d.gd`)와 `regions/region.gd`의 실행 중 바꾸기를 정리, `docs/art-direction.md`의 화면 설정 줄을 고친다 (위 "정한 것", 2026-11-16). `check_hd_ui.gd`는 플래그 없이 돌게 고친다.
+- 루트 그림이 창 해상도가 되므로, 3D 화면의 픽셀을 읽는 곳을 GameScreen의 SubViewport 그림(내부 해상도)을 읽게 바꾼다: `tests/view_3d/view_3d_check.gd`의 `capture()`, `check_terrain_3d.gd`, `check_wall_flicker.gd`. `check_hd_ui.gd`의 "도트 그대로"는 `capture()`가 창 그림을 준다는 데 기대므로 루트 그림을 직접 읽게 한다. `tools/record_vision_sequence.gd`도 루트 그림을 읽는다. `tools/screenshot.gd`는 창 그림(UI 포함)을 저장하는 것으로 머리 주석을 고치고, 내부 해상도 게임 화면만 저장하는 선택을 둘지 본다. `tools/compare_variants.sh`가 찍는 그림도 확인한다.
+- 시나리오의 UI 좌표 변환(`tests/scenario_test.gd`)과 CLAUDE.md의 헤드리스 UI 좌표 줄은 바뀌지 않을 것으로 본다 (UI 좌표가 640×360 그대로이고, 1단계에서 `scenario_ui_click.gd`가 `--hd_ui`로 같은 좌표에서 통과했다). 기본으로 켠 뒤 모든 시나리오로 확인하고, 그대로면 고치지 않는다.
+- 디버그용 평면 보기(`--view_2d`)는 3D 층이 없어 2D 세계를 루트에 그리므로 도트 그림이 실제 해상도로 그려진다. 어떻게 보이는지 찍어 보고, 고칠지 묻는다.
 
 통과 기준:
 - 스크립트로 재는 것: `bash tests/run_all.sh` → `전체 결과: 통과`, `bash tests/run_view_3d.sh` → `화면 검사 결과: 통과`
 - 사용자가 보는 것: 스크린샷에 게임 화면과 UI가 모두 실제 해상도로 찍힌다
 
 사람이 정할 것:
-- [ ] (2단계 뒤에 채운다)
+- [ ] 기본으로 켠 뒤 스크린샷 도구(`tools/screenshot.gd`, `tools/record_vision_sequence.gd`)가 무엇을 저장할지 (선택지: 창 그림(UI 포함)만 / 게임 화면(내부 해상도)만 저장하는 선택 인자도 둠. 사용자가 "찍어 보고 정하기"를 골라, 기본으로 켠 뒤 찍은 그림을 보여 주고 묻는다. 2026-11-16)
+- [ ] 디버그용 평면 보기(`--view_2d`)를 고칠지 (기본으로 켠 뒤 찍어 보고 묻는다)
 
 결과:
 
@@ -160,7 +170,8 @@
 | 2026-11-14 | - | 계획서와 ui-designer 에이전트, 스타일 문서 틀을 만듦 | - |
 | 2026-11-15 | 5 | 스타일 시안을 Codex로 뽑아 A2 3번을 고름. 틀만 그림·칸 버튼은 테마, UI 그림은 픽셀 아트 예외로 정함. codex_image.sh의 --ref 버그 고침 | - |
 | 2026-11-16 | 5 | 기준 세트 후보를 Codex로 9장 받아 아이콘 icon_set_3·틀 frame_1·변 반복·규격과 요청문 틀 판 1을 고름 (브랜치 `hd-ui`) | 4f11882 |
-| 2026-11-16 | 1 | B 변형 시제품 (`--hd_ui`: 3D 화면만 SubViewport, UI는 실제 해상도). 클릭·조준 같음. B 변형·좌표 640 그대로·기본 켜기는 3단계로 정함 | - |
+| 2026-11-16 | 1 | B 변형 시제품 (`--hd_ui`: 3D 화면만 SubViewport, UI는 실제 해상도). 클릭·조준 같음. B 변형·좌표 640 그대로·기본 켜기는 3단계로 정함 | 8f5997b |
+| 2026-11-16 | 2 | 무리 화면 검사 오류 고침, check_hd_ui(조준·도트·F4) 추가, 지역 4곳 견줌, 계획 2~3단계를 B 변형으로 고침 | - |
 
 ## 보류
 

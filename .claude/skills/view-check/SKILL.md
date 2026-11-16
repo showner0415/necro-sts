@@ -27,6 +27,8 @@ description: 화면을 찍거나 눈으로 확인할 때 사용. 스크린샷 se
   - 그린 화면의 벽 가림: `check_wall_occlusion.gd` (화면 회전 0/45도, 앞벽 끔/켬, 둘레 안 점을 잘라내기 자리별로 나눠 출력)
   - 걷는 동안 몸·바닥 흔들림: `check_camera_motion.gd`
   - 벽 픽셀 흔들림: `check_wall_flicker.gd` (`--target=layer|terrain --mode=static|poses`, 찍은 순간의 카메라·발밑 위치를 출력)
+  - 고해상도 UI: `check_hd_ui.gd -- --hd_ui` (루트 canvas_items·카메라가 GameScreen 안, 카메라 화면 크기, 조준 좌표, 창 그림의 3D 화면이 도트 그대로, F4 팔레트. `--hd_ui` 없이는 크기와 조준만)
+- 고해상도 UI 전후 스크린샷: setup `hd_ui_storage.gd`(창고를 열고 조준 고정)로 `--hd_ui`를 붙인 것과 안 붙인 것을 찍는다. `--hd_ui`는 창 해상도 PNG(예: 1280×720)로 저장된다
 - 전투 장면 촬영 (예고·돌·탄·도넛, 판정 없음): `bash tools/godot.sh --fixed-fps 60 --path . -s tools/shot_view_3d_combat.gd -- --out=<a.png>`
 
 ## 3. 시야
