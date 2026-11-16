@@ -39,6 +39,8 @@ const STAMINA_RING_PATH: String = "StaminaRing"
 static var use_cave_terrain: bool = OS.get_cmdline_user_args().has("--cave_terrain")
 ## 윤곽이 있는 지역도 칸 지형으로 그릴지 (비교·칸 색 검사용, 실행 인자 --cell_terrain)
 static var use_cell_terrain: bool = OS.get_cmdline_user_args().has("--cell_terrain")
+## 고해상도 UI 시제품 (실행 인자 --hd_ui, 고해상도 UI 층 계획 1단계): 3D 화면은 GameScreen에 내부 해상도로 그리고, 루트 창은 UI를 실제 해상도로 그린다
+static var use_hd_ui: bool = OS.get_cmdline_user_args().has("--hd_ui")
 
 ## 카메라 앞서 가기 값 (나중에 설정에서 strength를 0까지 줄인다)
 var aim_lead: AimLead = AimLead.new()
@@ -75,12 +77,18 @@ func setup(necromancer: Necromancer, vision: Vision) -> void:
 
 
 func _ready() -> void:
+	# 카메라와 3D 화면 위의 층(도넛·안내, 팔레트)을 넣을 곳
+	var screen: Node = self
+	if use_hd_ui:
+		var game_screen: GameScreen = GameScreen.new()
+		add_child(game_screen)
+		screen = game_screen.get_screen_viewport()
 	_camera = Camera3D.new()
 	_camera.fov = fov_degrees
 	_camera.near = camera_near
 	_camera.far = camera_far
 	_camera.current = true
-	add_child(_camera)
+	screen.add_child(_camera)
 	_necromancer.aim_provider = get_aim_position
 	set_yaw(yaw_degrees)
 	_update_camera(0.0)
@@ -92,7 +100,7 @@ func _ready() -> void:
 	add_child(_marks)
 	_anchors = ScreenAnchors.new()
 	_anchors.setup(self)
-	add_child(_anchors)
+	screen.add_child(_anchors)
 	_anchors.adopt(_necromancer.get_node(STAMINA_RING_PATH), _necromancer)
 	_front_walls = FrontWalls.new()
 	_front_walls.setup(self, _bodies, _necromancer, terrain_material)
@@ -101,7 +109,7 @@ func _ready() -> void:
 	_sight_lights.setup(_vision, _necromancer, [terrain_material, _marks.get_material()] as Array[ShaderMaterial])
 	add_child(_sight_lights)
 	_palette = PalettePass.new()
-	add_child(_palette)
+	screen.add_child(_palette)
 	_hide_2d_world()
 
 
