@@ -12,8 +12,9 @@ const FULL_TEXT: String = "인벤토리 가득 참"
 const KEY_TEXT: String = "[E]"
 const BONE_PATH: String = "res://data/items/bone.tres"
 const RAT_SKULL_PATH: String = "res://data/skulls/rat_skull.tres"
-## 인벤토리 바깥(게임 화면 왼쪽)의 UI 좌표
-const OUTSIDE_UI_POSITION: Vector2 = Vector2(100, 300)
+## 인벤토리 바깥(게임 화면)으로 놓을 자리: 인벤토리 창 오른쪽 끝에서 이만큼 오른쪽 (창 세로 가운데).
+## 예전에는 고정 좌표 (100, 300)이었는데, 인벤토리 창을 화면 왼쪽 여백 4에서 커지게 고친 뒤(2026-11-17) 그 자리가 칸 위가 되어 창에서 재게 했다.
+const OUTSIDE_UI_MARGIN: float = 60.0
 
 var _necromancer: Necromancer
 var _inventory: Inventory
@@ -38,6 +39,12 @@ func _check(step_name: String, ok: bool, evidence: String) -> bool:
 
 func _slot_center(index: int) -> Vector2:
 	return _screen.get_slot_control(index).get_global_rect().get_center()
+
+
+## 인벤토리 창 바깥(게임 화면)의 UI 좌표
+func _outside_ui_position() -> Vector2:
+	var panel: Rect2 = (_screen.get_node("Panel") as Control).get_global_rect()
+	return Vector2(panel.end.x + OUTSIDE_UI_MARGIN, panel.get_center().y)
 
 
 func _describe_slots() -> String:
@@ -144,7 +151,7 @@ func _run() -> void:
 
 	# 바깥에 놓기: 3번 → 인벤토리 바깥 (취소)
 	var before: String = _describe_slots()
-	await drag_ui(_slot_center(3), OUTSIDE_UI_POSITION)
+	await drag_ui(_slot_center(3), _outside_ui_position())
 	var after: String = _describe_slots()
 	if not _check("바깥에 놓으면 취소", before == after and _pickups().size() == pickups_before + 1,
 			"3번 → 바깥 끌기 전후 칸이 같음 %s, 바닥 더미 수 %d (버리지 않음)" % [before == after, _pickups().size()]):

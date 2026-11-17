@@ -11,19 +11,15 @@ signal clear_requested
 
 var _skull: Skull
 
-@onready var _icon: ColorRect = %Icon
+@onready var _icon: ItemIcon = %Icon
 @onready var _durability_bar: DurabilityBar = %DurabilityBar
 
 
-## 칸에 보여줄 머리뼈. null이면 빈 칸.
+## 칸에 보여줄 머리뼈(그림은 ItemIcon: 아이템 데이터의 icon, 비면 임시 도형). null이면 빈 칸.
 func show_skull(skull: Skull) -> void:
 	_skull = skull
-	_icon.visible = skull != null
+	_icon.show_item(skull.data if skull != null else null)
 	_durability_bar.show_skull(skull)
-	if skull == null:
-		return
-	_icon.color = skull.data.placeholder_color
-	_icon.custom_minimum_size = skull.data.placeholder_size
 
 
 func get_skull() -> Skull:

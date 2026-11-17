@@ -2,7 +2,7 @@
 # tests/ 안의 모든 테스트를 한 번에 돌린다.
 #   1. 규칙 검사: Godot 없이 저장소 규칙을 본다 (tests/check_rules.sh. CLAUDE.md 크기, 스킬·에이전트 머리말, 문서 속 경로, 시나리오 설명 주석,
 #      그룹·오토로드 목록, 밸런스 측정 대상, UI 시나리오, Godot 3 문법, 절대 경로, 규칙 클래스 단위 테스트, Godot 버전 일치)
-#   2. 임포트 (새 스크립트·클래스 반영, 스크립트 오류 확인)
+#   2. 임포트 (새 스크립트·클래스 반영, 스크립트 오류 확인. 첫 임포트에 오류 줄이 있으면 한 번 더 하고 두 번째로 판정한다)
 #   3. 단위 테스트: tests/unit/test_*.gd 전부 (한 번의 실행). 코드·씬·데이터의 색이 팔레트 안인지도 여기서 본다 (test_palette_colors.gd)
 #   4. 에셋 팔레트 검사: assets/의 PNG가 팔레트 밖의 색을 쓰는지 (tools/check_palette.gd)
 #   5. 시나리오 테스트: tests/scenarios/scenario_*.gd 하나씩 (각각 따로 실행)
@@ -41,7 +41,15 @@ if ! bash tests/check_rules.sh; then
 fi
 
 echo "=== 임포트"
+# 처음 받은 컴퓨터(임포트 결과가 없는 .godot)의 첫 임포트는 오류 줄을 낼 수 있다: Godot가 시작할 때 프로젝트 테마(project.godot의
+# gui/theme/custom)를 글꼴 임포트보다 먼저 읽는다. 그래서 오류 줄이 나오면 알림으로 보여 주고 한 번 더 임포트해서 두 번째 결과로 판정한다.
+# 두 번째에도 나는 오류는 실패로 센다 (tools/compare_variants.sh의 import_project와 같은 방식).
 import_errors=$(timeout "$TIMEOUT_SECONDS" bash tools/godot.sh --headless --path . --import 2>&1 | grep -E "$ERROR_PATTERN")
+if [ -n "$import_errors" ]; then
+	echo "알림: 첫 임포트에 오류 줄이 있어 한 번 더 임포트한다 (처음 받은 컴퓨터에서는 글꼴보다 테마를 먼저 읽어 날 수 있다):"
+	echo "$import_errors"
+	import_errors=$(timeout "$TIMEOUT_SECONDS" bash tools/godot.sh --headless --path . --import 2>&1 | grep -E "$ERROR_PATTERN")
+fi
 if [ -n "$import_errors" ]; then
 	echo "$import_errors"
 	failed+=("임포트")

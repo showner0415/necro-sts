@@ -1,8 +1,10 @@
 class_name ScreenAnchors
 extends CanvasLayer
-## 몸 곁에 화면 픽셀 그대로 띄우는 것들(스태미나 도넛, 키 안내 글자). 숨긴 2D 세계에서 이 층으로 옮겨 와, 프레임마다 3D 화면에서 몸이 있는 자리에 놓는다.
+## 몸 곁에 띄우는 것들(스태미나 도넛, 키 안내 글자). 숨긴 2D 세계에서 이 층으로 옮겨 와, 프레임마다 3D 화면에서 몸이 있는 자리에 놓는다.
 ## 자기를 다루는 코드(도넛의 채움, 안내의 보임)는 그대로 돈다. 주인이 사라지면 같이 지운다.
-## 몸과의 간격은 2D와 같은 화면 픽셀이다. 주인이 시야 밖에서 안 보이면 같이 안 보인다.
+## 몸과의 간격은 2D와 같은 화면 픽셀(640×360 기준)이다. 주인이 시야 밖에서 안 보이면 같이 안 보인다.
+## 이 층은 3D 화면(GameScreen의 SubViewport) 밖, 루트 창에 있어 실제 해상도로 그린다 (사용자 결정, 2026-11-16).
+## 자리는 world_to_screen(SubViewport 좌표)으로 정하는데, 루트 창의 UI 좌표도 640×360 기준이라 그대로 맞는다.
 
 const PROMPT_PATH: String = "%Prompt"
 
@@ -16,7 +18,7 @@ var _adopted: Dictionary = {}
 ## add_child 전에 부른다.
 func setup(view: RegionView3D) -> void:
 	_view = view
-	# 3D 화면 위, HUD 아래에 그린다.
+	# 3D 화면(GameScreen) 위, HUD 아래에 그린다.
 	layer = -1
 
 

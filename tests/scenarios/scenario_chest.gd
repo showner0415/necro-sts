@@ -1,6 +1,6 @@
 extends ScenarioTest
 ## 시나리오: 지역 상자.
-## 몬스터 없는 상자 가까이에서 안내 "[F] 상자" → F로 열기(인벤토리 가운데 왼쪽, 상자 오른쪽, 모든 칸 "?") → 상자 창 클릭은 공격으로 안 넘어감
+## 몬스터 없는 상자 가까이에서 안내 "[F] 상자" → F로 열기(인벤토리 가운데 왼쪽, 상자 오른쪽, 모든 칸 "?", 두 창이 화면 안) → 상자 창 클릭은 공격으로 안 넘어감
 ## → 주변(48 안)에서 움직이며 기다리면 앞 칸부터 하나씩 드러남(희귀도 시간, 다음 칸에 진행 바), 맞아도 끊기지 않음
 ## → 드러난 아이템을 끌어서 가져감 / 드러나지 않은 칸은 끌리지 않음 → 48 밖으로 나가면 인벤토리와 상자가 둘 다 닫힘, 닫힌 동안은 멈춤
 ## → 다시 열면 드러난 것과 진행이 그대로
@@ -102,6 +102,11 @@ func _run() -> void:
 	var title: Label = _chest_screen.get_node("Panel/Content/Title")
 	if not _check("F로 열기", _chest_screen.is_open() and _inventory_screen.is_open() and inventory_rect.end.x <= chest_rect.position.x and all_hidden and title.text == "상자",
 			"상자 열림 %s, 인벤토리 열림 %s, 인벤토리 오른쪽 끝 %.0f ≤ 상자 왼쪽 끝 %.0f, 제목 '%s', 칸 %s" % [_chest_screen.is_open(), _inventory_screen.is_open(), inventory_rect.end.x, chest_rect.position.x, title.text, _slots_text()]):
+		finish(false)
+		return
+	# 두 창이 모두 화면 안에 있다 (예전에는 인벤토리 창 왼쪽이 화면 밖으로 나갔다)
+	var screen_rect: Rect2 = root.get_visible_rect()
+	if not _check("두 창이 화면 안", screen_rect.encloses(inventory_rect) and screen_rect.encloses(chest_rect), "화면 %s, 인벤토리 %s, 상자 %s" % [screen_rect, inventory_rect, chest_rect]):
 		finish(false)
 		return
 

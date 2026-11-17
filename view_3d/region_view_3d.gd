@@ -3,10 +3,11 @@ extends Node3D
 ## 2D 규칙 세계를 읽어서 3D로 그리는 층. 규칙(이동, 충돌, 시야 판정)은 2D 그대로이고, 이 층은 규칙에 조준 위치와 이동 입력의 회전만 돌려준다.
 ## 지역 데이터의 view_3d가 켜진 지역에 Region이 붙인다. 헤드리스(테스트·측정)에서는 붙이지 않는다.
 ## 2D 세계는 숨겨 둔다.
+## - 화면: GameScreen이 3D 화면을 내부 해상도(640×360)로 그려 정수 배율로 늘린다. 루트 창은 canvas_items라 HUD·창은 실제 해상도로 그린다
 ## - 팔레트: PalettePass가 3D 화면의 색을 팔레트로 맞춘다
 ## - 시야: SightLights가 플레이어·언데드 빛으로 지형을 밝힌다. 무엇이 보이는지는 2D 판정(Vision)이 정한다
 ## - 바닥 표시: GroundMarks가 2D 그리기 코드를 캔버스에 그려 바닥에 입힌다
-## - 도넛·키 안내: ScreenAnchors가 화면 픽셀 그대로 몸 곁에 놓는다
+## - 도넛·키 안내: ScreenAnchors가 몸 곁에 놓는다. 3D 화면(GameScreen) 밖, 루트 창에 실제 해상도로 그린다 (사용자 결정, 2026-11-16)
 ## - 지형: 임시 벽·바닥과 같은 칸과 색으로 구역별 메시를 만든다 (TerrainCells, TerrainMesher). 그림자는 같은 메시를 그림자 전용으로 한 번 더 쓴다 (앞벽을 잘라도 그림자는 그대로)
 ## - 몸: BodyLayer가 2D 노드를 읽어 카메라를 정면으로 보는 사각형으로 그린다
 ## - 앞벽: FrontWalls가 플레이어·조준점 앞은 잘라내고, 보이는 몸 앞은 반투명하게 한다
@@ -39,7 +40,6 @@ const STAMINA_RING_PATH: String = "StaminaRing"
 static var use_cave_terrain: bool = OS.get_cmdline_user_args().has("--cave_terrain")
 ## 윤곽이 있는 지역도 칸 지형으로 그릴지 (비교·칸 색 검사용, 실행 인자 --cell_terrain)
 static var use_cell_terrain: bool = OS.get_cmdline_user_args().has("--cell_terrain")
-
 ## 카메라 앞서 가기 값 (나중에 설정에서 strength를 0까지 줄인다)
 var aim_lead: AimLead = AimLead.new()
 ## 확인용: 값이 있으면 마우스 대신 이 월드 좌표를 조준한다 (스크린샷·검사)
@@ -75,12 +75,16 @@ func setup(necromancer: Necromancer, vision: Vision) -> void:
 
 
 func _ready() -> void:
+	# 카메라와 팔레트 후처리는 GameScreen의 SubViewport(640×360)에 넣는다. 도넛·안내(ScreenAnchors)는 루트 창에 둔다.
+	var game_screen: GameScreen = GameScreen.new()
+	add_child(game_screen)
+	var screen: SubViewport = game_screen.get_screen_viewport()
 	_camera = Camera3D.new()
 	_camera.fov = fov_degrees
 	_camera.near = camera_near
 	_camera.far = camera_far
 	_camera.current = true
-	add_child(_camera)
+	screen.add_child(_camera)
 	_necromancer.aim_provider = get_aim_position
 	set_yaw(yaw_degrees)
 	_update_camera(0.0)
@@ -92,6 +96,7 @@ func _ready() -> void:
 	add_child(_marks)
 	_anchors = ScreenAnchors.new()
 	_anchors.setup(self)
+	# 루트 창의 UI 좌표도 640×360 기준이라 world_to_screen(SubViewport 좌표)을 그대로 쓴다. 층은 GameScreen 위, HUD 아래다.
 	add_child(_anchors)
 	_anchors.adopt(_necromancer.get_node(STAMINA_RING_PATH), _necromancer)
 	_front_walls = FrontWalls.new()
@@ -101,7 +106,7 @@ func _ready() -> void:
 	_sight_lights.setup(_vision, _necromancer, [terrain_material, _marks.get_material()] as Array[ShaderMaterial])
 	add_child(_sight_lights)
 	_palette = PalettePass.new()
-	add_child(_palette)
+	screen.add_child(_palette)
 	_hide_2d_world()
 
 
@@ -173,6 +178,11 @@ func snap_to_pixels(point: Vector3) -> Vector3:
 
 func get_camera() -> Camera3D:
 	return _camera
+
+
+## 3D 화면 그림 (내부 해상도, UI 없음). 루트 창 그림은 실제 해상도라, 3D 화면의 픽셀을 보는 검사는 이것을 읽는다
+func get_screen_texture() -> ViewportTexture:
+	return _camera.get_viewport().get_texture()
 
 
 func get_bodies() -> BodyLayer:

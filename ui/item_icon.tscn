@@ -1,0 +1,10 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/item_icon.gd" id="1_icon"]
+
+[node name="ItemIcon" type="TextureRect"]
+texture_filter = 4
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+script = ExtResource("1_icon")

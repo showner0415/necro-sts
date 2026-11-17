@@ -1,6 +1,7 @@
 extends View3DCheck
 ## 실제 전투를 돌려 멧돼지 돌진 예고·고블린 돌·탄·스태미나 도넛이 한 화면에 보이는 순간을 3D로 찍는다 (눈으로 보려고 찍는 것이라 판정은 없다).
-## bash tools/godot.sh --fixed-fps 60 --path . -s tools/shot_view_3d_combat.gd -- --out=<a.png>
+## bash tools/godot.sh --fixed-fps 60 --path . -s tools/shot_view_3d_combat.gd -- --out=<a.png> [--game_only]
+## 기본은 창 그림(HUD 포함, 창 크기 기본 1280×720)이다. --game_only를 주면 3D 게임 화면(GameScreen, 640×360, HUD·스태미나 도넛 없음)만 찍고,
 ## 2배로 키운 그림(<a>_x2.png)도 같이 저장한다. 시야는 끄고 찍는다 (시야 단계 전이라 빛이 없다).
 
 const SCENE: String = "res://regions/test_arena.tscn"
@@ -14,6 +15,7 @@ const MID_AIR_START: float = 0.3
 const MID_AIR_END: float = 0.7
 
 var _out_path: String = ""
+var _game_only: bool = false
 
 
 func get_start_scene() -> String:
@@ -24,6 +26,8 @@ func _on_scene_ready() -> void:
 	for arg: String in OS.get_cmdline_user_args():
 		if arg.begins_with("--out="):
 			_out_path = arg.trim_prefix("--out=")
+		elif arg == "--game_only":
+			_game_only = true
 	var necromancer: Necromancer = find_necromancer()
 	necromancer.health = SAFE_HEALTH
 	var boar: Monster = current_scene.get_node("Actors/Boar1")
@@ -49,12 +53,17 @@ func _on_scene_ready() -> void:
 			necromancer.stamina.try_roll()
 		if charge.get_state() == ChargeBehavior.State.WINDUP and _stone_mid_air() != null and _count(&"Bolt") > 0:
 			var stone: Stone = _stone_mid_air()
-			var image: Image = await capture()
-			print("찍음: %d프레임, 돌 높이 %.0f (날아간 비율 %.2f), 탄 %d" % [frame, stone.get_view_height(), stone.get_traveled() / stone.max_distance, _count(&"Bolt")])
+			var image: Image
+			if _game_only:
+				image = await capture()
+			else:
+				image = await _capture_window()
+			print("찍음: %d프레임, 돌 높이 %.0f (날아간 비율 %.2f), 탄 %d, 그림 %d×%d" % [frame, stone.get_view_height(), stone.get_traveled() / stone.max_distance, _count(&"Bolt"), image.get_width(), image.get_height()])
 			image.save_png(_out_path)
-			var large: Image = image.duplicate()
-			large.resize(image.get_width() * ZOOM, image.get_height() * ZOOM, Image.INTERPOLATE_NEAREST)
-			large.save_png(_out_path.get_basename() + "_x2.png")
+			if _game_only:
+				var large: Image = image.duplicate()
+				large.resize(image.get_width() * ZOOM, image.get_height() * ZOOM, Image.INTERPOLATE_NEAREST)
+				large.save_png(_out_path.get_basename() + "_x2.png")
 			press_mouse(false)
 			finish(true)
 			return
@@ -71,6 +80,12 @@ func _stone_mid_air() -> Stone:
 			if progress >= MID_AIR_START and progress <= MID_AIR_END:
 				return stone
 	return null
+
+
+## 창 그림 (HUD 포함, 창 크기). capture()는 3D 게임 화면만 준다
+func _capture_window() -> Image:
+	await RenderingServer.frame_post_draw
+	return root.get_texture().get_image()
 
 
 func _count(script_class: StringName) -> int:

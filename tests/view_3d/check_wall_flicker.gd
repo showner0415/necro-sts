@@ -132,6 +132,7 @@ func _text(point: Vector3) -> String:
 	return "(%.7f, %.7f, %.7f)" % [point.x, point.y, point.z]
 
 
+## 3D 화면 그림 (내부 해상도). 루트 창 그림은 실제 해상도라 GameScreen의 그림을 읽는다.
 func _capture() -> Image:
 	await RenderingServer.frame_post_draw
-	return root.get_texture().get_image()
+	return (current_scene.call(&"get_view_3d") as RegionView3D).get_screen_texture().get_image()

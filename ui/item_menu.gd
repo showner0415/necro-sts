@@ -12,6 +12,8 @@ signal closed
 ## 칸과 메뉴 사이 간격 (픽셀)
 @export var gap: float = 2.0
 @export var font_size: int = 12
+## 항목 버튼마다 거는 테마 타입 변형 (공용 테마 ui/theme/ui_theme.tres의 메뉴 항목 스타일). 비워 두면 테마 기본 Button으로 그린다.
+@export var item_theme_type: StringName = &""
 ## 쓸 수 없는 항목의 글자 색
 @export var disabled_color: Color = Color(0.54509807, 0.60784316, 0.7058824, 1)
 ## 되돌릴 수 없는 손해 경고(예: "죽은 판정이 됩니다")가 붙은 항목의 글자 색. 빨간색은 이 경우에만 쓴다.
@@ -44,6 +46,8 @@ func open(slot_rect: Rect2, actions: Array[ItemAction], states: Array[ItemAction
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		# 마우스로만 쓴다. 포커스를 받으면 Space(구르기)·Enter에 눌려 버린다.
 		button.focus_mode = Control.FOCUS_NONE
+		if not item_theme_type.is_empty():
+			button.theme_type_variation = item_theme_type
 		button.add_theme_font_size_override("font_size", font_size)
 		button.add_theme_color_override("font_disabled_color", disabled_color)
 		button.pressed.connect(func() -> void: action_chosen.emit(action))

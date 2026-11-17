@@ -2,7 +2,8 @@ extends SceneTree
 ## 시야가 움직일 때의 모습을 연속으로 찍는다 (창을 띄움, --headless 금지). 얕은 굴 쥐 둥지(vision_preview.gd와 같은 자리)에서
 ## 1. 가만히 서서 바라보는 방향을 한 바퀴 돌리기  2. 서쪽으로 걷기(걷는 쪽을 봄)  3. 바위의 긴 옆면을 따라 걸으며 바위 너머 한 점 보기
 ## 장면마다 interval프레임 간격으로 frames장을 찍어, 반 크기로 줄여 4장씩 줄지은 한 장(<out>/<장면>.png)과 낱장(<out>/<장면>/NN.png)으로 저장한다.
-## bash tools/godot.sh --path . -s tools/record_vision_sequence.gd -- --out=<폴더> [--frames=12] [--interval=6]
+## 낱장은 창 그림(HUD 포함, 창 크기 기본 1280×720)이다. --game_only를 주면 3D 게임 화면(GameScreen, 640×360, HUD·몸 곁 도넛·안내 없음)만 찍는다.
+## bash tools/godot.sh --path . -s tools/record_vision_sequence.gd -- --out=<폴더> [--frames=12] [--interval=6] [--game_only]
 
 const PREVIEW: String = "res://tools/screenshot_setups/vision_preview.gd"
 const SCENE: String = "res://regions/shallow_cave.tscn"
@@ -22,6 +23,7 @@ var _scene_index: int = -1
 var _t: int = 0
 var _shots: Array[Image] = []
 var _ready_done: bool = false
+var _game_only: bool = false
 
 
 func _initialize() -> void:
@@ -32,6 +34,8 @@ func _initialize() -> void:
 			_frames = arg.trim_prefix("--frames=").to_int()
 		elif arg.begins_with("--interval="):
 			_interval = arg.trim_prefix("--interval=").to_int()
+		elif arg == "--game_only":
+			_game_only = true
 	if _out.is_empty():
 		printerr("--out=<폴더>가 필요합니다")
 		quit(2)
@@ -107,7 +111,10 @@ func _next_scene() -> void:
 
 
 func _capture() -> void:
-	_shots.append(root.get_texture().get_image())
+	if _game_only:
+		_shots.append((current_scene.call(&"get_view_3d") as RegionView3D).get_screen_texture().get_image())
+	else:
+		_shots.append(root.get_texture().get_image())
 
 
 func _save_scene() -> void:

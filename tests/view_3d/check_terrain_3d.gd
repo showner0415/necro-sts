@@ -69,9 +69,10 @@ func _on_scene_ready() -> void:
 	finish(true)
 
 
+## 3D 화면 그림 (내부 해상도). 루트 창 그림은 실제 해상도라 GameScreen의 그림을 읽는다.
 func _capture() -> Image:
 	await RenderingServer.frame_post_draw
-	return root.get_texture().get_image()
+	return _view.get_screen_texture().get_image()
 
 
 func _largest_map() -> TerrainCells:

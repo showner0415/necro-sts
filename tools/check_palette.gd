@@ -8,11 +8,15 @@ extends SceneTree
 ## 인자가 없으면 assets/ 전체를 검사한다. 인자로 파일이나 폴더를 줄 수 있다.
 ## 팔레트는 assets/palette/ 안의 .hex 파일 하나를 읽는다 (한 줄에 색 하나, 예: be4a2f).
 ## 완전히 투명한 픽셀(알파 0)은 검사하지 않는다. 그 외 픽셀은 RGB만 비교한다.
+## SKIP_PATHS의 폴더는 검사하지 않는다 (인자로 직접 줘도). 고해상도 UI 그림(GPT로 그림)은 색이 수천 개라 assets/ui_hd/에 두고 뺀다
+## (docs/plans/2026-11-14_hd_ui_layer_plan.md, 사용자 결정 2026-11-16). 도트 UI(assets/ui/)는 그대로 검사한다.
 ## 위반이 있으면 종료 코드 1, 팔레트를 읽지 못하면 2로 끝난다.
 
 const PALETTE_DIR: String = "res://assets/palette"
 const DEFAULT_TARGET: String = "res://assets"
 const MAX_COLORS_PER_FILE: int = 5
+## 검사하지 않는 폴더 (경로가 똑같을 때만)
+const SKIP_PATHS: PackedStringArray = ["res://assets/ui_hd"]
 
 
 func _init() -> void:
@@ -70,6 +74,9 @@ func _to_res_path(target: String) -> String:
 func _collect_pngs(path: String, out: PackedStringArray) -> void:
 	if DirAccess.dir_exists_absolute(path):
 		if path.trim_suffix("/") == PALETTE_DIR:
+			return
+		if SKIP_PATHS.has(path.trim_suffix("/")):
+			print("검사하지 않음: %s (고해상도 UI 그림)" % path)
 			return
 		for file_name: String in DirAccess.get_files_at(path):
 			if file_name.get_extension().to_lower() == "png":

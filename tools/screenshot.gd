@@ -9,10 +9,14 @@ extends SceneTree
 ## --scene:   메인 씬 대신 띄울 씬 (res:// 경로, 예: res://regions/base.tscn)
 ## --setup:   찍기 전에 화면 상태를 만들 스크립트 (res:// 경로). static func run(scene: Node) -> void 를 가진다.
 ##            씬이 준비된 직후 한 번 불린다. 예: tools/screenshot_setups/
-## 저장되는 이미지는 내부 해상도(project.godot의 viewport 크기) 그대로다.
+## --game_only: 창 그림 대신 3D 게임 화면(GameScreen, 내부 해상도 640×360, HUD·창과 몸 곁 도넛·안내 글자 없음)만 저장한다.
+##            3D 층이 없는 씬(--view_2d, 3D를 끈 지역)에서는 찍지 않고 종료 코드 2로 끝낸다.
+## 기본으로 저장되는 이미지는 창 그림이다: HUD·창(UI)까지 들고, 크기는 창 크기(기본 1280×720)다.
+## (루트 창은 UI를 실제 해상도로, 3D 화면은 640×360을 정수 배율로 늘려 그린다. docs/art-direction.md의 "화면 설정")
 
 const DEFAULT_SECONDS: float = 2.0
 const DEFAULT_DIR: String = "user://screenshots"
+const GAME_ONLY_ARG: String = "--game_only"
 
 var _seconds: float = DEFAULT_SECONDS
 var _out_path: String = ""
@@ -21,6 +25,7 @@ var _taken: bool = false
 var _setup_path: String = ""
 var _scene_path: String = ""
 var _setup_done: bool = false
+var _game_only: bool = false
 
 
 func _initialize() -> void:
@@ -33,6 +38,8 @@ func _initialize() -> void:
 			_scene_path = arg.trim_prefix("--scene=")
 		elif arg.begins_with("--setup="):
 			_setup_path = arg.trim_prefix("--setup=")
+		elif arg == GAME_ONLY_ARG:
+			_game_only = true
 	if _out_path.is_empty():
 		DirAccess.make_dir_recursive_absolute(DEFAULT_DIR)
 		_out_path = DEFAULT_DIR.path_join("screenshot_%s.png" % Time.get_datetime_string_from_system().replace(":", "-"))
@@ -65,6 +72,13 @@ func _process(delta: float) -> bool:
 
 func _capture() -> void:
 	var image: Image = root.get_texture().get_image()
+	if _game_only:
+		var view: RegionView3D = current_scene.call(&"get_view_3d") as RegionView3D if current_scene.has_method(&"get_view_3d") else null
+		if view == null:
+			printerr("%s: 이 씬에는 3D 층(GameScreen)이 없어 게임 화면만 찍을 수 없습니다 (--view_2d나 3D를 끈 지역)." % GAME_ONLY_ARG)
+			quit(2)
+			return
+		image = view.get_screen_texture().get_image()
 	var error: Error = image.save_png(_out_path)
 	if error != OK:
 		printerr("저장 실패 (%s): %s" % [error_string(error), _out_path])

@@ -1,6 +1,7 @@
 extends ScenarioTest
 ## 시나리오: 거점 창고. 거점에서 시작한다.
 ## 1. 상자 근처에서 "[F] 창고" 안내 → F로 인벤토리(가운데 왼쪽)와 창고(오른쪽)가 나란히 열린다
+## 1-1. 두 창이 모두 화면 안에 있다 (인벤토리 창은 화면 왼쪽 여백 4에서 오른쪽으로, 창고 창은 가운데 오른쪽에서 오른쪽으로 커진다)
 ## 2. 핫바에 올린 머리뼈를 창고로 끌어 놓으면 핫바 칸이 빈다
 ## 3. 창고의 뼈를 인벤토리의 뼈 칸에 끌어 놓으면 합쳐진다
 ## 4. 소환 중인 머리뼈는 창고로 끌어 놓아도 옮겨지지 않는다
@@ -120,6 +121,10 @@ func _run() -> void:
 	var evidence: String = "안내 '%s', 인벤토리 열림 %s (x %.0f~%.0f), 창고 열림 %s (x %.0f~%.0f), 화면 가운데 x %.0f, 창고 칸 %d" % [
 		prompt, _inventory_screen.is_open(), inventory_rect.position.x, inventory_rect.end.x, _storage_screen.is_open(), storage_rect.position.x, storage_rect.end.x, center_x, _storage.get_slot_count()]
 	if not _check("F로 창고 열기", prompt == "[F] 창고" and _inventory_screen.is_open() and _storage_screen.is_open() and inventory_rect.end.x <= center_x and storage_rect.position.x >= center_x and _storage.get_slot_count() == 100, evidence):
+		return
+	# 1-1. 두 창이 모두 화면 안에 있다 (예전에는 인벤토리 창 왼쪽이 화면 밖으로 나갔다)
+	var screen_rect: Rect2 = root.get_visible_rect()
+	if not _check("두 창이 화면 안", screen_rect.encloses(inventory_rect) and screen_rect.encloses(storage_rect), "화면 %s, 인벤토리 %s, 창고 %s" % [screen_rect, inventory_rect, storage_rect]):
 		return
 
 	# 2. 핫바 머리뼈 → 창고

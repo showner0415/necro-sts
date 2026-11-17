@@ -1,6 +1,6 @@
 class_name PalettePass
 extends CanvasLayer
-## 3D 화면의 색을 팔레트로 맞추는 후처리. 몸 곁의 도넛·안내(ScreenAnchors)와 HUD 아래, 3D 화면 위에 그린다.
+## 3D 화면의 색을 팔레트로 맞추는 후처리. GameScreen의 SubViewport 안에서 3D 화면 위에 그린다 (몸 곁 도넛·안내와 HUD는 루트 창에 있어 닿지 않는다).
 ## 팔레트는 Endesga 32에 빛 없는 지형용 어두운 단계 4개를 더한 것이다 (어두운 곳에서 벽과 바닥이 뭉치지 않게).
 ## 개발 빌드에서 toggle_key로 켜고 끈다.
 
@@ -16,7 +16,7 @@ var _rect: ColorRect
 
 
 func _ready() -> void:
-	# ScreenAnchors(-1)보다 아래다.
+	# SubViewport 안에서 3D 화면 위에 그린다.
 	layer = -2
 	_rect = ColorRect.new()
 	_rect.set_anchors_preset(Control.PRESET_FULL_RECT)

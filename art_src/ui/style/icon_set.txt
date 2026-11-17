@@ -1,0 +1,9 @@
+Low-poly stylized game UI art for a dark cave game. Flat-shaded faceted shapes with crisp angular bevels, matte, no gloss, no noise. Light from the upper left. Muted earthy colors.
+A set of six inventory item icons in one landscape image, arranged in a grid of 3 columns and 2 rows. Each icon is centered in its own equal square cell, with wide empty space between icons. All six share the same scale, three-quarter view, lighting and level of detail.
+Top row: 1) a single long bone lying diagonally from lower left to upper right; 2) a rat skull, small and narrow with a long pointed snout and two long front teeth; 3) a boar skull, wide and heavy with two big curved tusks.
+Bottom row: 4) a bat skull, tiny and round with huge eye sockets and two sharp fangs; 5) a goblin skull, a roundish humanoid skull with a heavy jaw and a slightly pointed brow; 6) a mana potion, a round glass flask with a cork, filled with blue liquid.
+Bones and skulls are warm bone color close to #ead4aa, shaded toward #e4a672, with dark brown #733e39 only in the deepest creases. The potion glass is grayish and its liquid is blue close to #0099db.
+Each icon must read clearly at 72x72 pixels on a near-black slot: simple bold silhouette, a few large facets, no fine detail.
+Reference image: match the style and colors of the bone, skull and potion icons inside its slots. Do not copy its window frame or background.
+Fully transparent background (alpha channel): no slots, frames, panels, glow, drop shadows or ground under the icons.
+No letters, numbers, runes, writing, logos or color swatches anywhere.
