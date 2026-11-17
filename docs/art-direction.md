@@ -64,6 +64,7 @@
     - 쥐는 발이 y≈25에 있어 모든 방향에 같은 offset (-16, -25)을 쓴다 (`rat.tres`의 `sprite_offset`). 방향마다 다르게 하면 방향이 바뀔 때 들썩여 보여서 하나로 둔다.
 - **화면 설정** (`project.godot`):
   - 기본 텍스처 필터는 Nearest로 해서 픽셀이 흐려지지 않게 한다.
+    - 예외: 고해상도 UI의 창 틀 그림과 아이템 아이콘만 선형 필터로 그린다. 창 틀은 공용 테마 `ui/theme/ui_theme.tres`의 `CanvasTexture`, 아이콘은 `ui/item_icon.tscn`(ItemIcon)의 선형 + 밉맵과 아이콘 임포트의 밉맵이다. 프로젝트 기본값과 게임 화면은 Nearest 그대로다 (사용자 결정, 2026-11-17, `docs/plans/2026-11-14_hd_ui_layer_plan.md`의 "정한 것").
   - 내부 해상도 640×360, 늘리기 방식 `canvas_items`, 배율은 정수(`integer`)로 한다. 루트 창은 HUD·창(UI)을 실제 창 해상도로 그리고, 3D 게임 화면만 `view_3d/game_screen.gd`(GameScreen)가 640×360 SubViewport에 그려 정수 배율로 늘린다. UI 배치 좌표는 640×360 기준 그대로다 (사용자 결정, 2026-11-16. 처음에는 `viewport`라 UI도 640×360으로 그려 늘려서 글자가 뭉개졌다. `docs/plans/2026-11-14_hd_ui_layer_plan.md`).
 - **팔레트**: Endesga 32 (ENDESGA, 32색, https://lospec.com/palette-list/endesga-32). Resurrect 64에서 바꿨다 (2026-11-06).
   - 사용 조건: Lospec 팔레트 페이지에는 라이선스나 사용 조건이 적혀 있지 않다 (2026-11-06 확인). 출시 전에 ENDESGA에게 확인하고 크레딧에 표기한다.
