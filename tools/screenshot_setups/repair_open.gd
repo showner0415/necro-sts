@@ -1,6 +1,9 @@
 extends RefCounted
 ## 스크린샷 준비 (--scene=res://regions/base.tscn): 수리 기계 앞에서 수리 창을 연다.
 ## 인벤토리(가운데 왼쪽)와 수리 창(오른쪽)이 나란히 보이고, 수리 칸에 내구도가 닳은 머리뼈가 들어 있다.
+## 찍을 때마다 같은 그림이 되게 조준을 몸 오른쪽에 고정하고(카메라가 실제 마우스를 따라가지 않게),
+## UI 입력을 막는다(실제 마우스가 칸 위에 있어도 정보 줄이 뜨지 않게).
+## bash tools/godot.sh --path . -s tools/screenshot.gd -- --seconds=2 --setup=res://tools/screenshot_setups/repair_open.gd --out=<경로>
 
 const RAT_SKULL_PATH: String = "res://data/skulls/rat_skull.tres"
 const BONE_PATH: String = "res://data/items/bone.tres"
@@ -9,9 +12,12 @@ const WORN_DURABILITY: float = 3.0
 const BONES: int = 4
 ## 기계 영역 판정이 따라온 뒤에 열도록 기다리는 시간 (초)
 const OPEN_DELAY: float = 0.2
+## 몸 가운데에서 조준점까지 (오른쪽)
+const AIM_DISTANCE: float = 128.0
 
 
 static func run(scene: Node) -> void:
+	scene.get_viewport().gui_disable_input = true
 	var game_state: Node = scene.get_tree().root.get_node("GameState")
 	var necromancer: Necromancer = scene.get_tree().get_first_node_in_group(&"necromancer")
 	var machine: RepairMachine = scene.get_node("RepairMachine")
@@ -23,6 +29,9 @@ static func run(scene: Node) -> void:
 	inventory.try_add(ItemStack.of_skull(worn))
 	inventory.try_add(ItemStack.of_item(load(BONE_PATH), BONES))
 	inventory.try_add(ItemStack.of_skull(Skull.create(load(RAT_SKULL_PATH))))
+	var view: RegionView3D = scene.call(&"get_view_3d")
+	if view != null:
+		view.aim_override = necromancer.get_body_center() + Vector2.RIGHT * AIM_DISTANCE
 	# 순간이동 직후에는 영역 판정이 아직이라, 열자마자 "멀어짐"으로 닫힌다. 잠시 뒤에 연다.
 	scene.get_tree().create_timer(OPEN_DELAY).timeout.connect(func() -> void:
 		scene.call(&"open_repair", machine)

@@ -2,7 +2,7 @@ extends ScenarioTest
 ## 시나리오: 거점 수리 기계. 거점에서 시작한다.
 ## 1. 기계 근처에서 "[F] 수리 기계" 안내 → F로 인벤토리(가운데 왼쪽)와 수리 창(오른쪽)이 나란히 열린다
 ## 1-1. 두 창이 모두 화면 안에 있다
-## 2. 빈 칸이면 안내 문구, 수리 버튼은 회색
+## 2. 빈 칸이면 안내 문구, 수리 버튼은 비활성(누를 수 없음)
 ## 3. 뼈는 칸에 끌어 놓아도 들어가지 않는다
 ## 4. 머리뼈를 끌어 놓으면 칸이 그 머리뼈를 가리킨다 (인벤토리·핫바에 그대로), 필요한 뼈와 가진 뼈를 보여준다
 ## 5. 뼈가 모자라면 가진 만큼만 수리하고 "뼈 부족"
@@ -142,7 +142,7 @@ func _run() -> void:
 
 	# 2. 빈 칸
 	var button: Button = _repair_screen.get_repair_button()
-	if not _check("빈 칸", _repair_screen.get_skull() == null and button.disabled and _repair_screen.get_info_text() == _repair_screen.empty_text, "칸 %s, 버튼 회색 %s, 안내 '%s'" % [_repair_screen.get_skull(), button.disabled, _repair_screen.get_info_text()]):
+	if not _check("빈 칸", _repair_screen.get_skull() == null and button.disabled and _repair_screen.get_info_text() == _repair_screen.empty_text, "칸 %s, 버튼 비활성 %s, 안내 '%s'" % [_repair_screen.get_skull(), button.disabled, _repair_screen.get_info_text()]):
 		return
 
 	# 3. 뼈는 안 들어감
@@ -163,7 +163,7 @@ func _run() -> void:
 
 	# 5. 뼈가 모자라면 일부 수리
 	await click_ui(_button_center())
-	evidence = "수리 버튼 클릭: 내구도 %.1f → %.1f (기대 %.1f), 뼈 %d → %d, 버튼 회색 %s, 이유 '%s'" % [
+	evidence = "수리 버튼 클릭: 내구도 %.1f → %.1f (기대 %.1f), 뼈 %d → %d, 버튼 비활성 %s, 이유 '%s'" % [
 		START_DURABILITY, worn.durability, START_DURABILITY + START_BONES, START_BONES, _bones(), button.disabled, _repair_screen.get_reason_text()]
 	if not _check("뼈가 모자라면 가진 만큼 수리", is_equal_approx(worn.durability, START_DURABILITY + START_BONES) and _bones() == 0 and button.disabled and _repair_screen.get_reason_text() == "뼈 부족", evidence):
 		return
@@ -175,7 +175,7 @@ func _run() -> void:
 	var durability_before: float = worn.durability
 	await click_ui(_button_center())
 	var used: int = EXTRA_BONES - _bones()
-	evidence = "뼈 %d개를 더 받으니 버튼 쓸 수 있음 %s → 클릭: 내구도 %.1f → %.1f / %.1f, 뼈 %d개 씀 (기대 %d), 버튼 회색 %s, 이유 '%s'" % [
+	evidence = "뼈 %d개를 더 받으니 버튼 쓸 수 있음 %s → 클릭: 내구도 %.1f → %.1f / %.1f, 뼈 %d개 씀 (기대 %d), 버튼 비활성 %s, 이유 '%s'" % [
 		EXTRA_BONES, enabled_after_bones, durability_before, worn.durability, max_durability, used, ceili(max_durability - durability_before), button.disabled, _repair_screen.get_reason_text()]
 	if not _check("뼈 1개 = 내구도 1로 가득 채움", enabled_after_bones and is_equal_approx(worn.durability, max_durability) and used == ceili(max_durability - durability_before) and button.disabled and _repair_screen.get_reason_text() == "내구도 가득", evidence):
 		return
@@ -184,7 +184,7 @@ func _run() -> void:
 	var bones_before: int = _bones()
 	await drag_ui(_inventory_center(_find_skull(summoned)), _repair_slot_center())
 	await click_ui(_button_center())
-	evidence = "소환 중인 머리뼈를 놓음: 칸 %s, 버튼 회색 %s, 이유 '%s', 누른 뒤 내구도 %.1f (그대로 %.1f), 뼈 %d → %d" % [
+	evidence = "소환 중인 머리뼈를 놓음: 칸 %s, 버튼 비활성 %s, 이유 '%s', 누른 뒤 내구도 %.1f (그대로 %.1f), 뼈 %d → %d" % [
 		_repair_screen.get_skull() == summoned, button.disabled, _repair_screen.get_reason_text(), summoned.durability, START_DURABILITY, bones_before, _bones()]
 	if not _check("소환 중인 머리뼈는 수리 못 함", _repair_screen.get_skull() == summoned and button.disabled and _repair_screen.get_reason_text() == "소환 중" and is_equal_approx(summoned.durability, START_DURABILITY) and _bones() == bones_before, evidence):
 		return
