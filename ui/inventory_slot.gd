@@ -1,8 +1,9 @@
 class_name InventorySlot
 extends Panel
 ## 인벤토리 칸 하나. 비어 있거나, ItemStack 하나(뼈 N개 또는 머리뼈 하나)를 보여준다.
-## - 뼈 같은 아이템: 임시 도형과 개수
-## - 머리뼈: 임시 도형과 아래쪽 내구도 바 (항상 보임). 네임드 머리뼈면 오른쪽 위에 작은 노란 사각형 (임시, 계획 6b)
+## 아이템 그림은 ItemIcon(%Icon)이 그린다: 아이템 데이터의 icon, 비면 임시 도형.
+## - 뼈 같은 아이템: 그림과 개수
+## - 머리뼈: 그림과 아래쪽 내구도 바 (항상 보임). 네임드 머리뼈면 오른쪽 위에 작은 노란 사각형 (임시, 계획 6b)
 ## - 아직 무엇인지 드러나지 않은 칸(상자, Inventory.is_locked): 어두운 칸에 "?". 드러나는 중이면 아래쪽에 진행 바.
 ##   이 칸은 끌거나 이 칸에 놓을 수 없다
 ## 마우스 입력은 시그널로 알리기만 하고, 실제로 옮기거나 버리는 일은 바깥(InventoryScreen)이 한다.
@@ -24,6 +25,8 @@ const DRAG_KEY: String = "inventory_slot"
 const DRAG_CONTAINER_KEY: String = "container"
 ## 끌어서 놓기 데이터의 키: 그 칸의 머리뼈 (머리뼈가 아니면 null)
 const DRAG_SKULL_KEY: String = "skull"
+## 끄는 그림을 만들 아이템 그림 장면 (칸의 %Icon과 같은 것)
+const ITEM_ICON_SCENE: PackedScene = preload("res://ui/item_icon.tscn")
 
 @export_group("네임드 표시")
 ## 네임드 머리뼈 칸의 오른쪽 위 작은 사각형 (임시 표시, 계획 6b. 모양은 나중에 비교판으로 고른다)
@@ -40,7 +43,7 @@ var _stack: ItemStack
 ## Shift+좌클릭으로 누른 채면 true. 옮기지 못했을 때(가득 참 등) 그 누름으로 끌기가 시작되지 않게 한다.
 var _quick_move_pressed: bool = false
 
-@onready var _icon: ColorRect = %Icon
+@onready var _icon: ItemIcon = %Icon
 @onready var _count_label: Label = %CountLabel
 @onready var _durability_bar: DurabilityBar = %DurabilityBar
 @onready var _hidden_shade: ColorRect = %HiddenShade
@@ -58,15 +61,12 @@ func _ready() -> void:
 func show_stack(stack: ItemStack) -> void:
 	_stack = stack
 	_set_hidden(false)
-	_icon.visible = stack != null
+	_icon.show_item(stack.item if stack != null else null)
 	_count_label.text = ""
 	_durability_bar.show_skull(stack.skull if stack != null else null)
 	queue_redraw()
 	if stack == null:
 		return
-	_icon.color = stack.item.placeholder_color
-	# 아이콘 그림이 생기기 전까지 바닥에 그리는 임시 도형을 같은 크기로 보여준다.
-	_icon.custom_minimum_size = stack.item.placeholder_size
 	if not stack.is_skull():
 		_count_label.text = str(stack.count)
 
@@ -74,7 +74,7 @@ func show_stack(stack: ItemStack) -> void:
 ## 아직 무엇인지 드러나지 않은 칸으로 보여준다. revealing이면 아래쪽에 progress(0~1)만큼 찬 진행 바.
 func show_hidden(revealing: bool, progress: float) -> void:
 	_stack = null
-	_icon.visible = false
+	_icon.show_item(null)
 	_count_label.text = ""
 	_durability_bar.show_skull(null)
 	_set_hidden(true)
@@ -137,7 +137,7 @@ func _gui_input(event: InputEvent) -> void:
 func _get_drag_data(_at_position: Vector2) -> Variant:
 	if _stack == null or _quick_move_pressed:
 		return null
-	set_drag_preview(make_drag_preview(_icon))
+	set_drag_preview(make_drag_preview(_stack.item))
 	return {DRAG_KEY: index, DRAG_CONTAINER_KEY: container, DRAG_SKULL_KEY: _stack.skull}
 
 
@@ -151,11 +151,11 @@ func _drop_data(_at_position: Vector2, data: Variant) -> void:
 	move_requested.emit(dict.get(DRAG_CONTAINER_KEY, container), dict[DRAG_KEY], index)
 
 
-## 끄는 동안 마우스를 따라다니는 그림: 칸의 임시 도형을 그대로 복사한다.
-static func make_drag_preview(icon: ColorRect) -> Control:
-	var preview: ColorRect = ColorRect.new()
-	preview.color = icon.color
-	preview.size = icon.custom_minimum_size
+## 끄는 동안 마우스를 따라다니는 그림: 칸과 같은 아이템 그림(ItemIcon)을 마우스 자리 가운데에 둔다. 핫바 칸도 같이 쓴다.
+static func make_drag_preview(item: ItemData) -> Control:
+	var preview: ItemIcon = ITEM_ICON_SCENE.instantiate()
+	preview.show_item(item)
+	preview.size = preview.custom_minimum_size
 	preview.position = -preview.size / 2.0
 	var holder: Control = Control.new()
 	holder.add_child(preview)

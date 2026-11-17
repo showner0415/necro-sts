@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://items/actions/item_action.gd" id="5_action"]
 [ext_resource type="Resource" path="res://data/item_actions/unassign_hotbar.tres" id="6_unassign"]
 [ext_resource type="Resource" path="res://data/item_actions/remove_bones.tres" id="7_remove_bones"]
+[ext_resource type="Texture2D" path="res://assets/ui_hd/icon_bat_skull.png" id="i_icon"]
 
 [resource]
 script = ExtResource("1_skull")
@@ -20,3 +21,4 @@ harvest_time_multiplier = 1.5
 placeholder_color = Color(1, 1, 1, 1)
 placeholder_size = Vector2(4, 3)
 rarity = ExtResource("r_rarity")
+icon = ExtResource("i_icon")

@@ -1,6 +1,6 @@
 class_name HotbarSlot
 extends Panel
-## 핫바 칸 하나. 가리키는 머리뼈의 임시 도형과 내구도 바를 보여준다 (비어 있으면 빈 칸). 네임드 머리뼈면 오른쪽 위에 작은 노란 사각형(임시).
+## 핫바 칸 하나. 가리키는 머리뼈의 그림(ItemIcon: 아이템 데이터의 icon, 비면 임시 도형)과 내구도 바를 보여준다 (비어 있으면 빈 칸). 네임드 머리뼈면 오른쪽 위에 작은 노란 사각형(임시).
 ## 마우스 입력은 시그널로 알리기만 하고, 실제로 바꾸는 일은 바깥(HotbarView)이 한다.
 ## - 인벤토리 칸의 머리뼈를 끌어 놓음: assign_requested
 ## - 다른 핫바 칸을 끌어 놓음: swap_requested
@@ -33,20 +33,16 @@ var _skull: Skull
 var _selected: bool = false
 var _summoned: bool = false
 
-@onready var _icon: ColorRect = %Icon
+@onready var _icon: ItemIcon = %Icon
 @onready var _durability_bar: DurabilityBar = %DurabilityBar
 
 
 ## 칸에 보여줄 머리뼈. null이면 빈 칸.
 func show_skull(skull: Skull) -> void:
 	_skull = skull
-	_icon.visible = skull != null
+	_icon.show_item(skull.data if skull != null else null)
 	_durability_bar.show_skull(skull)
 	queue_redraw()
-	if skull == null:
-		return
-	_icon.color = skull.data.placeholder_color
-	_icon.custom_minimum_size = skull.data.placeholder_size
 
 
 func get_skull() -> Skull:
@@ -92,7 +88,7 @@ func _gui_input(event: InputEvent) -> void:
 func _get_drag_data(_at_position: Vector2) -> Variant:
 	if _skull == null:
 		return null
-	set_drag_preview(InventorySlot.make_drag_preview(_icon))
+	set_drag_preview(InventorySlot.make_drag_preview(_skull.data))
 	return {DRAG_KEY: index}
 
 

@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" path="res://ui/inventory_slot.gd" id="1_slot"]
 [ext_resource type="PackedScene" path="res://ui/durability_bar.tscn" id="2_durability"]
+[ext_resource type="PackedScene" path="res://ui/item_icon.tscn" id="3_icon"]
 
 [node name="InventorySlot" type="Panel"]
 custom_minimum_size = Vector2(32, 32)
@@ -48,10 +49,9 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="Icon" type="ColorRect" parent="Center"]
+[node name="Icon" parent="Center" instance=ExtResource("3_icon")]
 unique_name_in_owner = true
 layout_mode = 2
-mouse_filter = 2
 
 [node name="CountLabel" type="Label" parent="."]
 unique_name_in_owner = true
