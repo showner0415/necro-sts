@@ -7,21 +7,10 @@
 [ext_resource type="Resource" path="res://data/item_actions/send_to_inventory.tres" id="5_to_inventory"]
 [ext_resource type="Script" path="res://items/actions/item_action.gd" id="6_action"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
-content_margin_left = 4.0
-content_margin_top = 4.0
-content_margin_right = 4.0
-content_margin_bottom = 4.0
-bg_color = Color(0.09411765, 0.078431375, 0.14509805, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.3529412, 0.4117647, 0.53333336, 1)
-
 [node name="StorageScreen" type="CanvasLayer"]
 script = ExtResource("1_screen")
 slot_scene = ExtResource("2_slot")
+slot_theme_type = &"ItemSlot"
 toggle_action = &""
 close_on_cancel = true
 container_actions = Array[ExtResource("6_action")]([ExtResource("4_to_storage"), ExtResource("5_to_inventory")])
@@ -33,10 +22,12 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = 4.0
+offset_top = 10.0
 offset_right = 4.0
+offset_bottom = 10.0
 grow_horizontal = 1
 grow_vertical = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+theme_type_variation = &"WindowPanel"
 
 [node name="Content" type="VBoxContainer" parent="Panel"]
 layout_mode = 2
