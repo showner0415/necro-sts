@@ -52,7 +52,7 @@ enum PlaceholderShape { CIRCLE, ELLIPSE, DIAMOND }
 @export var chase_time_limit: float = 0.0
 
 @export_group("추격 퍼짐")
-## 한 대상을 쫓는 몬스터들이 한 줄로 서지 않게 대상 둘레의 다가갈 자리를 부채꼴로 나눈다 (ChaseFan. 값은 제안, 2026-11-18 줄 서기 고치기).
+## 한 대상을 쫓는 몬스터들이 한 줄로 서지 않게 대상 둘레의 다가갈 자리를 부채꼴로 나눈다 (ChaseFan. 값은 사용자 결정 2026-11-18: 쥐·멧돼지·투석병에 각도 40·한쪽 90·예측 0.5·최대 1초, docs/game-design.md "쫓을 때 퍼지기").
 ## 이웃한 자리 사이의 각도 (도). 0이면 퍼지지 않고 대상을 곧장 쫓는다 (박쥐처럼 자기 패턴이 있는 종)
 @export var chase_fan_step_degrees: float = 0.0
 ## 부채꼴의 한쪽 최대 각도 (도). 쫓는 몸이 많아 이 폭을 넘으면 이 안에 고르게 나눈다 (90이면 대상 뒤쪽 반원)

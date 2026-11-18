@@ -247,6 +247,7 @@ func _run(id: StringName, run: int) -> Dictionary:
 
 
 ## 무리 모양: 쫓는 몬스터 자리들(points)과 대상 자리(target)로 가로 폭·세로 길이·줄 비율·각도 범위를 낸다.
+## tests/scenarios/scenario_chase_fan.gd가 이 함수의 가로 폭으로 통과 기준(60px, 사용자 결정 2026-11-18)을 본다. 재는 법을 바꾸면 그 시나리오를 다시 돌린다.
 static func measure_shape(points: Array[Vector2], target: Vector2) -> Dictionary:
 	var center: Vector2 = Vector2.ZERO
 	for point: Vector2 in points:

@@ -30,9 +30,9 @@ extends CharacterBody2D
 ## 네크로맨서에게서 이 거리(픽셀)보다 먼 몸은 판단(대상 찾기·시야·행동)을 far_think_interval 프레임에 한 번만 한다 (ThinkThrottle, 계획 3b. 640px·4프레임은 사용자 결정 2026-11-15, 봇 측정 5b-2에서 확정)
 @export var far_think_distance: float = 640.0
 @export var far_think_interval: int = 4
-## 쫓는 몸들의 가운데가 대상에서 이 거리(픽셀)보다 가까우면(이미 둘러쌈) 다가갈 자리를 나누지 않는다 (ChaseFan. 제안, 2026-11-18)
+## 쫓는 몸들의 가운데가 대상에서 이 거리(픽셀)보다 가까우면(이미 둘러쌈) 다가갈 자리를 나누지 않는다 (ChaseFan. 사용자 결정 2026-11-18)
 @export var chase_fan_min_axis_distance: float = 16.0
-## 퍼져 다가갈 자리(ChaseFan)가 대상에게서 벽·길목 너머인지 다시 보는 간격 (프레임. 제안, 2026-11-18)
+## 퍼져 다가갈 자리(ChaseFan)가 대상에게서 벽·길목 너머인지 다시 보는 간격 (프레임. 사용자 결정 2026-11-18)
 @export var chase_slot_check_interval: int = 6
 ## 길목 안에서 이 속도(픽셀/초)보다 빨리 움직이는 동안은 통행 자리·공격권 시간 제한을 멈춘다. 밀려나는 것도 센다 (계획 4c, 사용자 결정 2026-11-14. 통행 자리는 봇 측정 5b)
 @export var choke_hold_pause_speed: float = 5.0
