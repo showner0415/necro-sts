@@ -129,7 +129,7 @@ func _move(body: CharacterBody2D, stats: CombatStats, target: Node2D) -> void:
 	var distance: float = body.global_position.distance_to(target.global_position)
 	# 뱉는 거리 안이어도 벽이 가로막으면 뱉지 않고 돌아서 다가간다.
 	if distance > stats.attack_range or not has_clear_line(body, target):
-		body.velocity = move_direction(body, target.global_position) * stats.move_speed
+		body.velocity = chase_direction(body, stats, target) * stats.move_speed
 		return
 	body.velocity = Vector2.ZERO
 	if _attack_timer > 0.0:

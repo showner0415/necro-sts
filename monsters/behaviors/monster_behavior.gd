@@ -116,6 +116,16 @@ func move_direction(body: CharacterBody2D, goal: Vector2) -> Vector2:
 	return body.global_position.direction_to(goal)
 
 
+## body가 멀리서 target을 쫓아갈 때 움직일 방향.
+## 공격권을 묻는 거리 밖이고 쓰는 쪽(Monster)에 퍼져 다가가기(get_chase_direction)가 있으면, 대상의 한 점이 아니라 몸마다 다른 자리로 간다 (한 줄로 서지 않게, ChaseFan).
+## 자리는 대상 둘레의 맴도는 거리와 공격 반경 중 큰 쪽 거리에 있다 (거기서부터는 공격권을 묻고 지금까지처럼 싸운다).
+## 묻는 거리 안이거나 쓰는 쪽에 없으면(언데드, 단위 테스트의 몸) move_direction과 같다.
+func chase_direction(body: CharacterBody2D, stats: CombatStats, target: Node2D) -> Vector2:
+	if body.has_method(&"get_chase_direction") and body.global_position.distance_to(target.global_position) > get_token_ask_distance(stats):
+		return body.call(&"get_chase_direction", target, maxf(stats.wait_distance, get_engage_range(stats)))
+	return move_direction(body, target.global_position)
+
+
 ## body가 direction으로 probe 픽셀을 벽에 막히지 않고 갈 수 있는지 (몸의 실제 모양으로, 벽만 본다). 트리 밖(단위 테스트)이면 true.
 func can_move(body: CharacterBody2D, direction: Vector2, probe: float) -> bool:
 	if not body.is_inside_tree():

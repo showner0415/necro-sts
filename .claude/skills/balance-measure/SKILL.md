@@ -64,6 +64,12 @@ description: 밸런스·몬스터 AI·언데드 능력치를 숫자로 잴 때 �
 
 - `bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_choke_tokens.gd -- --rats=8` (길목 시험 동굴의 돌아갈 길 없는 26칸 길목 너머에서 물린 횟수, 한 판 60초가 약 3초). 여러 판은 `--seeds=10`(판마다 시드 4000 + 판 번호, [요약]에 평균·최소~최대), 공격권을 든 쥐가 어디에 있었는지는 `--diagnose=1`. 결과: tests/balance/results/2026-11-15_choke_tokens.md, 2026-11-15_choke_diagnose.md, 2026-11-15_choke_pass.md (봇 측정 5b). 길목 통행 자리(2026-11-15) 뒤로는 길목을 지나는 쥐가 공격권 대신 통행 자리를 들어, "길목 안 공격권 없는 쥐"는 길목을 지나는 쥐 수에 가깝다
 
+## 5-1-2. 줄 서기 (run_conga)
+
+- `bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_conga.gd` (무리가 물러나는 네크로맨서를 쫓는 동안 얼마나 한 줄로 서는지: 가로 폭·세로 길이·줄 비율·들어오는 각도 범위·한 줄 시간. 다섯 무리 × 3판, 약 1분)
+- 일부: `-- --cases=rat_gang4,rat_big8 --seeds=3`, 벽 막대 굴에서: `--walls=1`, 그림: `--out=<PNG 경로>` (5초마다 한 칸), 투석병은 `--keep=200`(기본 거리 두기 90이면 던지는 거리 밖이라 걷지 않는다)
+- 퍼져 다가가기(`ChaseFan`, 몬스터 데이터의 "추격 퍼짐") 값을 측정 안에서만 바꾸기: `--fan_step=<도> --fan_max=<도> --lead=<비율> --lead_time=<초>`. `--fan_step=0 --lead=0`이면 대상을 곧장 쫓는다 (고치기 전). 결과: tests/balance/results/2026-11-18_conga_line.md
+
 ## 5-2. 무리 흩어 놓기 배치 (pack_placement_stats)
 
 - `bash tools/godot.sh --headless --path . -s tools/pack_placement_stats.gd` (기본 얕은 굴·시드 50개, `-- --seeds=<수> --scene=res://<씬>.tscn`). 판정 없이 출력만 하고 몇 초 걸린다

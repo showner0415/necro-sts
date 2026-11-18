@@ -1,5 +1,5 @@
 extends TestCase
-## MonsterBehavior의 공격권 기다리기(must_wait_for_token, wait_around) 단위 테스트.
+## MonsterBehavior의 공격권 기다리기(must_wait_for_token, wait_around)와 멀리서 쫓는 방향(chase_direction) 단위 테스트.
 ## 쥐(다가가기)·멧돼지(돌진)·투석병(던지기)이 같이 쓴다. 공격권은 request_attack이 있는 가짜 몸으로 흉내 낸다.
 ## 벽에 막히는 경우는 can_move를 바꾼 조각으로 흉내 낸다 (단위 테스트는 물리 프레임 없이 돈다).
 
@@ -102,3 +102,40 @@ func test_wait_around_turns_back_when_blocked() -> void:
 	assert_eq(body.velocity, Vector2.ZERO, "도는 쪽이 막히면 이번 프레임은 멈춘다")
 	walled.wait_around(body, stats, target)
 	assert_almost_eq(body.velocity.y, -walled.wait_circle_speed, 0.001, "다음 프레임부터 반대쪽(위)으로 돈다")
+
+
+## 퍼져 다가가기(get_chase_direction)가 있는 가짜 몸: 정해 둔 방향을 돌려주고 받은 자리 반지름을 적는다
+class FanBody:
+	extends CharacterBody2D
+	var fan_direction: Vector2 = Vector2.DOWN
+	var asked_radius: float = -1.0
+
+	func get_chase_direction(_target: Node2D, slot_radius: float) -> Vector2:
+		asked_radius = slot_radius
+		return fan_direction
+
+
+func test_chase_direction_far_uses_fan_of_body() -> void:
+	var fan_body: FanBody = FanBody.new()
+	target.position = Vector2(behavior.get_token_ask_distance(stats) + 1.0, 0)
+	assert_eq(behavior.chase_direction(fan_body, stats, target), Vector2.DOWN, "묻는 거리 밖이면 쓰는 쪽의 퍼져 다가가기 방향")
+	assert_eq(fan_body.asked_radius, WAIT_DISTANCE, "자리 반지름은 맴도는 거리와 공격 반경 중 큰 쪽 (맴도는 거리)")
+	var charge: ChargeBehavior = ChargeBehavior.new()
+	charge.charge_range = 140.0
+	target.position = Vector2(141.0, 0)
+	charge.chase_direction(fan_body, stats, target)
+	assert_eq(fan_body.asked_radius, 140.0, "공격 반경이 더 길면 공격 반경 (돌진 거리)")
+	fan_body.free()
+
+
+func test_chase_direction_near_goes_straight() -> void:
+	var fan_body: FanBody = FanBody.new()
+	target.position = Vector2(behavior.get_token_ask_distance(stats) - 1.0, 0)
+	assert_eq(behavior.chase_direction(fan_body, stats, target), Vector2.RIGHT, "묻는 거리 안이면 대상 쪽으로 곧장")
+	assert_eq(fan_body.asked_radius, -1.0, "퍼져 다가가기를 묻지 않는다")
+	fan_body.free()
+
+
+func test_chase_direction_without_fan_goes_straight() -> void:
+	target.position = Vector2(behavior.get_token_ask_distance(stats) + 50.0, 0)
+	assert_eq(behavior.chase_direction(body, stats, target), Vector2.RIGHT, "퍼져 다가가기가 없는 몸(언데드 등)은 멀어도 곧장")

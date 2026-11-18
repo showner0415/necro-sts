@@ -97,7 +97,7 @@ func act(body: CharacterBody2D, stats: CombatStats, target: Node2D, _delta: floa
 	var distance: float = to_target.length()
 	# 던지는 거리 안이어도 벽이 가로막으면 던지지 않고 돌아서 다가간다.
 	if distance > stats.attack_range or not has_clear_line(body, target):
-		body.velocity = move_direction(body, target.global_position) * stats.move_speed
+		body.velocity = chase_direction(body, stats, target) * stats.move_speed
 		return
 	if distance < retreat_distance and distance > 0.0:
 		body.velocity = free_direction(body, -to_target.normalized(), wall_probe_distance, _side, max_wall_turn) * retreat_speed

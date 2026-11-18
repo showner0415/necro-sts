@@ -5,6 +5,7 @@ extends ScenarioTest
 ## 판정(통과/실패)을 내지 않으므로 run_all.sh에는 넣지 않는다. 결과는 tests/balance/results/에 적는다.
 ##   bash tools/godot.sh --headless --fixed-fps 60 --path . -s tests/balance/run_path_load.gd
 ## 먼 몬스터 판단 줄이기(Monster.far_think_interval)를 끄고 견주려면: -- --far_interval=1 (모든 몬스터가 매 프레임 판단한다)
+## 퍼져 다가가기(ChaseFan, 몬스터 데이터의 "추격 퍼짐")를 끄고 견주려면: -- --no_fan=1 (대상을 곧장 쫓는다)
 ## 먼 몬스터도 두려면: -- --far=24 (쥐 24마리를 굴 동쪽 벽 밖, 네크로맨서가 걷는 고리에서 FAR_MIN_DISTANCE보다 먼 트인 곳에 놓고 맞히지 않는다. 데이터 그대로 배회한다)
 
 const STRESS_SCENE: String = "res://tests/balance/stress_cave.tscn"
@@ -136,6 +137,10 @@ func _tough(path: String) -> MonsterData:
 	data.chase_attacker_limit = 0.0
 	data.chase_lost_time = 0.0
 	data.chase_time_limit = 0.0
+	# --no_fan=1: 퍼져 다가가기(ChaseFan)와 예측을 끄고 견준다 (대상을 곧장 쫓는다)
+	if OS.get_cmdline_user_args().has("--no_fan=1"):
+		data.chase_fan_step_degrees = 0.0
+		data.chase_lead_ratio = 0.0
 	return data
 
 

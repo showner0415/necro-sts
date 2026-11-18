@@ -161,7 +161,7 @@ func _approach(body: CharacterBody2D, stats: CombatStats, target: Node2D, delta:
 		wait_around(body, stats, target)
 		return
 	if distance > charge_range:
-		body.velocity = move_direction(body, target.global_position) * stats.move_speed
+		body.velocity = chase_direction(body, stats, target) * stats.move_speed
 		return
 	var clear: bool = has_clear_line(body, target)
 	# 대상이 돌진할 최소 거리보다 가까운데 "벽이 가로막음"으로 나오면, 몸이 벽에 닿아 있는 것이다 (그 거리에 벽이 끼어 있을 수 없다).

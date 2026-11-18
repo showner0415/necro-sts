@@ -72,7 +72,7 @@ func act(body: CharacterBody2D, stats: CombatStats, target: Node2D, delta: float
 		return
 	if distance > stats.attack_range:
 		_winding_up = false
-		var direction: Vector2 = move_direction(body, target.global_position)
+		var direction: Vector2 = chase_direction(body, stats, target)
 		if hit_and_run and distance < circle_range and has_clear_line(body, target):
 			direction = (direction + direction.orthogonal() * _side * circle_strength).normalized()
 		body.velocity = direction * stats.move_speed

@@ -144,6 +144,20 @@ func is_line_clear(body: Node2D, goal: Vector2) -> bool:
 	return grid.is_clear(body.global_position + _center_offset, goal + _center_offset, _half_size)
 
 
+## from에서 to(둘 다 발밑 좌표)까지 이 몸이 곧장 갈 수 있고 길목 칸도 지나지 않는지. 벽이 없는 지역이면 항상 true.
+## 대상 곁의 다른 점(예측한 자리, 퍼져 다가가는 자리)을 겨눠도 되는지 볼 때 쓴다: 벽 너머나 길목 너머의 점이면 대상을 그대로 겨눈다.
+func is_open_between(body: Node2D, from: Vector2, to: Vector2) -> bool:
+	var grid: NavigationGrid = _find_grid(body)
+	if grid == null or not grid.has_walls():
+		return true
+	var start: Vector2 = from + _center_offset
+	var end: Vector2 = to + _center_offset
+	if not grid.is_clear(start, end, _half_size):
+		return false
+	var chokes: ChokeIndex = grid.get_choke_index()
+	return chokes == null or chokes.first_choke_on_path(PackedVector2Array([start, end])) < 0
+
+
 ## body가 point(발밑 좌표)를 볼 수 있는지: 몸 가운데에서 point의 같은 높이까지 벽이 가리지 않는지. 벽이 없는 지역이면 항상 true.
 func can_see(body: Node2D, point: Vector2) -> bool:
 	var grid: NavigationGrid = _find_grid(body)

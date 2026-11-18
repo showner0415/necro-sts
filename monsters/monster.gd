@@ -30,6 +30,10 @@ extends CharacterBody2D
 ## 네크로맨서에게서 이 거리(픽셀)보다 먼 몸은 판단(대상 찾기·시야·행동)을 far_think_interval 프레임에 한 번만 한다 (ThinkThrottle, 계획 3b. 640px·4프레임은 사용자 결정 2026-11-15, 봇 측정 5b-2에서 확정)
 @export var far_think_distance: float = 640.0
 @export var far_think_interval: int = 4
+## 쫓는 몸들의 가운데가 대상에서 이 거리(픽셀)보다 가까우면(이미 둘러쌈) 다가갈 자리를 나누지 않는다 (ChaseFan. 제안, 2026-11-18)
+@export var chase_fan_min_axis_distance: float = 16.0
+## 퍼져 다가갈 자리(ChaseFan)가 대상에게서 벽·길목 너머인지 다시 보는 간격 (프레임. 제안, 2026-11-18)
+@export var chase_slot_check_interval: int = 6
 ## 길목 안에서 이 속도(픽셀/초)보다 빨리 움직이는 동안은 통행 자리·공격권 시간 제한을 멈춘다. 밀려나는 것도 센다 (계획 4c, 사용자 결정 2026-11-14. 통행 자리는 봇 측정 5b)
 @export var choke_hold_pause_speed: float = 5.0
 
@@ -103,6 +107,14 @@ var _debug_radius: float = 0.0
 static var _shared_spacing: SpacingGrid
 static var _shared_spacing_frame: int = -1
 static var _shared_spacing_tree: SceneTree
+## 대상마다 다가갈 자리를 나누는 부채꼴 (_chase_fans). 물리 프레임과 트리마다 한 번 만들어 모든 몬스터가 같이 쓴다
+static var _shared_fans: Dictionary = {}
+static var _shared_fans_frame: int = -1
+static var _shared_fans_tree: SceneTree
+## 다가갈 자리가 대상에게서 벽·길목 너머인지 마지막으로 본 프레임과 그때의 대상·결과 (get_chase_direction)
+var _slot_checked_frame: int = -1000000
+var _slot_checked_target: int = 0
+var _slot_open: bool = false
 ## 지역의 공격권 (AttackTokenBoard, 그룹 attack_tokens). 처음 공격하려 할 때 찾는다. 없으면 제한 없이 공격한다
 var _token_board: AttackTokenBoard
 var _token_board_searched: bool = false
@@ -265,6 +277,63 @@ func get_ai_state() -> MonsterAiState.State:
 ## 행동 조각이 부른다: goal(발밑 좌표)로 가려면 움직일 방향. 벽이 가로막으면 돌아가는 방향이다.
 func get_move_direction(goal: Vector2) -> Vector2:
 	return _path_follower.get_direction(self, goal, _avoids_chokes())
+
+
+## 행동 조각이 부른다 (MonsterBehavior.chase_direction): 멀리서 target을 쫓아갈 때 움직일 방향 (줄 서기 고치기, 2026-11-18).
+## 대상의 지금 자리 한 점이 아니라, 대상이 움직이는 쪽을 앞지른 점(ChaseFan.predict) 둘레 slot_radius 거리의 자기 자리(ChaseFan)로 간다.
+## 자리는 같은 대상을 쫓는 모든 몬스터가 부채꼴로 나눠 가진다 (다른 무리·무리 없는 몬스터도 함께 센다, 공격권과 같다).
+## 앞지른 점이나 자리가 대상에게서 벽·길목 너머이면 쓰지 않는다. 길목 입구에서 기다리는 중이거나 데이터에서 꺼져 있으면 대상을 곧장 쫓는다.
+func get_chase_direction(target: Node2D, slot_radius: float) -> Vector2:
+	var aim: Vector2 = target.global_position
+	if _path_follower.is_waiting_at_choke() or (data.chase_fan_step_degrees <= 0.0 and data.chase_lead_ratio <= 0.0):
+		return get_move_direction(aim)
+	var target_velocity: Vector2 = (target as CharacterBody2D).get_real_velocity() if target is CharacterBody2D else Vector2.ZERO
+	var slot: Vector2 = ChaseFan.predict(aim, target_velocity, global_position, data.move_speed, data.chase_lead_ratio, data.chase_lead_max_time)
+	var fan: ChaseFan = _chase_fans(get_tree(), chase_fan_min_axis_distance).get(target.get_instance_id()) as ChaseFan
+	if fan != null and data.chase_fan_step_degrees > 0.0:
+		slot = fan.slot_for(get_instance_id(), slot, deg_to_rad(data.chase_fan_step_degrees), deg_to_rad(data.chase_fan_max_half_degrees), slot_radius)
+	if slot == aim:
+		return get_move_direction(aim)
+	# 자리가 대상에게서 벽·길목 너머인지는 chase_slot_check_interval 프레임에 한 번만 본다 (몸마다 엇갈려서. 벽 확인이 비싸다).
+	# 그 사이에 자리가 벽 안으로 들어가도 길찾기가 가까운 빈 칸으로 데려가고, 다음 확인에서 대상으로 바꾼다.
+	var frame: int = Engine.get_physics_frames()
+	if frame - _slot_checked_frame >= chase_slot_check_interval or _slot_checked_target != target.get_instance_id():
+		_slot_checked_frame = frame
+		_slot_checked_target = target.get_instance_id()
+		_slot_open = _path_follower.is_open_between(self, aim, slot)
+	return get_move_direction(slot if _slot_open else aim)
+
+
+## 대상마다의 부채꼴 (대상 번호 → ChaseFan). 물리 프레임마다 처음 부른 몬스터가 한 번 만들고 그 프레임의 다른 몬스터가 같이 쓴다.
+## 대상이 있고 퍼져 다가가기를 쓰는(data.chase_fan_step_degrees > 0) 날지 않는 몬스터를 대상별로 모은다.
+## min_axis_distance는 그 프레임에 처음 부른 몬스터의 값(chase_fan_min_axis_distance)을 쓴다.
+static func _chase_fans(tree: SceneTree, min_axis_distance: float) -> Dictionary:
+	var frame: int = Engine.get_physics_frames()
+	if _shared_fans_frame == frame and _shared_fans_tree == tree:
+		return _shared_fans
+	var ids: Dictionary = {}
+	var positions: Dictionary = {}
+	var targets: Dictionary = {}
+	for node: Node in tree.get_nodes_in_group(&"monsters"):
+		var monster: Monster = node as Monster
+		if monster == null or monster.data == null or monster.data.flying or monster.data.chase_fan_step_degrees <= 0.0 or monster.is_queued_for_deletion():
+			continue
+		if not is_instance_valid(monster._target) or monster._target.is_queued_for_deletion():
+			continue
+		var key: int = monster._target.get_instance_id()
+		if not ids.has(key):
+			ids[key] = [] as Array[int]
+			positions[key] = [] as Array[Vector2]
+			targets[key] = monster._target
+		(ids[key] as Array[int]).append(monster.get_instance_id())
+		(positions[key] as Array[Vector2]).append(monster.global_position)
+	var fans: Dictionary = {}
+	for key: int in ids:
+		fans[key] = ChaseFan.create((targets[key] as Node2D).global_position, ids[key], positions[key], min_axis_distance)
+	_shared_fans = fans
+	_shared_fans_frame = frame
+	_shared_fans_tree = tree
+	return fans
 
 
 ## 길목을 피하는지 (계획 4b, 봇 측정 5b): 공격권을 쓰는 몬스터가 대상을 쫓는데 그 대상의 통행 자리가 없을 때.

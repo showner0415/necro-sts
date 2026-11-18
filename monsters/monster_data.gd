@@ -51,6 +51,16 @@ enum PlaceholderShape { CIRCLE, ELLIPSE, DIAMOND }
 ## 감지 범위 밖의(또는 안 보이는) 대상을 이 시간(초) 넘게 쫓으면 포기한다. 감지 범위 안에서 보이거나 맞으면 처음부터 잰다 (종마다 값은 사용자 결정 2026-11-15, 봇 측정 5a에서 확정)
 @export var chase_time_limit: float = 0.0
 
+@export_group("추격 퍼짐")
+## 한 대상을 쫓는 몬스터들이 한 줄로 서지 않게 대상 둘레의 다가갈 자리를 부채꼴로 나눈다 (ChaseFan. 값은 제안, 2026-11-18 줄 서기 고치기).
+## 이웃한 자리 사이의 각도 (도). 0이면 퍼지지 않고 대상을 곧장 쫓는다 (박쥐처럼 자기 패턴이 있는 종)
+@export var chase_fan_step_degrees: float = 0.0
+## 부채꼴의 한쪽 최대 각도 (도). 쫓는 몸이 많아 이 폭을 넘으면 이 안에 고르게 나눈다 (90이면 대상 뒤쪽 반원)
+@export var chase_fan_max_half_degrees: float = 90.0
+## 쫓을 때 대상이 움직이는 쪽을 앞질러 겨누는 비율 (0이면 지금 자리, 1이면 닿을 때 있을 자리)과, 앞질러 보는 최대 시간 (초)
+@export_range(0.0, 1.0) var chase_lead_ratio: float = 0.0
+@export var chase_lead_max_time: float = 1.0
+
 @export_group("무리")
 ## 무리(MonsterPack)에서 대상 하나를 함께 노린다 (박쥐). 한 마리라도 어그로가 끌리면 무리 전체가 그 대상을 노리고(PackAggro), 경보 신호를 쓰지 않는다.
 ## 무리의 첫 멤버 값으로 정한다. false면 무리 경보(PackAlarm)를 쓴다: 신호 뒤 경보, 무리원마다 가장 가까운 적을 고른다
